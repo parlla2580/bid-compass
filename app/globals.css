@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 가로 스크롤 영역 스크롤바 숨김 */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* 공통 range (단일 슬라이더) */
+input[type="range"].range {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 6px; border-radius: 999px;
+  background: linear-gradient(to right, #2563EB var(--p, 50%), #E2E8F0 var(--p, 50%));
+  outline: none;
+}
+input[type="range"].range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2px solid #2563EB;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .2); cursor: pointer;
+}
+input[type="range"].range::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: 2px solid #2563EB; cursor: pointer;
+}
+
+/* 듀얼 range (가격 범위) */
+.dual-range { position: relative; height: 22px; }
+.dual-range .track { position: absolute; top: 8px; left: 0; right: 0; height: 6px; border-radius: 999px; background: #E2E8F0; }
+.dual-range .fill  { position: absolute; top: 8px; height: 6px; border-radius: 999px; background: #2563EB; }
+.dual-range input[type="range"] {
+  position: absolute; inset: 0; width: 100%; margin: 0;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; pointer-events: none;
+}
+.dual-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; border: 2px solid #2563EB;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .2); cursor: pointer;
+}
+.dual-range input[type="range"]::-moz-range-thumb {
+  pointer-events: auto; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; border: 2px solid #2563EB; cursor: pointer;
+}
+
+/* 토글 스위치 */
+.switch { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch span {
+  position: absolute; inset: 0; border-radius: 999px; background: #CBD5E1;
+  transition: background .2s; cursor: pointer;
+}
+.switch span::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .25);
+  transition: transform .2s;
+}
+.switch input:checked + span { background: #2563EB; }
+.switch input:checked + span::after { transform: translateX(18px); }
+.switch input:focus-visible + span { outline: 2px solid #93C5FD; outline-offset: 2px; }
+
+
+
+/* 바 차트 너비 애니메이션 */
+.bar { transition: width .3s ease, left .3s ease; }
+
+/* 토스트 */
+.toast { transition: opacity .2s, transform .2s; }
+
+html, body {
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* 탭·스텝 전환 */
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.fade-up { animation: fade-up .25s ease; }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+.sheet-up { animation: sheet-up .25s ease; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.fade-in { animation: fade-in .2s ease; }
