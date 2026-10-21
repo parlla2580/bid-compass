@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>도구 · 입찰나침반</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto min-h-screen max-w-[480px] bg-slate-50 md:border-x md:border-slate-200 md:shadow-md">
+    <div id="header"></div>
+
+    <!-- 탭 -->
+    <div class="sticky top-14 z-20 border-b border-slate-200 bg-white">
+      <div class="relative grid grid-cols-2" role="tablist">
+        <button type="button" role="tab" data-tab="price" class="tab-btn py-3.5 text-sm font-bold">입찰금액 계산기</button>
+        <button type="button" role="tab" data-tab="score" class="tab-btn py-3.5 text-sm font-bold">적격심사 점수 계산기</button>
+        <span id="tab-ind" class="absolute bottom-0 left-0 h-0.5 w-1/2 bg-primary transition-transform duration-300"></span>
+      </div>
+    </div>
+
+    <main class="px-4 pb-24 pt-4">
+      <!-- 공고에서 넘어온 경우 -->
+      <a id="from" class="mb-4 hidden items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm text-blue-800">
+        <i data-lucide="link-2" class="h-4 w-4 shrink-0"></i><span class="min-w-0 flex-1 truncate" id="from-label"></span><i data-lucide="chevron-right" class="h-4 w-4"></i>
+      </a>
+
+      <!-- ===== 탭 1: 입찰금액 계산기 ===== -->
+      <section id="panel-price" class="tab-panel space-y-4" role="tabpanel">
+        <div class="space-y-4 rounded-card border border-slate-200 bg-white p-4 shadow-sm">
+          <div>
+            <label for="price" class="mb-1.5 block text-sm font-semibold text-slate-700">추정가격</label>
+            <div class="relative">
+              <input id="price" inputmode="numeric" value="120,000,000"
+                class="w-full rounded-btn border border-slate-200 bg-white py-3 pl-3.5 pr-10 text-right text-lg font-bold focus:border-primary focus:outline-none focus:ring-2 focus:ring-blue-100">
+              <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">원</span>
+            </div>
+            <p id="price-kor" class="mt-1 text-right text-xs text-slate-400"></p>
+          </div>
+          <fieldset>
+            <legend class="mb-2 text-sm font-semibold text-slate-700">사업유형</legend>
+            <div class="grid grid-cols-3 gap-2" data-radio="type">
+              <label class="seg"><input type="radio" name="type" value="물품" checked><span>물품</span></label>
+              <label class="seg"><input type="radio" name="type" value="용역"><span>용역</span></label>
+              <label class="seg"><input type="radio" name="type" value="공사"><span>공사</span></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend class="mb-2 text-sm font-semibold text-slate-700">적용 법률</legend>
+            <div class="grid grid-cols-2 gap-2">
+              <label class="seg"><input type="radio" name="law" value="national" checked><span>국가계약법</span></label>
+              <label class="seg"><input type="radio" name="law" value="local"><span>지방계약법</span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="rounded-card border border-slate-200 bg-white p-4 shadow-md">
+          <h2 class="mb-3 text-sm font-bold">계산 결과</h2>
+          <dl class="divide-y divide-slate-100 text-sm" id="price-out"></dl>
+        </div>
+
+        <div class="rounded-card border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="mb-4 text-sm font-bold">범위 시각화</h2>
+          <div id="price-chart" class="space-y-4"></div>
+          <div class="relative mt-2 h-4 text-[10px] text-slate-400" id="price-axis"></div>
+        </div>
+
+        <p class="px-1 text-[11px] leading-relaxed text-slate-400">
+          ※ 프로토타입용 단순화 계산식입니다. 예정가격 범위(±10%), 복수예비가격 범위, 낙찰하한율 값은 화면 확인을 위한 가정값이며 실제 공고의 기초금액·적용 기준과 다를 수 있습니다.
+        </p>
+      </section>
+
+      <!-- ===== 탭 2: 적격심사 점수 계산기 ===== -->
+      <section id="panel-score" class="tab-panel hidden-panel space-y-4" role="tabpanel">
+        <!-- 총점 -->
+        <div class="rounded-card border border-slate-200 bg-white p-5 text-center shadow-md">
+          <p class="text-sm font-semibold text-slate-500">총점</p>
+          <p class="mt-1 text-5xl font-extrabold tracking-tight transition-colors" id="total">83.5<span class="text-xl">점</span></p>
+          <p class="mt-1 text-sm text-slate-500">낙찰기준점 <b class="text-slate-700">85점</b> (물품·용역 기준)</p>
+          <p id="verdict" class="mt-3 inline-flex rounded-full px-3 py-1.5 text-sm font-bold"></p>
+
+          <!-- 스택 바 + 기준선 -->
+          <div class="mt-5 text-left">
+            <div class="relative h-7 overflow-visible rounded-md bg-slate-100">
+              <div class="flex h-full overflow-hidden rounded-md">
+                <div id="seg-price" class="bar h-full bg-primary"></div>
+                <div id="seg-cap" class="bar h-full bg-sky-400"></div>
+                <div id="seg-bonus" class="bar h-full bg-amber-500"></div>
+              </div>
+              <div class="absolute -bottom-1.5 -top-1.5 w-0.5 bg-slate-800" style="left:85%">
+                <span class="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold text-slate-700">기준 85</span>
+              </div>
+            </div>
+            <div class="mt-1 flex justify-between text-[10px] text-slate-400"><span>0</span><span>100</span></div>
+            <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
+              <span class="flex items-center gap-1"><i class="h-2.5 w-2.5 rounded-sm bg-primary"></i>가격 <b id="lg-price"></b></span>
+              <span class="flex items-center gap-1"><i class="h-2.5 w-2.5 rounded-sm bg-sky-400"></i>수행능력 <b id="lg-cap"></b></span>
+              <span class="flex items-center gap-1"><i class="h-2.5 w-2.5 rounded-sm bg-amber-500"></i>가점 <b id="lg-bonus"></b></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 입력 -->
+        <div class="space-y-5 rounded-card border border-slate-200 bg-white p-4 shadow-sm" id="sliders"></div>
+
+        <div class="space-y-1 rounded-card border border-slate-200 bg-white p-2 shadow-sm">
+          <h2 class="px-2 pb-1 pt-2 text-sm font-bold">가점</h2>
+          <div id="bonus"></div>
+        </div>
+
+        <!-- 항목별 바 차트 -->
+        <div class="rounded-card border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 class="mb-3 text-sm font-bold">항목별 획득 점수</h2>
+          <div id="item-bars" class="space-y-3"></div>
+        </div>
+
+        <p class="px-1 text-[11px] leading-relaxed text-slate-400">
+          ※ 프로토타입용 배점·기준점입니다. 실제 적격심사 배점과 통과점수는 발주기관의 적격심사 세부기준 및 추정가격 구간에 따라 다릅니다.
+        </p>
+      </section>
+    </main>
+  </div>
+  <div id="bottom-nav"></div>
+
+  <style>
+    .tab-btn { color: #94A3B8; transition: color .2s; }
+    .tab-btn[aria-selected="true"] { color: #2563EB; }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg span {
+      display: flex; align-items: center; justify-content: center; height: 44px;
+      border-radius: 8px; border: 1px solid #E2E8F0; background: #fff;
+      font-size: 14px; font-weight: 600; color: #64748B; cursor: pointer; transition: all .15s;
+    }
+    .seg input:checked + span { border-color: #2563EB; background: #EFF6FF; color: #2563EB; }
+    .seg input:focus-visible + span { outline: 2px solid #93C5FD; outline-offset: 2px; }
+  </style>
+
+  <script src="assets/common.js"></script>
+  <script>
+    renderHeader();
+    renderNav('tools');
+
+    /* ---------- 탭 ---------- */
+    const panels = { price: document.getElementById('panel-price'), score: document.getElementById('panel-score') };
+    function setTab(key) {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === key));
+      document.getElementById('tab-ind').style.transform = key === 'score' ? 'translateX(100%)' : 'translateX(0)';
+      Object.entries(panels).forEach(([k, el]) => {
+        if (k === key) {
+          el.classList.remove('hidden-panel');
+          el.classList.add('entering');
+          requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('entering')));
+        } else el.classList.add('hidden-panel');
+      });
+      try { history.replaceState(null, '', updateParam('tab', key)); } catch (e) { /* noop */ }
+    }
+    function updateParam(k, v) {
+      const u = new URL(location.href);
+      u.searchParams.set(k, v);
+      return u.pathname.split('/').pop() + u.search;
+    }
+    document.querySelectorAll('.tab-btn').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
+
+    /* ---------- 탭 1: 입찰금액 ---------- */
+    // 프로토타입 가정값: band = 복수예비가격(A값) 범위, floor = 낙찰하한율(%)
+    const RULES = {
+      national: { '물품': { band: 0.02, floor: 87.745 }, '용역': { band: 0.02, floor: 87.745 }, '공사': { band: 0.02, floor: 86.745 } },
+      local:    { '물품': { band: 0.03, floor: 87.745 }, '용역': { band: 0.03, floor: 87.745 }, '공사': { band: 0.03, floor: 86.745 } },
+    };
+    const priceEl = document.getElementById('price');
+
+    // 공고 상세에서 전달된 값
+    if (qs('price')) priceEl.value = fmtNum(+qs('price'));
+    if (qs('type')) document.querySelector(`input[name=type][value="${qs('type')}"]`)?.click();
+    if (qs('law')) document.querySelector(`input[name=law][value="${qs('law')}"]`)?.click();
+    if (qs('from')) {
+      const fb = getBid(qs('from'));
+      const el = document.getElementById('from');
+      el.href = `bid-detail.html?id=${fb.id}`;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+      document.getElementById('from-label').innerHTML = `<b>${esc(fb.title)}</b> 공고 정보를 불러왔어요`;
+    }
+
+    function korUnit(n) {
+      if (!n) return '';
+      const eok = Math.floor(n / 1e8), man = Math.floor((n % 1e8) / 1e4);
+      return [eok ? eok.toLocaleString() + '억' : '', man ? man.toLocaleString() + '만' : ''].filter(Boolean).join(' ') + '원';
+    }
+
+    function calcPrice() {
+      const P = +priceEl.value.replace(/\D/g, '') || 0;
+      const type = document.querySelector('input[name=type]:checked').value;
+      const law = document.querySelector('input[name=law]:checked').value;
+      const { band, floor } = RULES[law][type];
+      document.getElementById('price-kor').textContent = korUnit(P);
+
+      const r = {
+        plan: [P * 0.9, P * 1.1],
+        a: [P * (1 - band), P * (1 + band)],
+        bid: [P * floor / 100, P],
+      };
+      const pct = (band * 100).toFixed(0);
+      document.getElementById('price-out').innerHTML = [
+        ['예정가격 범위', `${fmtWon(r.plan[0])} ~ ${fmtWon(r.plan[1])}`],
+        [`A값 (기초금액의 ±${pct}%)`, `${fmtNum(r.a[0])} ~ ${fmtWon(r.a[1])}`],
+        ['사정율 범위', `${floor.toFixed(3)}% ~ 100%`],
+        ['최적 투찰금액 범위', `<span class="text-primary">${fmtNum(r.bid[0])} ~ ${fmtWon(r.bid[1])}</span>`],
+      ].map(([k, v], i) => `
+        <div class="flex flex-col gap-0.5 py-2.5 ${i === 3 ? 'font-bold' : ''}">
+          <dt class="text-xs text-slate-500">${k}</dt><dd class="text-[15px] font-semibold">${v}</dd>
+        </div>`).join('');
+
+      // 가로 범위 바 — 축: 추정가격의 85% ~ 115%
+      const lo = P * 0.85, hi = P * 1.15;
+      const pos = (v) => P ? ((v - lo) / (hi - lo)) * 100 : 0;
+      const bars = [
+        ['예정가격', r.plan, 'bg-slate-400'],
+        ['A값', r.a, 'bg-sky-400'],
+        ['투찰금액', r.bid, 'bg-primary'],
+      ];
+      document.getElementById('price-chart').innerHTML = bars.map(([label, [a, b], cls]) => `
+        <div>
+          <div class="mb-1 flex justify-between text-xs"><span class="font-semibold text-slate-600">${label}</span><span class="text-slate-400">${fmtShort(a)} ~ ${fmtShort(b)}</span></div>
+          <div class="relative h-3 rounded-full bg-slate-100">
+            <div class="bar absolute h-3 rounded-full ${cls}" style="left:${pos(a)}%;width:${pos(b) - pos(a)}%"></div>
+            <div class="absolute -bottom-1 -top-1 w-px bg-slate-800/60" style="left:${pos(P)}%"></div>
+          </div>
+        </div>`).join('');
+      document.getElementById('price-axis').innerHTML = `
+        <span class="absolute left-0">85%</span>
+        <span class="absolute -translate-x-1/2 font-semibold text-slate-600" style="left:50%">추정가격</span>
+        <span class="absolute right-0">115%</span>`;
+    }
+
+    priceEl.addEventListener('input', () => {
+      const digits = priceEl.value.replace(/\D/g, '').slice(0, 13);
+      priceEl.value = digits ? fmtNum(+digits) : '';
+      calcPrice();
+    });
+    document.querySelectorAll('input[name=type], input[name=law]').forEach((el) => el.addEventListener('change', calcPrice));
+
+    /* ---------- 탭 2: 적격심사 점수 ---------- */
+    const PASS = 85;
+    const SLIDERS = [
+      { key: 'price', label: '가격점수', sub: '사정율 기반', max: 60, value: 55, step: 0.5 },
+      { key: 'mgmt', label: '경영상태 점수', sub: '신용평가등급 기반', max: 14, value: 10, step: 0.5 },
+      { key: 'record', label: '수행실적 점수', sub: '유사실적 기반', max: 20, value: 15, step: 0.5 },
+    ];
+    const BONUS = [
+      { key: 'local', label: '지역업체', pts: 2, on: true },
+      { key: 'sme', label: '중소기업', pts: 1, on: true },
+      { key: 'social', label: '사회적기업', pts: 0.5, on: true },
+    ];
+    const vals = Object.fromEntries(SLIDERS.map((s) => [s.key, s.value]));
+    const bon = Object.fromEntries(BONUS.map((b) => [b.key, b.on]));
+    const r1 = (n) => Math.round(n * 10) / 10;
+
+    document.getElementById('sliders').innerHTML = SLIDERS.map((s) => `
+      <div>
+        <div class="mb-2 flex items-center justify-between">
+          <label for="r-${s.key}" class="text-sm font-semibold text-slate-700">${s.label} <span class="text-xs font-normal text-slate-400">${s.sub}</span></label>
+          <div class="flex items-center gap-1 text-sm">
+            <input id="n-${s.key}" type="number" min="0" max="${s.max}" step="${s.step}" value="${s.value}" aria-label="${s.label} 숫자 입력"
+              class="w-16 rounded-btn border border-slate-200 px-2 py-1 text-right font-bold focus:border-primary focus:outline-none">
+            <span class="text-slate-400">/ ${s.max}</span>
+          </div>
+        </div>
+        <input id="r-${s.key}" type="range" class="range" min="0" max="${s.max}" step="${s.step}" value="${s.value}">
+      </div>`).join('');
+
+    document.getElementById('bonus').innerHTML = BONUS.map((b) => `
+      <label class="flex cursor-pointer items-center justify-between rounded-lg px-2 py-2.5 hover:bg-slate-50">
+        <span class="text-sm font-medium">${b.label} <span class="ml-1 text-xs font-semibold text-amber-600">+${b.pts}점</span></span>
+        <span class="switch"><input type="checkbox" data-bonus="${b.key}" ${b.on ? 'checked' : ''}><span></span></span>
+      </label>`).join('');
+
+    SLIDERS.forEach((s) => {
+      const range = document.getElementById('r-' + s.key), num = document.getElementById('n-' + s.key);
+      range.addEventListener('input', () => { vals[s.key] = +range.value; num.value = range.value; calcScore(); });
+      num.addEventListener('input', () => {
+        const v = Math.min(s.max, Math.max(0, +num.value || 0));
+        vals[s.key] = v; range.value = v; calcScore();
+      });
+      num.addEventListener('blur', () => { num.value = vals[s.key]; });
+    });
+    document.querySelectorAll('[data-bonus]').forEach((c) => c.addEventListener('change', () => { bon[c.dataset.bonus] = c.checked; calcScore(); }));
+
+    function calcScore() {
+      SLIDERS.forEach((s) => document.getElementById('r-' + s.key).style.setProperty('--p', (vals[s.key] / s.max) * 100 + '%'));
+      const cap = vals.mgmt + vals.record;
+      const bonus = BONUS.reduce((a, b) => a + (bon[b.key] ? b.pts : 0), 0);
+      const total = r1(vals.price + cap + bonus);
+      const diff = r1(total - PASS);
+      const pass = total >= PASS;
+
+      const totalEl = document.getElementById('total');
+      totalEl.innerHTML = `${total}<span class="text-xl">점</span>`;
+      totalEl.className = `mt-1 text-5xl font-extrabold tracking-tight transition-colors ${pass ? 'text-green-500' : 'text-red-500'}`;
+      const v = document.getElementById('verdict');
+      v.className = `mt-3 inline-flex rounded-full px-3 py-1.5 text-sm font-bold ${pass ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`;
+      v.textContent = pass ? `✅ 낙찰 가능 범위 (+${diff}점)` : `❌ 기준점 미달 (${diff}점)`;
+
+      document.getElementById('seg-price').style.width = vals.price + '%';
+      document.getElementById('seg-cap').style.width = cap + '%';
+      document.getElementById('seg-bonus').style.width = bonus + '%';
+      document.getElementById('lg-price').textContent = r1(vals.price);
+      document.getElementById('lg-cap').textContent = r1(cap);
+      document.getElementById('lg-bonus').textContent = r1(bonus);
+
+      const items = [
+        ...SLIDERS.map((s) => [s.label.replace(' 점수', ''), vals[s.key], s.max, 'bg-primary']),
+        ['가점', bonus, BONUS.reduce((a, b) => a + b.pts, 0), 'bg-amber-500'],
+      ];
+      document.getElementById('item-bars').innerHTML = items.map(([label, got, max, cls]) => `
+        <div>
+          <div class="mb-1 flex justify-between text-xs"><span class="font-semibold text-slate-600">${label}</span>
+            <span class="text-slate-500"><b class="text-slate-800">${r1(got)}</b> / ${max}점 (${Math.round((got / max) * 100)}%)</span></div>
+          <div class="h-2.5 rounded-full bg-slate-100"><div class="bar h-2.5 rounded-full ${cls}" style="width:${(got / max) * 100}%"></div></div>
+        </div>`).join('');
+    }
+
+    calcPrice();
+    calcScore();
+    setTab(qs('tab') === 'score' ? 'score' : 'price');
+    icons();
+  </script>
+</body>
+</html>

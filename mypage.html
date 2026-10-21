@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>마이페이지 · 입찰나침반</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto min-h-screen max-w-[480px] bg-slate-50 md:border-x md:border-slate-200 md:shadow-md">
+    <div id="header"></div>
+
+    <main class="space-y-4 px-4 pb-24 pt-5">
+      <h1 class="text-xl font-bold">마이페이지</h1>
+
+      <!-- 프로필 카드 -->
+      <section class="rounded-card border border-slate-200 bg-white p-4 shadow-md">
+        <div class="flex items-center gap-3">
+          <span class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-primary"><i data-lucide="building-2" class="h-6 w-6"></i></span>
+          <div class="min-w-0">
+            <p class="truncate text-lg font-bold" id="p-name"></p>
+            <p class="truncate text-sm text-slate-500" id="p-email"></p>
+          </div>
+        </div>
+        <dl class="mt-4 grid grid-cols-[100px_1fr] gap-y-2 border-t border-slate-100 pt-4 text-sm">
+          <dt class="text-slate-500">대표자</dt><dd id="p-ceo"></dd>
+          <dt class="text-slate-500">사업자등록번호</dt><dd id="p-biz"></dd>
+          <dt class="text-slate-500">업종</dt><dd id="p-ind"></dd>
+          <dt class="text-slate-500">사업장 주소</dt><dd id="p-addr"></dd>
+        </dl>
+        <button type="button" id="edit-info" class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-btn border border-slate-200 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <i data-lucide="pencil" class="h-4 w-4"></i>정보 수정
+        </button>
+      </section>
+
+      <!-- 설정 리스트 -->
+      <section class="overflow-hidden rounded-card border border-slate-200 bg-white shadow-sm">
+        <ul class="divide-y divide-slate-100">
+          <li>
+            <button type="button" id="matching" class="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-slate-50">
+              <i data-lucide="sliders-horizontal" class="h-5 w-5 text-slate-500"></i>
+              <span class="flex-1">
+                <span class="block text-[15px] font-semibold">매칭 설정</span>
+                <span class="block truncate text-xs text-slate-500" id="matching-sub"></span>
+              </span>
+              <i data-lucide="chevron-right" class="h-5 w-5 text-slate-300"></i>
+            </button>
+          </li>
+          <li>
+            <div class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-4 opacity-50" aria-disabled="true">
+              <i data-lucide="bell" class="h-5 w-5 text-slate-500"></i>
+              <span class="flex-1 text-[15px] font-semibold">알림 설정</span>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">후속 기능</span>
+            </div>
+          </li>
+          <li>
+            <button type="button" id="saved-toggle" aria-expanded="false" class="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-slate-50">
+              <i data-lucide="bookmark" class="h-5 w-5 text-slate-500"></i>
+              <span class="flex-1 text-[15px] font-semibold">저장한 공고 <span class="ml-1 text-primary" id="saved-count"></span></span>
+              <i data-lucide="chevron-down" class="h-5 w-5 text-slate-300 transition" id="saved-chev"></i>
+            </button>
+            <div id="saved-list" class="hidden space-y-2 bg-slate-50 px-4 pb-4 pt-1"></div>
+          </li>
+          <li>
+            <button type="button" onclick="toast('입찰 이력은 준비 중입니다')" class="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-slate-50">
+              <i data-lucide="history" class="h-5 w-5 text-slate-500"></i>
+              <span class="flex-1 text-[15px] font-semibold">입찰 이력</span>
+              <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-700">준비 중</span>
+            </button>
+          </li>
+          <li>
+            <a href="login.html" class="flex w-full items-center gap-3 px-4 py-4 text-red-500 hover:bg-red-50">
+              <i data-lucide="log-out" class="h-5 w-5"></i>
+              <span class="flex-1 text-[15px] font-semibold">로그아웃</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <div id="bottom-nav"></div>
+
+  <script src="assets/common.js"></script>
+  <script>
+    renderHeader();
+    renderNav(null);
+
+    /* ---------- 프로필 ---------- */
+    const info = () => ({ ...COMPANY, ...store.get('company', {}) });
+    function drawInfo() {
+      const c = info();
+      document.getElementById('p-name').textContent = c.name;
+      document.getElementById('p-email').textContent = c.email;
+      document.getElementById('p-ceo').textContent = c.ceo;
+      document.getElementById('p-biz').textContent = c.bizNo;
+      document.getElementById('p-ind').textContent = getProfile().industry.slice(0, 2).join(' > ');
+      document.getElementById('p-addr').textContent = c.address;
+    }
+
+    document.getElementById('edit-info').addEventListener('click', () => {
+      const c = info();
+      const field = (id, label, value, opts = '') => `
+        <div><label for="${id}" class="mb-1.5 block text-sm font-semibold text-slate-700">${label}</label>
+        <input id="${id}" value="${esc(value)}" ${opts} class="${INPUT_CLS} ${opts.includes('readonly') ? 'bg-slate-100 text-slate-500' : ''}"></div>`;
+      openSheet('정보 수정', `
+        <div class="space-y-4">
+          ${field('f-name', '업체명', c.name, 'readonly')}
+          ${field('f-biz', '사업자등록번호', c.bizNo, 'readonly')}
+          ${field('f-ceo', '대표자', c.ceo)}
+          ${field('f-email', '이메일', c.email, 'type="email"')}
+          ${field('f-addr', '사업장 주소', c.address)}
+          <p class="text-xs text-slate-400">업체명·사업자등록번호는 사업자 인증 정보로 수정할 수 없습니다.</p>
+        </div>`, {
+        footer: `<button type="button" id="save-info" class="${BTN_PRIMARY}">저장</button>`,
+        onMount(el) {
+          el.querySelector('#save-info').addEventListener('click', () => {
+            store.set('company', {
+              ceo: el.querySelector('#f-ceo').value,
+              email: el.querySelector('#f-email').value,
+              address: el.querySelector('#f-addr').value,
+            });
+            closeSheet();
+            drawInfo();
+            toast('정보가 수정되었습니다');
+          });
+        },
+      });
+    });
+
+    /* ---------- 매칭 설정 ---------- */
+    function drawMatchingSub() {
+      const p = getProfile();
+      document.getElementById('matching-sub').textContent =
+        `${p.types.join('·')} · ${p.regions.join('·') || '전체 지역'} · ${fmtRange(p.priceMin)}~${fmtRange(p.priceMax)}`;
+    }
+
+    function openMatching() {
+      const p = getProfile();
+      let regions, range;
+      openSheet('매칭 설정', `
+        <div class="space-y-6">
+          <fieldset>
+            <legend class="mb-2 text-sm font-semibold text-slate-700">관심 사업유형</legend>
+            <div class="flex gap-2" id="m-types">
+              ${['물품', '용역', '공사'].map((t) => `
+                <label class="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-btn border border-slate-200 py-3 text-sm font-semibold has-[:checked]:border-primary has-[:checked]:bg-blue-50 has-[:checked]:text-primary">
+                  <input type="checkbox" value="${t}" class="h-4 w-4 accent-blue-600" ${p.types.includes(t) ? 'checked' : ''}>${t}
+                </label>`).join('')}
+            </div>
+          </fieldset>
+          <div>
+            <span class="mb-2 block text-sm font-semibold text-slate-700">선호 지역</span>
+            <div id="m-regions" class="flex flex-wrap gap-2"></div>
+          </div>
+          <div>
+            <span class="mb-2 block text-sm font-semibold text-slate-700">관심 추정가격 범위</span>
+            <div id="m-range" class="rounded-card border border-slate-200 p-4"></div>
+          </div>
+        </div>`, {
+        footer: `<button type="button" id="save-matching" class="${BTN_PRIMARY}">저장</button>`,
+        onMount(el) {
+          regions = mountRegionChips(el.querySelector('#m-regions'), p.regions);
+          range = mountDualRange(el.querySelector('#m-range'), { min: p.priceMin, max: p.priceMax });
+          el.querySelector('#save-matching').addEventListener('click', () => {
+            const types = [...el.querySelectorAll('#m-types input:checked')].map((i) => i.value);
+            if (!types.length) { toast('관심 사업유형을 1개 이상 선택해주세요'); return; }
+            const [priceMin, priceMax] = range.get();
+            setProfile({ ...getProfile(), types, regions: regions.get(), priceMin, priceMax });
+            closeSheet();
+            drawMatchingSub();
+            toast('매칭 설정이 저장되었습니다');
+          });
+        },
+      });
+    }
+    document.getElementById('matching').addEventListener('click', openMatching);
+
+    /* ---------- 저장한 공고 ---------- */
+    function drawSaved() {
+      const list = getSaved().map(getBid);
+      document.getElementById('saved-count').textContent = list.length;
+      document.getElementById('saved-list').innerHTML = list.length
+        ? list.map(bidCard).join('')
+        : '<p class="py-6 text-center text-sm text-slate-400">저장한 공고가 없습니다</p>';
+    }
+    document.getElementById('saved-toggle').addEventListener('click', (e) => {
+      const open = document.getElementById('saved-list').classList.toggle('hidden') === false;
+      e.currentTarget.setAttribute('aria-expanded', open);
+      document.getElementById('saved-chev').classList.toggle('rotate-180', open);
+    });
+
+    drawInfo();
+    drawMatchingSub();
+    drawSaved();
+    icons();
+    if (qs('edit') === 'matching') openMatching();
+  </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>공고 상세 · 입찰나침반</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto min-h-screen max-w-[480px] bg-slate-50 md:border-x md:border-slate-200 md:shadow-md">
+    <div id="header"></div>
+
+    <main class="space-y-4 px-4 pb-28 pt-4">
+      <!-- 타이틀 -->
+      <section>
+        <div class="flex items-center gap-1.5" id="tags"></div>
+        <h1 id="title" class="mt-2 text-xl font-bold leading-snug"></h1>
+        <p id="org" class="mt-1 text-sm text-slate-500"></p>
+        <div id="match" class="mt-3"></div>
+      </section>
+
+      <!-- 기본 정보 -->
+      <section class="overflow-hidden rounded-card border border-slate-200 bg-white shadow-sm">
+        <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-bold">기본 정보</h2>
+        <table class="w-full text-sm">
+          <tbody id="info" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </section>
+
+      <!-- 적용 법률 안내 -->
+      <section id="law" class="rounded-r-lg border-l-4 border-primary bg-blue-50 px-4 py-3.5 text-sm leading-relaxed text-slate-700"></section>
+
+      <!-- 나의 자격 매칭 -->
+      <section class="rounded-card border border-slate-200 bg-white p-4 shadow-md">
+        <h2 class="mb-3 flex items-center gap-1.5 text-sm font-bold"><i data-lucide="shield-check" class="h-4 w-4 text-primary"></i>나의 자격 매칭</h2>
+        <ul id="checks" class="space-y-2.5 text-sm"></ul>
+        <div class="mt-4 flex items-center justify-between rounded-lg bg-amber-50 px-3.5 py-3">
+          <span class="text-sm font-semibold text-amber-800">총 매칭율</span>
+          <span id="total" class="text-2xl font-extrabold text-amber-600"></span>
+        </div>
+      </section>
+
+      <!-- 액션 -->
+      <section class="space-y-2.5 pt-1">
+        <a id="go-calc" data-primary><i data-lucide="calculator" class="h-5 w-5"></i>적격심사 계산기</a>
+        <button type="button" id="save" data-outline></button>
+        <a href="#" id="origin" class="flex items-center justify-center gap-1 py-2 text-sm font-medium text-slate-500 hover:text-primary">
+          나라장터 원문 보기<i data-lucide="external-link" class="h-4 w-4"></i>
+        </a>
+      </section>
+    </main>
+  </div>
+  <div id="bottom-nav"></div>
+
+  <script src="assets/common.js"></script>
+  <script>
+    const b = getBid(qs('id') || 1);
+    const profile = getProfile();
+    renderBackHeader('공고 상세');
+    renderNav('bids');
+    document.title = `${b.title} · 입찰나침반`;
+
+    document.getElementById('tags').innerHTML = typeTag(b.type) + ddayBadge(b.d);
+    document.getElementById('title').textContent = b.title;
+    document.getElementById('org').textContent = b.org;
+    document.getElementById('match').innerHTML = matchBadge(b.match, 'lg');
+
+    // 기본 정보 테이블
+    const dl = deadlineOf(b.d);
+    const periodLabel = { '물품': '납품기한', '용역': '용역기간', '공사': '공사기간' }[b.type];
+    const rows = [
+      ['발주기관', b.org],
+      ['공고번호', b.no],
+      ['입찰방법', '전자입찰'],
+      ['계약방식', b.regionLimit ? `제한경쟁 (${b.regionLimit} 지역제한)` : '일반경쟁'],
+      ['낙찰방식', b.award],
+      ['추정가격', `<b>${fmtWon(b.price)}</b>`],
+      [periodLabel, b.period],
+      ['입찰마감', `${fmtDate(dl)} 18:00 <span class="${b.d <= 3 ? 'text-red-500' : 'text-primary'} font-bold">(D-${b.d})</span>`],
+    ];
+    document.getElementById('info').innerHTML = rows.map(([k, v]) => `
+      <tr><th scope="row" class="w-28 bg-slate-50 px-4 py-3 text-left font-medium text-slate-500">${k}</th>
+          <td class="px-4 py-3 text-slate-800">${v}</td></tr>`).join('');
+
+    // 적용 법률 안내
+    const lawName = b.lawNote ? `${b.lawNote}(국가계약법 준용)` : b.law;
+    document.getElementById('law').innerHTML =
+      `<div class="mb-1 flex items-center gap-1.5 font-bold text-primary"><i data-lucide="scale" class="h-4 w-4"></i>적용 법률 안내</div>` +
+      `이 공고는 <b>${lawName}</b>이 적용되며, <b>${b.award}</b> 방식으로 낙찰자가 결정됩니다.`;
+
+    // 자격 매칭 체크리스트
+    const has = (r) => b.reasons.includes(r);
+    const indPath = profile.industry.slice(0, 2).join(' > ');
+    const regionOk = !b.regionLimit || profile.regions.includes(b.regionLimit);
+    const licenseOk = !b.license || profile.licenses.includes(b.license);
+    const checks = [
+      ['업종 일치', has('업종 일치') ? 'ok' : 'warn', has('업종 일치') ? `일치 (${indPath})` : '업종 확인 필요'],
+      ['지역 제한', regionOk ? 'ok' : 'no', !b.regionLimit ? '제한 없음' : regionOk ? `충족 (${b.regionLimit})` : `미충족 (${b.regionLimit} 소재 업체 한정)`],
+      ['실적 요건', has('실적 충족') ? 'ok' : 'warn', has('실적 충족') ? '유사실적 충족' : '유사실적 확인 필요'],
+      ['면허 요건', licenseOk ? 'ok' : 'warn', !b.license ? '해당 없음' : licenseOk ? `보유 (${b.license})` : `${b.license} 확인 필요`],
+    ];
+    const ICON = { ok: '✅', warn: '⚠️', no: '❌' };
+    const TONE = { ok: 'text-slate-800', warn: 'text-amber-700', no: 'text-red-600' };
+    document.getElementById('checks').innerHTML = checks.map(([k, s, v]) => `
+      <li class="flex items-start justify-between gap-3">
+        <span class="shrink-0 text-slate-500">${k}</span>
+        <span class="text-right font-medium ${TONE[s]}">${ICON[s]} ${esc(v)}</span>
+      </li>`).join('');
+    document.getElementById('total').textContent = b.match + '%';
+
+    // 액션
+    const calc = document.getElementById('go-calc');
+    calc.className = BTN_PRIMARY;
+    calc.href = `calculator.html?price=${b.price}&type=${encodeURIComponent(b.type)}&law=${b.law === '지방계약법' ? 'local' : 'national'}&from=${b.id}`;
+
+    const saveBtn = document.getElementById('save');
+    saveBtn.className = BTN_OUTLINE;
+    function drawSave() {
+      const on = getSaved().includes(b.id);
+      saveBtn.innerHTML = `<i data-lucide="bookmark" class="h-5 w-5 ${on ? 'fill-blue-600' : ''}"></i>${on ? '저장됨' : '공고 저장'}`;
+      saveBtn.setAttribute('aria-pressed', on);
+      icons();
+    }
+    saveBtn.addEventListener('click', () => {
+      const ids = getSaved();
+      const on = ids.includes(b.id);
+      setSaved(on ? ids.filter((x) => x !== b.id) : [...ids, b.id]);
+      toast(on ? '저장이 해제되었습니다' : '공고가 저장되었습니다');
+      drawSave();
+    });
+    drawSave();
+
+    document.getElementById('origin').addEventListener('click', (e) => {
+      e.preventDefault();
+      toast('프로토타입: 나라장터 원문 링크는 더미입니다');
+    });
+
+    icons();
+  </script>
+</body>
+</html>

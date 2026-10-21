@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>회원가입 · 입찰나침반</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto min-h-screen max-w-[480px] bg-slate-50 md:border-x md:border-slate-200 md:shadow-md">
+    <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <div class="flex h-14 items-center gap-2 px-2">
+        <button type="button" id="back" aria-label="뒤로가기" class="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100">
+          <i data-lucide="arrow-left" class="h-5 w-5"></i>
+        </button>
+        <span class="text-base font-bold">회원가입</span>
+        <span class="ml-auto pr-3 text-sm font-semibold text-slate-500"><span id="step-no" class="text-primary">1</span> / 2</span>
+      </div>
+      <!-- 스텝 진행 바 -->
+      <div class="h-1 bg-slate-100"><div id="progress" class="h-1 w-1/2 bg-primary transition-all duration-300"></div></div>
+    </header>
+
+    <main class="px-4 pb-10 pt-5">
+      <!-- ========== Step 1: 사업자 인증 ========== -->
+      <section id="step1" class="tab-panel space-y-5">
+        <div>
+          <h1 class="text-xl font-bold">사업자 인증</h1>
+          <p class="mt-1 text-sm text-slate-500">사업자등록번호로 기업 정보를 자동 조회합니다.</p>
+        </div>
+
+        <div>
+          <label for="bizno" class="mb-1.5 block text-sm font-semibold text-slate-700">사업자등록번호</label>
+          <div class="flex gap-2">
+            <input id="bizno" inputmode="numeric" placeholder="000-00-00000" maxlength="12" value="123-45-67890" data-input>
+            <button type="button" id="lookup" class="shrink-0 rounded-btn bg-slate-800 px-4 text-sm font-bold text-white hover:bg-slate-700">조회</button>
+          </div>
+        </div>
+
+        <!-- 조회 결과 -->
+        <div id="lookup-result" class="hidden rounded-card border border-blue-100 bg-blue-50/60 p-4">
+          <div class="mb-3 flex items-center gap-1.5 text-sm font-bold text-primary">
+            <i data-lucide="badge-check" class="h-4 w-4"></i>조회된 기업 정보
+          </div>
+          <dl class="grid grid-cols-[72px_1fr] gap-y-2 text-sm">
+            <dt class="text-slate-500">업체명</dt><dd class="font-semibold" id="r-name"></dd>
+            <dt class="text-slate-500">대표자</dt><dd id="r-ceo"></dd>
+            <dt class="text-slate-500">업종</dt><dd id="r-ind"></dd>
+            <dt class="text-slate-500">사업장 주소</dt><dd id="r-addr"></dd>
+          </dl>
+        </div>
+
+        <div>
+          <label for="email" class="mb-1.5 block text-sm font-semibold text-slate-700">이메일</label>
+          <input id="email" type="email" placeholder="name@company.co.kr" data-input>
+        </div>
+        <div>
+          <label for="pw" class="mb-1.5 block text-sm font-semibold text-slate-700">비밀번호</label>
+          <input id="pw" type="password" placeholder="8자 이상, 영문·숫자 조합" data-input>
+        </div>
+        <div>
+          <label for="pw2" class="mb-1.5 block text-sm font-semibold text-slate-700">비밀번호 확인</label>
+          <input id="pw2" type="password" placeholder="비밀번호를 한 번 더 입력하세요" data-input>
+          <p id="pw-msg" class="mt-1.5 hidden text-xs"></p>
+        </div>
+
+        <button type="button" id="next" data-primary>다음</button>
+      </section>
+
+      <!-- ========== Step 2: 기업 프로필 ========== -->
+      <section id="step2" class="tab-panel hidden-panel space-y-6">
+        <div>
+          <h1 class="text-xl font-bold">기업 프로필 설정</h1>
+          <p class="mt-1 text-sm text-slate-500">입력한 정보로 맞춤 공고를 추천해드려요.</p>
+        </div>
+
+        <fieldset>
+          <legend class="mb-2 text-sm font-semibold text-slate-700">관심 사업유형</legend>
+          <div class="grid grid-cols-3 gap-2" id="types">
+            <label class="type-opt"><input type="checkbox" value="물품" class="peer sr-only" checked><span>물품</span></label>
+            <label class="type-opt"><input type="checkbox" value="용역" class="peer sr-only" checked><span>용역</span></label>
+            <label class="type-opt"><input type="checkbox" value="공사" class="peer sr-only"><span>공사</span></label>
+          </div>
+        </fieldset>
+
+        <div>
+          <span class="mb-2 block text-sm font-semibold text-slate-700">주요 업종</span>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <select id="ind1" aria-label="대분류" data-input></select>
+            <select id="ind2" aria-label="중분류" data-input></select>
+            <select id="ind3" aria-label="세분류" data-input></select>
+          </div>
+        </div>
+
+        <div>
+          <label for="records" class="mb-1.5 block text-sm font-semibold text-slate-700">주요 수행실적 <span class="font-normal text-slate-400">(선택)</span></label>
+          <textarea id="records" rows="3" placeholder="예: 2025년 OO청 LED 조명 납품 (2.1억원)" data-input></textarea>
+        </div>
+
+        <div>
+          <label for="tag-input" class="mb-1.5 block text-sm font-semibold text-slate-700">보유 면허/인증 <span class="font-normal text-slate-400">(선택)</span></label>
+          <div id="tag-box" class="flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-btn border border-slate-200 bg-white px-2.5 py-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-blue-100">
+            <input id="tag-input" placeholder="입력 후 Enter" class="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-1 text-[15px] outline-none placeholder:text-slate-400">
+          </div>
+          <p class="mt-1.5 text-xs text-slate-400">예: 직접생산확인증명, ISO 9001, 소프트웨어사업자</p>
+        </div>
+
+        <div>
+          <span class="mb-2 block text-sm font-semibold text-slate-700">선호 지역 <span class="font-normal text-slate-400">(다중 선택)</span></span>
+          <div id="regions" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div>
+          <span class="mb-2 block text-sm font-semibold text-slate-700">관심 추정가격 범위</span>
+          <div id="price-range" class="rounded-card border border-slate-200 bg-white p-4"></div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" id="prev" class="w-1/3 rounded-btn border border-slate-200 bg-white py-3.5 text-[15px] font-bold text-slate-600 hover:bg-slate-50">이전</button>
+          <button type="button" id="done" data-primary>가입 완료</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <style>
+    .type-opt span {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      height: 48px; border-radius: 8px; border: 1px solid #E2E8F0; background: #fff;
+      font-size: 15px; font-weight: 600; color: #64748B; cursor: pointer; transition: all .15s;
+    }
+    .type-opt input:checked + span { border-color: #2563EB; background: #EFF6FF; color: #2563EB; }
+    .type-opt input:checked + span::before { content: '✓'; font-weight: 800; }
+    .type-opt input:focus-visible + span { outline: 2px solid #93C5FD; outline-offset: 2px; }
+  </style>
+
+  <script src="assets/common.js"></script>
+  <script>
+    document.querySelectorAll('[data-input]').forEach((el) => (el.className = INPUT_CLS));
+    document.querySelectorAll('[data-primary]').forEach((el) => (el.className = BTN_PRIMARY));
+    document.getElementById('bizno').className += ' flex-1';
+
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    let looked = false;
+
+    function goStep(n) {
+      const [show, hide] = n === 1 ? [step1, step2] : [step2, step1];
+      hide.classList.add('hidden-panel');
+      show.classList.remove('hidden-panel');
+      show.classList.add('entering');
+      requestAnimationFrame(() => requestAnimationFrame(() => show.classList.remove('entering')));
+      document.getElementById('step-no').textContent = n;
+      document.getElementById('progress').style.width = n === 1 ? '50%' : '100%';
+      window.scrollTo({ top: 0 });
+    }
+
+    document.getElementById('back').addEventListener('click', () => {
+      if (!step2.classList.contains('hidden-panel')) goStep(1);
+      else location.href = 'login.html';
+    });
+
+    // Step 1
+    maskBizNo(document.getElementById('bizno'));
+    document.getElementById('lookup').addEventListener('click', () => {
+      const v = document.getElementById('bizno').value.replace(/\D/g, '');
+      if (v.length !== 10) { toast('사업자등록번호 10자리를 입력해주세요'); return; }
+      document.getElementById('r-name').textContent = COMPANY.name;
+      document.getElementById('r-ceo').textContent = COMPANY.ceo;
+      document.getElementById('r-ind').textContent = COMPANY.industry;
+      document.getElementById('r-addr').textContent = COMPANY.address;
+      document.getElementById('lookup-result').classList.remove('hidden');
+      looked = true;
+    });
+
+    const pw = document.getElementById('pw'), pw2 = document.getElementById('pw2'), msg = document.getElementById('pw-msg');
+    function checkPw() {
+      if (!pw2.value) { msg.classList.add('hidden'); return true; }
+      const ok = pw.value === pw2.value;
+      msg.classList.remove('hidden');
+      msg.className = 'mt-1.5 text-xs ' + (ok ? 'text-green-600' : 'text-red-500');
+      msg.textContent = ok ? '비밀번호가 일치합니다' : '비밀번호가 일치하지 않습니다';
+      return ok;
+    }
+    pw.addEventListener('input', checkPw);
+    pw2.addEventListener('input', checkPw);
+
+    document.getElementById('next').addEventListener('click', () => {
+      if (!looked) { toast('사업자등록번호를 먼저 조회해주세요'); return; }
+      if (!checkPw()) { toast('비밀번호를 확인해주세요'); return; }
+      goStep(2);
+    });
+    document.getElementById('prev').addEventListener('click', () => goStep(1));
+
+    // Step 2 — 업종 3단 드롭다운
+    const p = DEFAULT_PROFILE;
+    const s1 = document.getElementById('ind1'), s2 = document.getElementById('ind2'), s3 = document.getElementById('ind3');
+    const opts = (arr, sel) => arr.map((v) => `<option ${v === sel ? 'selected' : ''}>${v}</option>`).join('');
+    function fill2(sel) { s2.innerHTML = opts(Object.keys(INDUSTRY[s1.value]), sel); fill3(); }
+    function fill3(sel) { s3.innerHTML = opts(INDUSTRY[s1.value][s2.value], sel); }
+    s1.innerHTML = opts(Object.keys(INDUSTRY), p.industry[0]);
+    fill2(p.industry[1]);
+    fill3(p.industry[2]);
+    s1.addEventListener('change', () => fill2());
+    s2.addEventListener('change', () => fill3());
+
+    // 면허/인증 태그 입력
+    const tagBox = document.getElementById('tag-box'), tagInput = document.getElementById('tag-input');
+    const tags = [...p.licenses];
+    function drawTags() {
+      tagBox.querySelectorAll('[data-tag]').forEach((t) => t.remove());
+      tags.forEach((t, i) => {
+        const el = document.createElement('span');
+        el.dataset.tag = i;
+        el.className = 'inline-flex items-center gap-1 rounded-md bg-blue-50 py-1 pl-2 pr-1 text-sm font-medium text-blue-700';
+        el.innerHTML = `${esc(t)}<button type="button" aria-label="${esc(t)} 삭제" class="flex h-5 w-5 items-center justify-center rounded hover:bg-blue-100">×</button>`;
+        el.querySelector('button').addEventListener('click', () => { tags.splice(i, 1); drawTags(); });
+        tagBox.insertBefore(el, tagInput);
+      });
+    }
+    tagInput.addEventListener('keydown', (e) => {
+      if (e.isComposing) return;
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const v = tagInput.value.trim().replace(/,$/, '');
+        if (v && !tags.includes(v)) tags.push(v);
+        tagInput.value = '';
+        drawTags();
+      } else if (e.key === 'Backspace' && !tagInput.value && tags.length) {
+        tags.pop(); drawTags();
+      }
+    });
+    drawTags();
+
+    const regions = mountRegionChips(document.getElementById('regions'), p.regions);
+    const range = mountDualRange(document.getElementById('price-range'), { min: p.priceMin, max: p.priceMax });
+
+    document.getElementById('done').addEventListener('click', () => {
+      const types = [...document.querySelectorAll('#types input:checked')].map((i) => i.value);
+      if (!types.length) { toast('관심 사업유형을 1개 이상 선택해주세요'); return; }
+      const [priceMin, priceMax] = range.get();
+      setProfile({
+        types, regions: regions.get(), priceMin, priceMax, licenses: tags,
+        industry: [s1.value, s2.value, s3.value],
+        records: document.getElementById('records').value,
+      });
+      location.href = 'index.html';
+    });
+
+    icons();
+  </script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>로그인 · 입찰나침반</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="assets/tw-config.js"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="mx-auto flex min-h-screen max-w-[480px] flex-col bg-slate-50 px-6 md:border-x md:border-slate-200 md:shadow-md">
+    <!-- 로고 -->
+    <section class="flex flex-col items-center pb-10 pt-20 text-center">
+      <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-md">
+        <i data-lucide="compass" class="h-9 w-9"></i>
+      </span>
+      <h1 class="mt-4 text-2xl font-extrabold tracking-tight">입찰나침반</h1>
+      <p class="mt-1.5 text-sm text-slate-500">우리 회사에 맞는 공공조달 입찰, 무료로 찾아보세요</p>
+    </section>
+
+    <!-- 로그인 폼 -->
+    <form id="login-form" class="space-y-4" novalidate>
+      <div>
+        <label for="bizno" class="mb-1.5 block text-sm font-semibold text-slate-700">사업자등록번호</label>
+        <input id="bizno" inputmode="numeric" autocomplete="username" placeholder="000-00-00000" maxlength="12" class="">
+      </div>
+      <div>
+        <label for="pw" class="mb-1.5 block text-sm font-semibold text-slate-700">비밀번호</label>
+        <div class="relative">
+          <input id="pw" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" class="">
+          <button type="button" id="pw-toggle" aria-label="비밀번호 보기" class="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-600">
+            <i data-lucide="eye" class="h-5 w-5"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between pt-1 text-sm">
+        <label class="flex items-center gap-2 text-slate-600"><input type="checkbox" class="h-4 w-4 rounded border-slate-300 accent-blue-600" checked> 로그인 유지</label>
+        <a href="#" onclick="toast('프로토타입: 비밀번호 찾기는 준비 중입니다'); return false;" class="text-slate-500 hover:text-slate-700">비밀번호 찾기</a>
+      </div>
+      <button type="submit" id="login-btn" class="mt-2">로그인</button>
+    </form>
+
+    <p class="mt-8 text-center text-sm text-slate-500">
+      아직 회원이 아니신가요?
+      <a href="signup.html" class="ml-1 font-bold text-primary hover:underline">회원가입</a>
+    </p>
+
+    <p class="mt-auto pb-8 pt-12 text-center text-[11px] leading-relaxed text-slate-400">
+      프로토타입 화면입니다. 아무 값이나 입력해도 로그인됩니다.
+    </p>
+  </div>
+
+  <script src="assets/common.js"></script>
+  <script>
+    const biz = document.getElementById('bizno');
+    const pw = document.getElementById('pw');
+    biz.className = INPUT_CLS;
+    pw.className = INPUT_CLS + ' pr-12';
+    document.getElementById('login-btn').className = BTN_PRIMARY + ' mt-2';
+    maskBizNo(biz);
+
+    document.getElementById('pw-toggle').addEventListener('click', (e) => {
+      const show = pw.type === 'password';
+      pw.type = show ? 'text' : 'password';
+      e.currentTarget.innerHTML = `<i data-lucide="${show ? 'eye-off' : 'eye'}" class="h-5 w-5"></i>`;
+      icons();
+    });
+
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      location.href = 'index.html';
+    });
+    icons();
+  </script>
+</body>
+</html>
