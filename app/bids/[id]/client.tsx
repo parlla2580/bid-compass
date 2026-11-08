@@ -125,7 +125,7 @@ function Detail({ n }: { n: Notice }) {
       </div>}
 
       <SignupSheet open={signup} onClose={() => setSignup(false)}
-        reason={gated ? '가입하면 이 공고의 판정 근거, 해설, 비슷한 계약을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
+        reason={gated ? '가입하면 이 공고의 판정 근거, 경쟁·낙찰률, 지난 계약 업체와 금액을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
         onDone={() => { setSignup(false); if (!gated) save(); }} />
     </main>
   );
@@ -137,7 +137,7 @@ function SignupGate({ onSignup }: { onSignup: () => void }) {
     <section className="relative z-10 mt-6 rounded-box bg-white px-6 py-8 text-center">
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand"><Lock className="h-5 w-5" /></span>
       <h2 className="mt-4 text-[20px] font-bold">가입하고 자세히 보세요</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-sub">우리 회사가 참여할 수 있는지, 왜 그런지<br />같은 기관의 비슷한 계약까지 보여드려요</p>
+      <p className="mt-2 text-[15px] leading-relaxed text-sub">우리 회사가 참여할 수 있는지, 왜 그런지<br />지난번엔 누가 얼마에 계약했는지까지 보여드려요</p>
       <button type="button" onClick={onSignup} className={`${CTA_PRIMARY} mx-auto mt-6 max-w-[360px]`}>1분 만에 가입하기</button>
       <Link href="/login" className="mt-4 inline-block text-[14px] text-mute">이미 가입했어요 · 로그인</Link>
     </section>
@@ -245,13 +245,13 @@ function Briefing({ n }: { n: Notice }) {
 
   const lines: { k: string; v: React.ReactNode }[] = [];
   if (past) {
-    const where = past.basis === 'org' ? '이 기관의 비슷한 공고' : '이름이 비슷한 공고';
+    const where = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
     if (past.avgParticipants) lines.push({ k: '경쟁', v: <>{where}에 평균 <b className="font-semibold text-ink">{past.avgParticipants}개사</b>가 참여했어요 <span className="text-mute">({past.count}건 기준)</span></> });
     if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <>낙찰자는 주로 <b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b>에 썼어요 <span className="text-mute">({past.rateCount}건, 참고)</span></> });
   }
   if (extra?.qualifyBy) {
     const d = daysUntil(extra.qualifyBy);
-    lines.push({ k: '등록 마감', v: <>입찰참가자격 등록 <b className={`font-semibold ${d >= 0 && d <= 2 ? 'text-bad' : 'text-ink'}`}>{dt(extra.qualifyBy)}</b>까지{d >= 0 && d <= 2 ? ' — 서두르세요' : ''}</> });
+    lines.push({ k: '등록 마감', v: <>입찰참가자격 등록 <b className={`font-semibold ${d >= 0 && d <= 2 ? 'text-bad' : 'text-ink'}`}>{dt(extra.qualifyBy)}</b>까지</> });
   }
   if (extra?.bidBegin) lines.push({ k: '투찰', v: <>{dt(extra.bidBegin)} ~ {fmtDateTime(n.closesAt).slice(5)}{extra.openAt ? <span className="text-mute"> · 개찰 {dt(extra.openAt)}</span> : null}</> });
   const cond = [
@@ -390,9 +390,10 @@ function Similar({ n }: { n: Notice }) {
   const corp = (c: SimilarContract) => c.corps.map((x) => x.name).filter(Boolean).join(', ') || '–';
 
   return (
-    <Card title="이 기관의 비슷한 계약" aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
+    <Card title="지난번엔 누가 얼마에 계약했나" aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
+      <p className="-mt-2 mb-3 text-[14px] text-mute">이 기관이 비슷한 이름으로 맺은 과거 계약의 업체와 금액이에요</p>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
-      {items && !items.length && <p className="text-[15px] text-mute">아직 찾은 계약이 없어요. 계약 정보가 쌓이면 보여드릴게요.</p>}
+      {items && !items.length && <p className="text-[15px] text-mute">아직 찾은 과거 계약이 없어요. 계약 정보가 쌓이면 보여드릴게요.</p>}
       {items && items.length > 0 && (
         <>
           {/* 모바일 */}
