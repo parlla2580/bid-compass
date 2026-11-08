@@ -392,7 +392,15 @@ async function main() {
     try {
       const contracts = await collectContracts(a, b);
       result.contracts += contracts.length;
-      if (sb) await upsert(sb, 'contracts', contracts, 'contract_no');
+      if (sb) {
+        try {
+          await upsert(sb, 'contracts', contracts, 'contract_no');
+        } catch (e) {
+          // 005 SQL 실행 전(계약번호 칸 없음)에는 예전 방식으로 저장 — 중복은 걸러진 상태
+          if (!/contract_no/.test(e.message)) throw e;
+          await upsert(sb, 'contracts', contracts.map(({ contract_no, ...r }) => r), 'id');
+        }
+      }
     } catch (e) {
       result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
     }
