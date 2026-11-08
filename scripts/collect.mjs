@@ -182,8 +182,12 @@ async function collectNotices(from, to) {
     });
   }
 
-  // 같은 공고번호·차수가 여러 번 나오면 마지막 것만
-  return { rows: [...new Map(rows.map((r) => [`${r.bid_no}-${r.bid_ord}`, r])).values()], updates };
+  // 같은 공고번호·차수가 여러 번 나오면 마지막 것만. 이미 마감된 공고는 저장하지 않음 (백필 시 용량 절약)
+  const now = Date.now();
+  const unique = [...new Map(rows.map((r) => [`${r.bid_no}-${r.bid_ord}`, r])).values()];
+  const open = unique.filter((r) => new Date(r.closes_at).getTime() >= now);
+  if (open.length < unique.length) console.log(`  이미 마감된 공고 ${unique.length - open.length}건 제외`);
+  return { rows: open, updates };
 }
 
 /** 이미 저장된 공고에 늦게 온 정보 덧붙이기 — 해당 공고가 아직 없으면 건너뜀 */
@@ -232,7 +236,7 @@ async function collectContracts(from, to) {
         corps,
         corp_biznos: corps.map((c) => c.bizno).filter(Boolean),
         detail_url: it.cntrctDtlInfoUrl || null,
-        raw: it,
+        raw: null, // 계약은 하루 1만 건 이상이라 원본은 저장하지 않음 (필요 항목만 위에 정리)
         registered_at: kstIso(it.rgstDt),
         collected_at: new Date().toISOString(),
       });
@@ -282,23 +286,29 @@ async function main() {
   }
 
   const result = { notices: 0, contracts: 0, errors: [] };
-  try {
-    const { rows: notices, updates } = await collectNotices(from, to);
-    result.notices = notices.length;
-    if (sb) {
-      await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
-      const patched = await applyUpdates(sb, updates);
-      console.log(`  늦게 온 정보 ${updates.length}건 중 ${patched}건을 기존 공고에 반영`);
+  // 긴 기간(백필)은 하루 단위로 나눠 받음 — API가 긴 조회 기간을 막을 수 있음
+  const CHUNK = 24 * 3600e3;
+  for (let s = from.getTime(); s < to.getTime(); s += CHUNK) {
+    const a = new Date(s), b = new Date(Math.min(s + CHUNK, to.getTime()));
+    if (HOURS > 24) console.log(`- 구간 ${ymdhm(a)} ~ ${ymdhm(b)}`);
+    try {
+      const { rows: notices, updates } = await collectNotices(a, b);
+      result.notices += notices.length;
+      if (sb) {
+        await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
+        const patched = await applyUpdates(sb, updates);
+        console.log(`  늦게 온 정보 ${updates.length}건 중 ${patched}건을 기존 공고에 반영`);
+      }
+    } catch (e) {
+      result.errors.push(`공고(${ymdhm(a)}): ${e.message}`);
     }
-  } catch (e) {
-    result.errors.push(`공고: ${e.message}`);
-  }
-  try {
-    const contracts = await collectContracts(from, to);
-    result.contracts = contracts.length;
-    if (sb) await upsert(sb, 'contracts', contracts, 'id');
-  } catch (e) {
-    result.errors.push(`계약: ${e.message}`);
+    try {
+      const contracts = await collectContracts(a, b);
+      result.contracts += contracts.length;
+      if (sb) await upsert(sb, 'contracts', contracts, 'id');
+    } catch (e) {
+      result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
+    }
   }
 
   // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
@@ -316,7 +326,7 @@ async function main() {
     result.errors.push(`업종: ${e.message}`);
   }
 
-  const status = result.errors.length === 0 ? 'ok' : result.errors.length >= 2 ? 'failed' : 'partial';
+  const status = result.errors.length === 0 ? 'ok' : result.notices + result.contracts === 0 ? 'failed' : 'partial';
   console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건, API 호출 ${apiCalls}회`);
   result.errors.forEach((e) => console.error('  오류:', e));
 

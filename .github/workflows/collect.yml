@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       hours:
-        description: '수집 구간(시간)'
+        description: '수집 구간(시간) — 평소 6, 지난주 공고를 한 번에 받으려면 168'
         required: false
         default: '6'
   push:
