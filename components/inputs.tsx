@@ -121,8 +121,10 @@ export function IndustryPicker({ value, onChange, max = 10 }: {
 
 /** 소재지 선택 — 시도 → 시군구 (시군구는 선택) */
 export function LocationPicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
-  const { sido, sigungu } = splitLocation(value);
+  const { sido, sigungu: rest } = splitLocation(value);
   const list = sido ? SIGUNGU[sido] ?? [] : [];
+  // 나라장터 주소는 '창원시 마산합포구 오동동'처럼 더 자세할 수 있음 → 시군구 칸에는 첫 단위만 표시
+  const sigungu = rest?.split(' ')[0] ?? null;
   const select = INPUT_CLS + ' py-2.5';
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -132,9 +134,10 @@ export function LocationPicker({ value, onChange }: { value: string | null; onCh
         {SIDO.map((s) => <option key={s}>{s}</option>)}
       </select>
       <select aria-label="시군구" value={sigungu ?? ''} disabled={!sido || !list.length} className={select + ' disabled:bg-slate-100'}
-        onChange={(e) => onChange(e.target.value ? `${sido} ${e.target.value}` : sido)}>
+        onChange={(e) => onChange(e.target.value ? (e.target.value === sigungu && rest ? `${sido} ${rest}` : `${sido} ${e.target.value}`) : sido)}>
         <option value="">{sido && !list.length ? '시군구 없음' : '시군구 선택'}</option>
         {list.map((g) => <option key={g}>{g}</option>)}
+        {sigungu && !list.includes(sigungu) && <option>{sigungu}</option>}
       </select>
     </div>
   );
