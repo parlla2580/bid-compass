@@ -51,7 +51,7 @@ type Row = { participants: number | null; winner_rate: number | null };
 
 function summarize(rows: Row[], basis: PastStats['basis']): PastStats {
   const parts = rows.map((r) => r.participants).filter((v): v is number => v !== null && v > 0);
-  const rates = rows.map((r) => Number(r.winner_rate)).filter((v) => v > 0 && v < 110).sort((a, b) => a - b);
+  const rates = rows.map((r) => Number(r.winner_rate)).filter((v) => v > 0 && v < 100).sort((a, b) => a - b);
   const q = (p: number) => rates[Math.min(rates.length - 1, Math.floor(p * (rates.length - 1) + 0.5))];
   return {
     basis,
@@ -69,16 +69,21 @@ const quote = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
 export async function fetchPastStats(n: Notice): Promise<PastStats | null> {
   const sb = getSupabase();
   const since = new Date(Date.now() - 3 * 365 * 86400e3).toISOString();
-  const orgs = [`org.eq.${quote(n.org)}`, ...(n.demandOrg ? [`demand_org.eq.${quote(n.demandOrg)}`] : [])].join(',');
-  const byOrg = await sb.from('openings').select('participants, winner_rate')
-    .eq('bid_type', n.type).gte('opened_at', since).or(orgs).limit(200);
+  // 조달청은 여러 기관 대신 공고하므로 기관 비교는 수요기관으로만
+  const central = /조달청/.test(n.org);
+  const orgs = [...(central ? [] : [`org.eq.${quote(n.org)}`]), ...(n.demandOrg ? [`demand_org.eq.${quote(n.demandOrg)}`] : [])].join(',');
+  // 1개사만 들어온 개찰(수의 견적 등)은 경쟁·낙찰률 비교에서 제외
+  const byOrg = orgs
+    ? await sb.from('openings').select('participants, winner_rate')
+      .eq('bid_type', n.type).gte('opened_at', since).gte('participants', 2).or(orgs).limit(200)
+    : { data: [], error: null };
   if (byOrg.error) throw byOrg.error;
   if ((byOrg.data?.length ?? 0) >= MIN_SAMPLE) return summarize(byOrg.data as Row[], 'org');
 
   const kw = [...words(n.title)].sort((a, b) => b.length - a.length)[0];
   if (!kw) return null;
   const byTitle = await sb.from('openings').select('participants, winner_rate')
-    .eq('bid_type', n.type).gte('opened_at', since).ilike('title', `%${kw}%`).limit(200);
+    .eq('bid_type', n.type).gte('opened_at', since).gte('participants', 2).ilike('title', `%${kw}%`).limit(200);
   if (byTitle.error) throw byTitle.error;
   return (byTitle.data?.length ?? 0) >= MIN_SAMPLE ? summarize(byTitle.data as Row[], 'title') : null;
 }
