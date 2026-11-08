@@ -5,6 +5,7 @@ import { EMPTY_PROFILE, type Notice, type Profile } from './data';
 import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, uploadLocal } from './db';
 import { judge, relevance, type Judgment } from './judge';
 import { fetchOpenNotices } from './notices';
+import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { getSupabase, supabaseEnabled } from './supabase';
 
 /*
@@ -35,6 +36,8 @@ interface Store {
   saved: number[];
   toggleSaved: (id: number) => boolean;
   reset: () => void;
+  /** 회사 확인 회원의 개찰 이력 (F7) — 없으면 빈 배열 */
+  history: HistoryItem[];
   /** 마감 전 공고 (Supabase) — null: 불러오는 중 */
   notices: Notice[] | null;
   noticesError: string | null;
@@ -71,6 +74,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [noticesError, setNoticesError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   // 비동기 작업에서 최신 값을 쓰기 위한 참조
   const profileRef = useRef(profile);
   const savedRef = useRef(saved);
@@ -139,6 +143,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .catch((e: Error) => setSyncError(`로그인 정보를 불러오지 못했습니다: ${e.message}`))
       .finally(() => setLoaded(true));
   }, [applyProfile, applySaved, loadAccount]);
+
+  // 회사 확인을 마친 회원이면 개찰 이력을 불러와 추천 순서에 반영 (F7-4)
+  useEffect(() => {
+    if (!account || !profile.corpName || !supabaseEnabled) {
+      setHistory([]);
+      return;
+    }
+    fetchMyHistory().then(setHistory).catch(() => setHistory([]));
+  }, [account, profile.corpName]);
 
   const setProfile = useCallback(
     (p: Profile) => {
@@ -227,10 +240,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reset,
       notices,
       noticesError,
+      history,
       syncError,
       clearSyncError: () => setSyncError(null),
     }),
-    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, syncError],
+    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, syncError],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -246,17 +260,23 @@ export interface Judged {
   notice: Notice;
   judgment: Judgment;
   relevance: number;
+  /** 과거 입찰 이력과의 유사도 (이력이 있는 회원만) */
+  similar: Similarity | null;
 }
 
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
 export function useJudged(): Judged[] | null {
-  const { profile, notices } = useStore();
+  const { profile, notices, history } = useStore();
+  const hist = useMemo(() => prepareHistory(history), [history]);
   return useMemo(
     () =>
       notices?.map((notice) => {
         const judgment = judge(notice, profile);
-        return { notice, judgment, relevance: relevance(notice, profile, judgment) };
+        const similar = hist.length ? similarity(notice, hist) : null;
+        // 이력과 닮은 공고를 위로 (유사도는 순서에만 쓰고 판정에는 쓰지 않음)
+        const boost = similar ? Math.min(40, similar.score * 10) : 0;
+        return { notice, judgment, relevance: relevance(notice, profile, judgment) + boost, similar };
       }) ?? null,
-    [profile, notices],
+    [profile, notices, hist],
   );
 }

@@ -130,12 +130,19 @@ export default function MyPage() {
         )}
       </section>
 
+      <Link href="/analysis" className="flex items-center gap-3 rounded-card border border-green-200 bg-green-50 px-4 py-4 shadow-sm hover:bg-green-100">
+        <History className="h-5 w-5 text-green-600" />
+        <span className="flex-1">
+          <span className="block text-[15px] font-semibold text-green-900">우리 회사 입찰 분석</span>
+          <span className="block text-xs text-green-800">성적표 · 아깝게 놓친 공고 · 하한선 미달</span>
+        </span>
+      </Link>
+
       {/* Phase 2 기능 */}
       <section className="overflow-hidden rounded-card border border-slate-200 bg-white shadow-sm">
         <ul className="divide-y divide-slate-100">
           {[
             { label: '서류·인증서 관리', Icon: FileBadge },
-            { label: '입찰 이력', Icon: History },
             { label: '알림 설정', Icon: Bell },
           ].map(({ label, Icon }) => (
             <li key={label}>

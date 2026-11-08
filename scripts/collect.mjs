@@ -20,6 +20,9 @@ const DRY = process.argv.includes('--dry') || !SB_KEY;
 
 const BID = 'https://apis.data.go.kr/1230000/ad/BidPublicInfoService02';
 const CNT = 'https://apis.data.go.kr/1230000/ao/CntrctInfoService';
+const SCS = 'https://apis.data.go.kr/1230000/as/ScsbidInfoService';
+// 개찰순위 상세 조회는 공고마다 1회 — 개발계정 한도(약 1,000회/일) 안에서 실행당 상한
+const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 60);
 const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
 const ROWS = 999;
 const TYPES = [
@@ -248,6 +251,76 @@ async function collectContracts(from, to) {
   return [...new Map(rows.map((r) => [r.id, r])).values()];
 }
 
+/* ---------- 개찰 결과 (F7 입찰 분석) ---------- */
+const okey = (no, ord, cls, rbid) => `${no}|${ord}|${cls ?? ''}|${rbid ?? ''}`;
+
+/** 개찰결과 목록 + 최종낙찰자 + 예정가격 → openings 행 (구간 단위, 페이지로 한 번에 받음) */
+async function collectOpenings(from, to) {
+  const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
+  const rows = new Map();
+  const base = (t, it) => ({
+    bid_no: it.bidNtceNo, bid_ord: it.bidNtceOrd ?? '000', clsfc_no: it.bidClsfcNo ?? '', rbid_no: it.rbidNtceNo ?? it.rbidNo ?? '',
+    bid_type: t.name, title: it.bidNtceNm || '(공고명 없음)', updated_at: new Date().toISOString(),
+  });
+  const put = (r) => { const k = okey(r.bid_no, r.bid_ord, r.clsfc_no, r.rbid_no); rows.set(k, { ...(rows.get(k) ?? {}), ...r }); };
+
+  for (const t of TYPES) {
+    const [list, winners, prices] = await Promise.all([
+      fetchAll(`${SCS}/getOpengResultListInfo${t.cnt}`, period),
+      fetchAll(`${SCS}/getScsbidListSttus${t.cnt}`, period).catch(() => []),
+      fetchAll(`${SCS}/getOpengResultListInfo${t.cnt}PreparPcDetail`, period).catch(() => []),
+    ]);
+    for (const it of list) {
+      put({ ...base(t, it), org: it.ntceInsttNm || null, demand_org: it.dminsttNm || null, opened_at: kstIso(it.opengDt),
+        status: it.progrsDivCdNm || null, participants: num(it.prtcptCnum) });
+    }
+    for (const it of winners) {
+      put({ ...base(t, it), demand_org: it.dminsttNm || null, opened_at: kstIso(it.rlOpengDt), participants: num(it.prtcptCnum),
+        winner_bizno: num(String(it.bidwinnrBizno ?? '').replace(/\D/g, '')) || null,
+        winner_amount: won(it.sucsfbidAmt), winner_rate: num(it.sucsfbidRate) });
+    }
+    // 예비가격 상세는 복수예가마다 1행 → 공고별 예정가격·기초금액 한 번만
+    for (const it of prices) {
+      if (!it.plnprc && !it.bssamt) continue;
+      put({ ...base(t, it), planned_price: won(it.plnprc), base_amount: won(it.bssamt) });
+    }
+    console.log(`  개찰 ${t.name}: 결과 ${list.length}건, 낙찰자 ${winners.length}건, 예비가격 ${prices.length}행`);
+  }
+  return [...rows.values()];
+}
+
+/** 개찰완료 공고의 투찰업체 순위 (공고마다 1회, 상한 DETAIL_CAP) */
+async function collectBidDetails(sb) {
+  const { data: pending, error } = await sb.from('openings')
+    .select('id,bid_no,bid_ord,clsfc_no,rbid_no,participants')
+    .eq('details_fetched', false).eq('status', '개찰완료')
+    .order('opened_at', { ascending: false }).limit(DETAIL_CAP);
+  if (error) throw new Error(`개찰 대기 목록 조회 실패: ${error.message}`);
+  let rowsSaved = 0, done = 0;
+  for (const o of pending ?? []) {
+    const items = await fetchAll(`${SCS}/getOpengResultListInfoOpengCompt`, { bidNtceNo: o.bid_no });
+    const mine = items.filter((it) => (it.bidNtceOrd ?? '000') === o.bid_ord && (it.bidClsfcNo ?? '') === o.clsfc_no && (it.rbidNo ?? '') === o.rbid_no);
+    const results = new Map(), companies = new Map();
+    for (const it of mine) {
+      const bizno = num(String(it.prcbdrBizno ?? '').replace(/\D/g, ''));
+      if (!bizno) continue;
+      const memo = (it.rmrk ?? '').trim();
+      results.set(bizno, {
+        opening_id: o.id, bizno, rank: num(it.opengRank), amount: won(it.bidprcAmt), rate: num(it.bidprcrt),
+        note: !memo || memo === '정상' ? null : /하한/.test(memo) ? 1 : 2,
+      });
+      if (it.prcbdrNm) companies.set(bizno, { bizno, name: it.prcbdrNm, updated_at: new Date().toISOString() });
+    }
+    if (results.size) await upsert(sb, 'bid_results', [...results.values()], 'opening_id,bizno');
+    if (companies.size) await upsert(sb, 'bid_companies', [...companies.values()], 'bizno');
+    const { error: e2 } = await sb.from('openings').update({ details_fetched: true }).eq('id', o.id);
+    if (e2) throw new Error(`개찰 상세 표시 실패: ${e2.message}`);
+    rowsSaved += results.size; done++;
+  }
+  console.log(`  투찰 순위: 공고 ${done}건, 투찰 기록 ${rowsSaved}행 (실행당 상한 ${DETAIL_CAP}건)`);
+  return rowsSaved;
+}
+
 /* ---------- 나라장터 업종 목록 (업종 선택용) ---------- */
 async function collectIndustries() {
   const items = await fetchAll(IND, {});
@@ -305,12 +378,24 @@ async function main() {
       result.errors.push(`공고(${ymdhm(a)}): ${e.message}`);
     }
     try {
+      const openings = await collectOpenings(a, b);
+      result.openings = (result.openings ?? 0) + openings.length;
+      if (sb) await upsert(sb, 'openings', openings, 'bid_no,bid_ord,clsfc_no,rbid_no');
+    } catch (e) {
+      result.errors.push(`개찰(${ymdhm(a)}): ${e.message}`);
+    }
+    try {
       const contracts = await collectContracts(a, b);
       result.contracts += contracts.length;
       if (sb) await upsert(sb, 'contracts', contracts, 'id');
     } catch (e) {
       result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
     }
+  }
+
+  // 투찰업체 순위 — 구간과 상관없이 아직 받지 않은 개찰완료 공고를 최근 것부터
+  if (sb) {
+    try { result.bidRows = await collectBidDetails(sb); } catch (e) { result.errors.push(`투찰 순위: ${e.message}`); }
   }
 
   // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
@@ -329,14 +414,14 @@ async function main() {
   }
 
   const status = result.errors.length === 0 ? 'ok' : result.notices + result.contracts === 0 ? 'failed' : 'partial';
-  console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건, API 호출 ${apiCalls}회`);
+  console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건, 개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회`);
   result.errors.forEach((e) => console.error('  오류:', e));
 
   if (sb && runId) {
     await sb.from('collect_runs').update({
       finished_at: new Date().toISOString(), status,
       notices_upserted: result.notices, contracts_upserted: result.contracts,
-      api_calls: apiCalls, message: result.errors.join(' / ') || null,
+      api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행`, ...result.errors].join(' / '),
     }).eq('id', runId);
   }
   if (status === 'failed') process.exit(1);

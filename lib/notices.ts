@@ -52,7 +52,8 @@ export interface SimilarContract {
   detailUrl: string | null;
 }
 
-const words = (s: string) =>
+/** 공고명 핵심어 (유사도 비교용) */
+export const words = (s: string) =>
   new Set(
     s.replace(/[()[\]{}·,.\-_/]/g, ' ').split(/\s+/)
       .filter((w) => w.length >= 2 && !/^\d+$/.test(w) && !/^(구매|구입|납품|용역|공사|사업|입찰|공고|계약|정정|긴급|20\d\d년?)$/.test(w)),

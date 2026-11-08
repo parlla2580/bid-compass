@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlarmClock, Building2, Calculator, ChevronRight, CircleCheck, FilePlus2, FileText, Lightbulb, Sparkles } from 'lucide-react';
+import { AlarmClock, BarChart3, Building2, Calculator, ChevronRight, CircleCheck, FilePlus2, FileText, Lightbulb, Sparkles } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
 import { DdayBadge, NewBadge, NoticesState, StatusBadge, TypeTag, profileSummary } from '@/components/ui';
 import { fmtDate, fmtShort, weekdayKo, withEulReul } from '@/lib/format';
@@ -97,16 +97,17 @@ export default function HomePage() {
 
         <section className="mt-8 px-4">
           <h2 className="mb-3 text-base font-bold">빠른 접근</h2>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-1.5">
             {[
               { href: '/bids', label: '공고 리스트', Icon: FileText, cls: 'bg-blue-50 text-primary' },
               { href: '/recommend', label: '추천 공고', Icon: Sparkles, cls: 'bg-amber-50 text-amber-600' },
               { href: '/calculator', label: '적격심사', Icon: Calculator, cls: 'bg-purple-50 text-purple-600' },
+              { href: '/analysis', label: '입찰 분석', Icon: BarChart3, cls: 'bg-green-50 text-green-600' },
               { href: '/mypage', label: '마이페이지', Icon: Building2, cls: 'bg-slate-100 text-slate-600' },
             ].map(({ href, label, Icon, cls }) => (
               <Link key={href} href={href} className="flex flex-col items-center gap-2 rounded-card border border-slate-200 bg-white px-1 py-3 shadow-sm hover:shadow-md">
                 <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${cls}`}><Icon className="h-5 w-5" /></span>
-                <span className="text-xs font-semibold">{label}</span>
+                <span className="text-[11px] font-semibold">{label}</span>
               </Link>
             ))}
           </div>

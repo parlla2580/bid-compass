@@ -87,7 +87,7 @@ export default function RecommendPage() {
   );
 }
 
-function RecommendCard({ item: { notice: n, judgment } }: { item: Judged }) {
+function RecommendCard({ item: { notice: n, judgment, similar } }: { item: Judged }) {
   const [open, setOpen] = useState(false);
   return (
     <article className="rounded-card border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
@@ -103,6 +103,11 @@ function RecommendCard({ item: { notice: n, judgment } }: { item: Judged }) {
           {n.org} · <span className="font-semibold text-slate-700">{n.estPrice ? `${fmtShort(n.estPrice)}원` : '금액 미공개'}</span>
         </p>
         <p className={`mt-1.5 line-clamp-2 text-xs ${STATUS_STYLE[judgment.status].text}`}>{summarize(judgment)}</p>
+        {similar?.best && (
+          <p className="mt-1 line-clamp-1 text-xs text-purple-700">
+            이력: {similar.best.won ? '낙찰했던' : '참여했던'} &lsquo;{similar.best.title}&rsquo;와 비슷
+          </p>
+        )}
       </Link>
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-center gap-1 border-t border-slate-100 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50">
