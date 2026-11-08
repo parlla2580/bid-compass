@@ -69,7 +69,16 @@ export async function fetchSimilarContracts(n: Notice): Promise<SimilarContract[
     .limit(50);
   if (error) throw error;
   const target = words(`${n.title} ${n.productName ?? ''}`);
-  return (data ?? [])
+  // 같은 계약이 통합계약번호만 다르게 두 번 등록되는 경우가 있어(계약번호 동일) 계약번호로 한 건만 남김
+  const seen = new Set<string>();
+  const unique = (data ?? []).filter((c) => {
+    const no = /ctrtNo=([^&]+)/.exec(c.detail_url ?? '')?.[1];
+    const k = no ?? `${c.title}|${c.amount}|${c.contract_date}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return unique
     .map((c) => ({ c, score: [...words(c.title)].filter((w) => target.has(w)).length }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
