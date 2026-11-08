@@ -14,6 +14,7 @@ import {
   CONSTRUCTION_FLOOR, DEFAULT_PASS, EXAMPLE_FLOOR_RATE, EXAMPLE_RESERVE_RANGE, SCORE_ITEMS, VAT_RATE,
   calcBid, checkBid, type BidCheck, type ScoreKey,
 } from './rules';
+import { SajeongPanel } from './sajeong';
 
 type Tab = 'bid' | 'score';
 const TYPES: BidType[] = ['물품', '용역', '공사'];
@@ -114,7 +115,8 @@ export default function CalculatorTabs() {
               initialBase={Number(params.get('base')) || from?.basePrice || 132_000_000}
               initialRange={params.get('range') ? Number(params.get('range')) : null}
               initialRate={params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null}
-              fromNotice={fromParams && type === params.get('type')} />
+              fromNotice={fromParams && type === params.get('type')}
+              org={from?.org} demandOrg={from?.demandOrg} />
           : <ScorePanel key={`score-${type}`} type={type} />}
       </main>
     </>
@@ -128,8 +130,10 @@ const CHECK_STYLE: Record<BidCheck['level'], { Icon: typeof CircleCheck; cls: st
 };
 
 /* ---------- 탭 1: 투찰금액 계산기 (F4-1) ---------- */
-function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice }: {
+function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice, org, demandOrg }: {
   type: BidType;
+  org?: string | null;
+  demandOrg?: string | null;
   initialBase: number;
   estPrice?: number;
   /** 공고값 (없으면 예시값) */
@@ -215,6 +219,11 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {bid !== null && bid > 0 && <p className="text-right text-[12px] text-mute">검은 선: 내 투찰금액</p>}
         </div>
       </div>
+
+      {B > 0 && rate ? (
+        <SajeongPanel type={type} base={B} floor={rate} range={range ?? 2} org={org} demandOrg={demandOrg}
+          onUse={(v) => { setBid(v); document.getElementById('bid')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} />
+      ) : null}
 
       <div className="space-y-3 rounded-box bg-white p-5 lg:p-6">
         <NumField id="bid" label={<>내 <Term k="투찰금액" /> <span className="font-normal text-mute">(선택)</span></>} value={bid} onChange={setBid} unit="원" />
