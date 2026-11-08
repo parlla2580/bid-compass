@@ -1,4 +1,4 @@
-import { hasSigungu, splitLocation, type LicenseLimit, type Notice, type Profile } from './data';
+import { canonicalRegion, hasSigungu, splitLocation, type LicenseLimit, type Notice, type Profile } from './data';
 
 /* =========================================================
  * 참여 가능 판정 (기획서 v2.1 5.1)
@@ -37,7 +37,10 @@ export const MANUAL_CHECKS = ['중소기업자 한정 여부', '직접생산확�
 
 /* ---------- 1. 지역제한 ---------- */
 // 공고 지역 R, 회사 소재지 L: L이 R과 같거나 R 아래 지역이면 충족
-const within = (loc: string, region: string) => loc === region || loc.startsWith(region + ' ');
+const within = (loc: string, region: string) => {
+  const l = canonicalRegion(loc), r = canonicalRegion(region);
+  return l === r || l.startsWith(r + ' ');
+};
 
 function regionRule(n: Notice, p: Profile): Reason {
   const rule = 'region';
@@ -50,7 +53,7 @@ function regionRule(n: Notice, p: Profile): Reason {
   if (hit) return { rule, result: 'pass', text: `지역 조건 충족 (${hit})${basis}` };
 
   // 회사 소재지가 시도까지만 있고, 공고 제한이 그 시도 안의 시군구인 경우
-  if (!hasSigungu(p.location) && n.regionLimit.some((r) => r.startsWith(p.location! + ' '))) {
+  if (!hasSigungu(p.location) && n.regionLimit.some((r) => canonicalRegion(r).startsWith(canonicalRegion(p.location!) + ' '))) {
     return { rule, result: 'check', text: `지역제한: ${area} — 시군구를 입력하면 판정됩니다`, need: 'sigungu' };
   }
   return { rule, result: 'fail', text: `지역제한: ${area} 소재 업체만 / 귀사 소재지 ${p.location}${basis}` };
