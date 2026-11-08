@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowRight, BadgeCheck, Building2, Compass, Loader2 } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Compass, Loader2 } from 'lucide-react';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { BTN_OUTLINE, BTN_PRIMARY, INPUT_CLS } from '@/components/ui';
 import type { Industry } from '@/lib/data';
@@ -12,7 +12,6 @@ import { useStore } from '@/lib/store';
 
 interface Lookup {
   registered: boolean;
-  corpName?: string | null;
   location?: string | null;
   industries?: Industry[];
 }
@@ -79,10 +78,7 @@ export default function StartPage() {
         : '소재지를 확인하지 못했습니다. 직접 선택해 주세요.');
       return;
     }
-    go({
-      bizno: bizno.replace(/\D/g, ''), naraRegistered: true, corpName: found.corpName ?? null,
-      industries: found.industries, location: found.location,
-    });
+    go({ bizno: bizno.replace(/\D/g, ''), industries: found.industries, location: found.location });
   };
 
   const manualReady = !!location;
@@ -132,8 +128,8 @@ export default function StartPage() {
       {mode === 'confirm' && found && (
         <section className="fade-up space-y-4">
           <div className="rounded-card border border-blue-100 bg-white p-4 shadow-md">
-            <div className="mb-3 flex items-center gap-1.5 text-sm font-bold text-primary"><BadgeCheck className="h-4 w-4" />나라장터 등록 업체</div>
-            <p className="flex items-center gap-2 text-lg font-bold"><Building2 className="h-5 w-5 text-slate-400" />{found.corpName}</p>
+            <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-primary"><BadgeCheck className="h-4 w-4" />나라장터 등록 정보를 찾았어요</div>
+            <p className="text-xs text-slate-500">아래 업종·소재지로 참여 가능 공고를 골라 드릴게요.</p>
             <dl className="mt-3 grid grid-cols-[64px_1fr] gap-y-2 text-sm">
               <dt className="text-slate-500">소재지</dt><dd className="font-medium">{found.location ?? '확인 안 됨'}</dd>
               <dt className="text-slate-500">등록업종</dt>
@@ -144,8 +140,8 @@ export default function StartPage() {
               </dd>
             </dl>
           </div>
-          <p className="text-xs text-slate-500">나라장터 공개 정보입니다. 본인 회사가 맞는지 확인해 주세요.</p>
-          <button type="button" onClick={confirm} className={BTN_PRIMARY}>네, 우리 회사가 맞아요<ArrowRight className="h-5 w-5" /></button>
+          <p className="text-xs text-slate-500">업체명은 가입할 때 대표자명으로 회사를 확인한 뒤 보여드려요.</p>
+          <button type="button" onClick={confirm} className={BTN_PRIMARY}>이 정보로 공고 보기<ArrowRight className="h-5 w-5" /></button>
           <button type="button" onClick={() => { setFound(null); setMode('bizno'); }} className="w-full py-2 text-sm font-medium text-slate-500">다른 번호로 조회</button>
         </section>
       )}
@@ -164,7 +160,7 @@ export default function StartPage() {
           </div>
           <div className="sticky bottom-0 -mx-5 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-50/0 px-5 pb-6 pt-3">
             <button type="button" disabled={!manualReady || !industries.length}
-              onClick={() => go({ industries, location, bizno: bizno.replace(/\D/g, '') || null, naraRegistered: found ? true : profile.naraRegistered })}
+              onClick={() => go({ industries, location, bizno: bizno.replace(/\D/g, '') || null })}
               className={BTN_PRIMARY}>
               내 공고 보기<ArrowRight className="h-5 w-5" />
             </button>

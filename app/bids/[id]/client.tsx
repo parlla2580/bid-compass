@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { BookOpen, Bookmark, Calculator, ExternalLink, FileSearch, History, Info, ShieldCheck } from 'lucide-react';
+import { BookOpen, Bookmark, Calculator, ExternalLink, FileSearch, History, Info, Lock, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/feedback';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
@@ -18,7 +18,8 @@ import type { TermKey } from '@/lib/terms';
 const CONTRACT_TERMS = ['일반경쟁', '제한경쟁', '지명경쟁', '수의계약'];
 
 export default function NoticeDetail({ id }: { id: number }) {
-  const { notices } = useStore();
+  const { notices, loaded, account } = useStore();
+  const [signup, setSignup] = useState(false);
   const cached = notices?.find((n) => n.id === id) ?? null;
   const [notice, setNotice] = useState<Notice | null>(cached);
   const [state, setState] = useState<'loading' | 'ok' | 'missing' | 'error'>(cached ? 'ok' : 'loading');
@@ -30,7 +31,7 @@ export default function NoticeDetail({ id }: { id: number }) {
       .catch(() => setState('error'));
   }, [id, cached]);
 
-  if (state === 'loading') return <main className="space-y-3 px-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-28 animate-pulse rounded-card bg-white" />)}</main>;
+  if (state === 'loading' || !loaded) return <main className="space-y-3 px-4 pt-4">{[0, 1, 2].map((i) => <div key={i} className="h-28 animate-pulse rounded-card bg-white" />)}</main>;
   if (state !== 'ok' || !notice) {
     return (
       <main className="px-4 pt-10 text-center">
@@ -44,6 +45,8 @@ export default function NoticeDetail({ id }: { id: number }) {
   const ex = explain(n);
   const closed = n.d < 0;
   const a = awardInfo(n.award);
+  // 가입 전에는 상세를 흐리게 보여주고 가입을 안내 (기획 v2.2)
+  const gated = loaded && !account;
   const rows: [React.ReactNode, React.ReactNode][] = [
     ['공고번호', `${n.bidNo}-${n.bidOrd}`],
     ['공고기관', n.org],
@@ -74,6 +77,10 @@ export default function NoticeDetail({ id }: { id: number }) {
         <h1 className="mt-2 text-xl font-bold leading-snug">{n.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{n.org}{n.demandOrg && n.demandOrg !== n.org ? ` · 수요기관 ${n.demandOrg}` : ''}</p>
       </section>
+
+      {gated && <SignupGate onSignup={() => setSignup(true)} />}
+      <div className={gated ? 'pointer-events-none max-h-[70vh] select-none overflow-hidden blur-[6px]' : 'space-y-4'} aria-hidden={gated || undefined}>
+      <div className="space-y-4">
 
       {closed && (
         <p className="flex items-center gap-2 rounded-lg bg-slate-200 px-3.5 py-3 text-sm font-medium text-slate-600">
@@ -119,10 +126,41 @@ export default function NoticeDetail({ id }: { id: number }) {
         </table>
       </section>
 
-      <SimilarContracts notice={n} />
+      {gated ? <SimilarContractsPlaceholder /> : <SimilarContracts notice={n} />}
 
-      <DetailActions notice={n} />
+      {!gated && <DetailActions notice={n} />}
+      </div>
+      </div>
+      <SignupSheet open={signup} onClose={() => setSignup(false)}
+        reason="가입하면 이 공고의 해설, 참여 가능 판정 근거, 유사 계약 이력을 바로 볼 수 있어요."
+        onDone={() => setSignup(false)} />
     </main>
+  );
+}
+
+/** 가입 전: 상세 위에 띄우는 가입 안내 */
+function SignupGate({ onSignup }: { onSignup: () => void }) {
+  return (
+    <section className="relative z-10 rounded-card border border-blue-200 bg-white p-5 text-center shadow-md">
+      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-primary"><Lock className="h-5 w-5" /></span>
+      <h2 className="mt-3 text-base font-bold">가입하고 이 공고를 자세히 보세요</h2>
+      <ul className="mx-auto mt-3 max-w-[280px] space-y-1 text-left text-sm text-slate-600">
+        <li>· 누가 참여할 수 있고 어떻게 뽑는지 <b>공고 해설</b></li>
+        <li>· 우리 회사가 <b>왜 참여할 수 있는지</b> 판정 근거</li>
+        <li>· 같은 기관의 <b>유사 계약 이력</b>과 투찰금액 계산</li>
+      </ul>
+      <button type="button" onClick={onSignup} className={BTN_PRIMARY + ' mt-4'}>1분 만에 가입하기</button>
+      <Link href="/login" className="mt-3 inline-block text-sm font-medium text-slate-500">이미 가입했어요 · 로그인</Link>
+    </section>
+  );
+}
+
+function SimilarContractsPlaceholder() {
+  return (
+    <section className="rounded-card border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold"><History className="h-4 w-4 text-primary" />유사 계약 이력</h2>
+      <div className="h-16 rounded-lg bg-slate-100" />
+    </section>
   );
 }
 
