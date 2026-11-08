@@ -1,5 +1,3 @@
-import { TODAY } from './data';
-
 export const fmtNum = (n: number) => Math.round(n).toLocaleString('ko-KR');
 export const fmtWon = (n: number) => fmtNum(n) + '원';
 
@@ -24,14 +22,13 @@ export function fmtKorean(n: number) {
   return [eok ? eok.toLocaleString('ko-KR') + '억' : '', man ? man.toLocaleString('ko-KR') + '만' : ''].filter(Boolean).join(' ') + '원';
 }
 
-export function deadlineOf(d: number) {
-  const dt = new Date(TODAY);
-  dt.setDate(dt.getDate() + d);
-  return dt;
-}
-
 const pad = (n: number) => String(n).padStart(2, '0');
-export const fmtDate = (dt: Date) => `${dt.getFullYear()}.${pad(dt.getMonth() + 1)}.${pad(dt.getDate())}`;
+/** 한국시간 기준 날짜 */
+const kst = (dt: Date) => new Date(dt.getTime() + 9 * 3600e3);
+export const fmtDate = (dt: Date) => { const k = kst(dt); return `${k.getUTCFullYear()}.${pad(k.getUTCMonth() + 1)}.${pad(k.getUTCDate())}`; };
+export const fmtTime = (dt: Date) => { const k = kst(dt); return `${pad(k.getUTCHours())}:${pad(k.getUTCMinutes())}`; };
+export const fmtDateTime = (dt: Date) => `${fmtDate(dt)} ${fmtTime(dt)}`;
+export const weekdayKo = (dt: Date) => ['일', '월', '화', '수', '목', '금', '토'][kst(dt).getUTCDay()];
 
 /** 사업자등록번호 마스크 XXX-XX-XXXXX */
 export function maskBizNo(value: string) {

@@ -1,20 +1,18 @@
-import { EMPTY_PROFILE, type BidType, type CompanySize, type Profile } from './data';
+import { EMPTY_PROFILE, type BidType, type CompanySize, type Industry, type Profile } from './data';
 import { getSupabase } from './supabase';
 
 /* =========================================================
- * Supabase 읽기·쓰기 — 회원 데이터 (supabase/schema.sql)
- * 공고(notices)는 아직 앱 목데이터를 쓰고, API 수집 단계에서 DB 조회로 바꿉니다.
+ * Supabase 읽기·쓰기 — 회원 데이터 (supabase/schema.sql, migrations/003)
  * ========================================================= */
 
 interface ProfileRow {
   user_id: string;
-  industry_big: string | null;
-  industry_mid: string | null;
-  industry_leaf: string | null;
+  bizno: string | null;
+  nara_registered: boolean | null;
+  corp_name: string | null;
+  industries: Industry[] | null;
   location: string | null;
   company_size: CompanySize | null;
-  licenses: string[] | null;
-  direct_products: string[] | null;
   records: string;
   pref_types: BidType[];
   pref_orgs: string[];
@@ -25,13 +23,12 @@ interface ProfileRow {
 function toRow(userId: string, p: Profile): ProfileRow {
   return {
     user_id: userId,
-    industry_big: p.industry?.big ?? null,
-    industry_mid: p.industry?.mid ?? null,
-    industry_leaf: p.industry?.leaf ?? null,
+    bizno: p.bizno,
+    nara_registered: p.naraRegistered,
+    corp_name: p.corpName,
+    industries: p.industries,
     location: p.location,
     company_size: p.size,
-    licenses: p.licenses,
-    direct_products: p.directProducts,
     records: p.records,
     pref_types: p.types,
     pref_orgs: p.preferredOrgs,
@@ -43,11 +40,12 @@ function toRow(userId: string, p: Profile): ProfileRow {
 function fromRow(r: ProfileRow): Profile {
   return {
     ...EMPTY_PROFILE,
-    industry: r.industry_big && r.industry_mid ? { big: r.industry_big, mid: r.industry_mid, leaf: r.industry_leaf } : null,
+    bizno: r.bizno,
+    naraRegistered: r.nara_registered,
+    corpName: r.corp_name,
+    industries: r.industries,
     location: r.location,
     size: r.company_size,
-    licenses: r.licenses,
-    directProducts: r.direct_products,
     records: r.records,
     types: r.pref_types,
     preferredOrgs: r.pref_orgs,

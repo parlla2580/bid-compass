@@ -3,21 +3,20 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Bell, Bookmark, Building2, FileBadge, History, LogIn, LogOut, Pencil, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Bell, Bookmark, Building2, FileBadge, History, Loader2, LogIn, LogOut, Pencil, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Sheet, useToast } from '@/components/feedback';
 import { useRequireStart } from '@/components/layout';
-import { ChoiceChips, IndustrySearch, PriceRange, TagInput } from '@/components/inputs';
+import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
-import { INDUSTRY, NOTICES, REGIONS, SIZES, type BidType, type Profile } from '@/lib/data';
-import { deadlineOf, fmtDate, fmtRange, fmtShort } from '@/lib/format';
+import { SIZES, hasSigungu, type BidType, type Notice, type Profile } from '@/lib/data';
+import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
 import { judge } from '@/lib/judge';
+import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 
 const TYPES: BidType[] = ['물품', '용역', '공사'];
 type SheetKey = 'company' | 'prefs' | null;
-
-const listText = (v: string[] | null) => (v === null ? null : v.length ? v.join(', ') : '없음');
 
 /** S7. 마이페이지 */
 export default function MyPage() {
@@ -25,25 +24,31 @@ export default function MyPage() {
   const params = useSearchParams();
   const router = useRouter();
   const toast = useToast();
-  const { profile, setProfile, account, signOut, saved, reset } = useStore();
+  const { profile, setProfile, account, signOut, saved, reset, notices } = useStore();
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [signup, setSignup] = useState(false);
+  const [savedNotices, setSavedNotices] = useState<Notice[] | null>(null);
 
   useEffect(() => {
     const edit = params.get('edit');
     if (edit === 'company' || edit === 'prefs') setSheet(edit);
   }, [params]);
 
+  // 저장 공고 — 마감된 공고도 보여야 하므로 id로 따로 불러옴
+  useEffect(() => {
+    if (!saved.length) return setSavedNotices([]);
+    const cached = notices?.filter((n) => saved.includes(n.id)) ?? [];
+    if (notices && cached.length === saved.length) return setSavedNotices(cached);
+    fetchNoticesByIds(saved).then(setSavedNotices).catch(() => setSavedNotices(cached));
+  }, [saved, notices]);
+
   if (!ready) return null;
 
-  const ind = profile.industry!;
-  const savedNotices = NOTICES.filter((n) => saved.includes(n.id)).sort((a, b) => a.d - b.d);
-  const companyRows: [string, string | null][] = [
-    ['업종', [ind.big, ind.mid, ind.leaf].filter(Boolean).join(' > ')],
-    ['소재지', profile.location],
+  const companyRows: [string, React.ReactNode][] = [
+    ['업체명', profile.corpName ? `${profile.corpName}${profile.naraRegistered ? ' (나라장터 등록)' : ''}` : null],
+    ['업종', profile.industries?.length ? profile.industries.map((i) => i.name).join(', ') : null],
+    ['소재지', profile.location ? `${profile.location}${hasSigungu(profile.location) ? '' : ' (시군구 미입력)'}` : null],
     ['기업규모', profile.size],
-    ['보유 면허', listText(profile.licenses)],
-    ['직접생산확인 품목', listText(profile.directProducts)],
     ['수행실적', profile.records || null],
   ];
 
@@ -68,14 +73,15 @@ export default function MyPage() {
           <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="h-4 w-4 text-primary" />기업 정보</h2>
           <button type="button" onClick={() => setSheet('company')} className="flex items-center gap-1 text-sm font-semibold text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>
         </div>
-        <dl className="grid grid-cols-[112px_1fr] gap-y-2 text-sm">
+        <dl className="grid grid-cols-[72px_1fr] gap-y-2 text-sm">
           {companyRows.map(([k, v]) => (
             <div key={k} className="contents">
               <dt className="text-slate-500">{k}</dt>
-              <dd className={v ? 'font-medium' : 'text-amber-600'}>{v ?? '미입력 — 입력하면 판정이 정확해집니다'}</dd>
+              <dd className={v ? 'font-medium' : 'text-slate-400'}>{v ?? '미입력'}</dd>
             </div>
           ))}
         </dl>
+        <p className="mt-3 text-xs text-slate-400">업종과 소재지가 참여 가능 판정에 쓰입니다.</p>
       </section>
 
       {/* 매칭 선호도 */}
@@ -95,10 +101,11 @@ export default function MyPage() {
 
       {/* 저장한 공고 */}
       <section id="saved" className="scroll-mt-20 rounded-card border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold"><Bookmark className="h-4 w-4 text-primary" />저장한 공고 <span className="text-primary">{savedNotices.length}</span></h2>
-        {savedNotices.length ? (
+        <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold"><Bookmark className="h-4 w-4 text-primary" />저장한 공고 <span className="text-primary">{saved.length}</span></h2>
+        {!savedNotices && <div className="h-14 animate-pulse rounded-lg bg-slate-100" />}
+        {savedNotices && savedNotices.length > 0 && (
           <ul className="divide-y divide-slate-100">
-            {savedNotices.map((n) => (
+            {[...savedNotices].sort((a, b) => a.closesAt.getTime() - b.closesAt.getTime()).map((n) => (
               <li key={n.id}>
                 <Link href={`/bids/${n.id}`} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
@@ -107,14 +114,15 @@ export default function MyPage() {
                       <TypeTag type={n.type} />
                     </div>
                     <p className="mt-1 truncate text-sm font-semibold">{n.title}</p>
-                    <p className="truncate text-xs text-slate-500">{n.org} · {fmtShort(n.estPrice)}원 · 마감 {fmtDate(deadlineOf(n.d))} {n.closeTime}</p>
+                    <p className="truncate text-xs text-slate-500">{n.org}{n.estPrice ? ` · ${fmtShort(n.estPrice)}원` : ''} · 마감 {fmtDateTime(n.closesAt)}</p>
                   </div>
                   <DdayBadge d={n.d} />
                 </Link>
               </li>
             ))}
           </ul>
-        ) : (
+        )}
+        {savedNotices && !savedNotices.length && (
           <p className="py-6 text-center text-sm text-slate-400">
             저장한 공고가 없습니다.<br />
             <Link href="/recommend" className="font-semibold text-primary">추천 공고</Link>에서 관심 공고를 저장해 보세요.
@@ -163,55 +171,59 @@ export default function MyPage() {
   );
 }
 
-/** 목록형 항목: 미입력(null) / 없음([]) / 값 */
-function ListField({ id, label, value, onChange, placeholder }: {
-  id: string;
-  label: string;
-  value: string[] | null;
-  onChange: (v: string[] | null) => void;
-  placeholder: string;
-}) {
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <label htmlFor={id} className="text-sm font-semibold text-slate-700">{label}</label>
-        <label className="flex items-center gap-1.5 text-xs text-slate-500">
-          <input type="checkbox" className="h-3.5 w-3.5 accent-blue-600" checked={value !== null && value.length === 0}
-            onChange={(e) => onChange(e.target.checked ? [] : null)} />
-          보유한 것 없음
-        </label>
-      </div>
-      {/* 태그를 모두 지우면 '미입력'으로 되돌림 — '없음'은 체크박스로만 */}
-      <TagInput id={id} value={value ?? []} onChange={(v) => onChange(v.length ? v : null)} placeholder={placeholder} />
-    </div>
-  );
-}
-
 function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose: () => void; onSave: (p: Profile) => void }) {
+  const toast = useToast();
   const [form, setForm] = useState(profile);
-  const ind = form.industry!;
+  const [busy, setBusy] = useState(false);
+
+  // 사업자번호로 나라장터 정보 다시 불러오기
+  const refresh = async () => {
+    if (!form.bizno) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/company?bizno=${form.bizno}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (!data.registered) return toast('나라장터에 등록된 정보가 없습니다');
+      setForm({
+        ...form, naraRegistered: true, corpName: data.corpName ?? form.corpName,
+        location: data.location ?? form.location,
+        industries: data.industries?.length ? data.industries : form.industries,
+      });
+      toast('나라장터 정보를 불러왔습니다');
+    } catch (e) {
+      toast((e as Error).message || '조회에 실패했습니다');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Sheet title="기업 정보 수정" open onClose={onClose} footer={<button type="button" onClick={() => onSave(form)} className={BTN_PRIMARY}>저장</button>}>
       <div className="space-y-6">
         <div>
-          <p className="mb-2 text-sm font-semibold text-slate-700">업종</p>
-          <IndustrySearch value={ind} onChange={(v) => setForm({ ...form, industry: { ...v, leaf: v.mid === ind.mid ? ind.leaf : null } })} />
-          <select aria-label="업종 세분류" value={ind.leaf ?? ''} onChange={(e) => setForm({ ...form, industry: { ...ind, leaf: e.target.value || null } })}
-            className={INPUT_CLS + ' mt-2'}>
-            <option value="">세분류 선택 (선택)</option>
-            {INDUSTRY[ind.big][ind.mid].map((l) => <option key={l}>{l}</option>)}
-          </select>
+          <label htmlFor="f-bizno" className="mb-1.5 block text-sm font-semibold text-slate-700">사업자등록번호 <span className="font-normal text-slate-400">(선택)</span></label>
+          <div className="flex gap-2">
+            <input id="f-bizno" inputMode="numeric" maxLength={10} value={form.bizno ?? ''} placeholder="숫자 10자리"
+              onChange={(e) => setForm({ ...form, bizno: e.target.value.replace(/\D/g, '') || null })} className={INPUT_CLS + ' flex-1'} />
+            <button type="button" onClick={refresh} disabled={busy || form.bizno?.length !== 10}
+              className="flex shrink-0 items-center gap-1 rounded-btn bg-slate-800 px-3 text-sm font-bold text-white disabled:bg-slate-300">
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}불러오기
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-semibold text-slate-700">업종 (나라장터 업종)</p>
+          <IndustryPicker value={form.industries ?? []} onChange={(v) => setForm({ ...form, industries: v })} />
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">소재지</p>
-          <ChoiceChips label="소재지" options={REGIONS} value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
+          <LocationPicker value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-700">기업규모</p>
           <ChoiceChips label="기업규모" options={SIZES} value={form.size} onChange={(v) => setForm({ ...form, size: v })} />
         </div>
-        <ListField id="licenses" label="보유 면허" value={form.licenses} onChange={(v) => setForm({ ...form, licenses: v })} placeholder="예: 전기공사업 (Enter)" />
-        <ListField id="direct" label="직접생산확인 품목" value={form.directProducts} onChange={(v) => setForm({ ...form, directProducts: v })} placeholder="예: LED조명기구 (Enter)" />
         <div>
           <label htmlFor="records" className="mb-1.5 block text-sm font-semibold text-slate-700">수행실적 <span className="font-normal text-slate-400">(선택)</span></label>
           <textarea id="records" rows={3} value={form.records} onChange={(e) => setForm({ ...form, records: e.target.value })}

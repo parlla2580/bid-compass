@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { CircleAlert, CircleCheck, CircleX, Sparkle } from 'lucide-react';
-import type { BidType, Notice } from '@/lib/data';
+import type { BidType, Notice, Profile } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import { STATUS_LABEL, summarize, type Judgment, type RuleResult, type Status } from '@/lib/judge';
 
@@ -84,18 +84,39 @@ export function NoticeCard({ notice: n, judgment }: { notice: Notice; judgment: 
       <div className="mb-2 flex items-center gap-1.5">
         <StatusBadge status={judgment.status} />
         <TypeTag type={n.type} />
-        {n.posted === 0 && <NewBadge />}
+        {n.isNew && <NewBadge />}
       </div>
-      <h3 className="truncate text-[15px] font-bold text-slate-800">{n.title}</h3>
+      <h3 className="line-clamp-2 text-[15px] font-bold text-slate-800">{n.title}</h3>
       <p className="mt-0.5 truncate text-sm text-slate-500">{n.org}</p>
       <p className={`mt-1.5 line-clamp-1 text-xs ${STATUS_STYLE[judgment.status].text}`}>{summarize(judgment)}</p>
       <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
         <span className="text-sm font-semibold text-slate-700">
-          {fmtShort(n.estPrice)}
-          <span className="ml-0.5 text-xs font-normal text-slate-400">원</span>
+          {n.estPrice ? <>{fmtShort(n.estPrice)}<span className="ml-0.5 text-xs font-normal text-slate-400">원</span></> : <span className="text-xs font-normal text-slate-400">금액 미공개</span>}
         </span>
         <DdayBadge d={n.d} />
       </div>
     </Link>
   );
+}
+
+/** 공고 불러오는 중 / 오류 / 공고 없음 처리 */
+export function NoticesState({ notices, error, children }: { notices: Notice[] | null; error: string | null; children: React.ReactNode }) {
+  if (error) return <p className="rounded-card border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-600">{error}</p>;
+  if (!notices) {
+    return (
+      <div className="space-y-2.5" aria-busy="true" aria-label="공고를 불러오는 중">
+        {[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-card border border-slate-200 bg-white" />)}
+      </div>
+    );
+  }
+  if (!notices.length) {
+    return <p className="rounded-card border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">아직 수집된 마감 전 공고가 없습니다. 공고는 3시간마다 수집됩니다.</p>;
+  }
+  return <>{children}</>;
+}
+
+/** '전기공사업 외 2 · 경기도 용인시' */
+export function profileSummary(p: Profile): string {
+  const ind = p.industries?.length ? `${p.industries[0].name}${p.industries.length > 1 ? ` 외 ${p.industries.length - 1}` : ''}` : '업종 미입력';
+  return `${ind} · ${p.location ?? '소재지 미입력'}`;
 }

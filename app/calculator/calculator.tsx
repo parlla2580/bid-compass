@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, CircleX, ChevronRight, Info, Link2, TriangleAlert } from 'lucide-react';
 import { Term } from '@/components/term';
-import { getNotice, type BidType } from '@/lib/data';
+import type { BidType, Notice } from '@/lib/data';
+import { fetchNotice } from '@/lib/notices';
+import { useStore } from '@/lib/store';
 import { fmtKorean, fmtNum, fmtShort, fmtWon, round1 } from '@/lib/format';
 import {
   CONSTRUCTION_FLOOR, DEFAULT_PASS, EXAMPLE_FLOOR_RATE, EXAMPLE_RESERVE_RANGE, SCORE_ITEMS, VAT_RATE,
@@ -63,7 +65,16 @@ function Segment<T extends string>({ options, value, onChange, label }: { option
 export default function CalculatorTabs() {
   const params = useSearchParams();
   const [tab, setTab] = useState<Tab>(params.get('tab') === 'score' ? 'score' : 'bid');
-  const from = params.get('from') ? getNotice(params.get('from')!) : undefined;
+  const fromId = Number(params.get('from')) || null;
+  const { notices } = useStore();
+  const [from, setFrom] = useState<Notice | null>(null);
+  useEffect(() => {
+    if (!fromId) return;
+    const hit = notices?.find((n) => n.id === fromId);
+    if (hit) setFrom(hit);
+    else fetchNotice(fromId).then(setFrom).catch(() => setFrom(null));
+  }, [fromId, notices]);
+  const fromParams = !!params.get('base') || !!params.get('rate');
   const initType = params.get('type') as BidType | null;
   const [type, setType] = useState<BidType>(initType && TYPES.includes(initType) ? initType : (from?.type ?? '물품'));
 
@@ -100,7 +111,11 @@ export default function CalculatorTabs() {
           <Segment label="사업유형" options={TYPES} value={type} onChange={setType} />
         </div>
         {tab === 'bid'
-          ? <BidPanel key={`bid-${type}`} type={type} initialBase={Number(params.get('base')) || from?.basePrice || 132_000_000} estPrice={from?.estPrice} />
+          ? <BidPanel key={`bid-${type}`} type={type} estPrice={from?.estPrice}
+              initialBase={Number(params.get('base')) || from?.basePrice || 132_000_000}
+              initialRange={params.get('range') ? Number(params.get('range')) : null}
+              initialRate={params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null}
+              fromNotice={fromParams && type === params.get('type')} />
           : <ScorePanel key={`score-${type}`} type={type} />}
       </main>
     </>
@@ -114,10 +129,18 @@ const CHECK_STYLE: Record<BidCheck['level'], { Icon: typeof CircleCheck; cls: st
 };
 
 /* ---------- 탭 1: 투찰금액 계산기 (F4-1) ---------- */
-function BidPanel({ type, initialBase, estPrice }: { type: BidType; initialBase: number; estPrice?: number }) {
+function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice }: {
+  type: BidType;
+  initialBase: number;
+  estPrice?: number;
+  /** 공고값 (없으면 예시값) */
+  initialRange: number | null;
+  initialRate: number | null;
+  fromNotice: boolean;
+}) {
   const [base, setBase] = useState<number | null>(initialBase);
-  const [range, setRange] = useState<number | null>(EXAMPLE_RESERVE_RANGE * 100);
-  const [rate, setRate] = useState<number | null>(EXAMPLE_FLOOR_RATE[type]);
+  const [range, setRange] = useState<number | null>(initialRange ?? EXAMPLE_RESERVE_RANGE * 100);
+  const [rate, setRate] = useState<number | null>(initialRate ?? EXAMPLE_FLOOR_RATE[type]);
   const [verified, setVerified] = useState(false);
   const [bid, setBid] = useState<number | null>(null);
   const [cost, setCost] = useState<{ material: number | null; labor: number | null; expense: number | null; vat: number | null }>(
@@ -149,7 +172,11 @@ function BidPanel({ type, initialBase, estPrice }: { type: BidType; initialBase:
           <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-0.5 h-4 w-4 accent-green-600" />
           <span>
             <b>공고 세부기준표 값과 대조했습니다</b>
-            <span className="mt-0.5 block text-xs text-slate-500">예비가격 범위와 낙찰하한율은 공고마다 다릅니다. 지금 값은 예시값입니다.</span>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              {fromNotice
+                ? '나라장터 공고 데이터에서 불러온 값입니다. 공고의 적격심사 세부기준표와 한 번 더 대조해 주세요.'
+                : '예비가격 범위와 낙찰하한율은 공고마다 다릅니다. 지금 값은 예시값입니다.'}
+            </span>
           </span>
         </label>
         {estPrice && (

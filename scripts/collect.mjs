@@ -20,6 +20,7 @@ const DRY = process.argv.includes('--dry') || !SB_KEY;
 
 const BID = 'https://apis.data.go.kr/1230000/ad/BidPublicInfoService02';
 const CNT = 'https://apis.data.go.kr/1230000/ao/CntrctInfoService';
+const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
 const ROWS = 999;
 const TYPES = [
   { name: '물품', bid: 'Thng', cnt: 'Thng' },
@@ -241,6 +242,23 @@ async function collectContracts(from, to) {
   return [...new Map(rows.map((r) => [r.id, r])).values()];
 }
 
+/* ---------- 나라장터 업종 목록 (업종 선택용) ---------- */
+async function collectIndustries() {
+  const items = await fetchAll(IND, {});
+  const rows = items
+    .filter((it) => it.indstrytyCd && it.indstrytyNm)
+    .map((it) => ({
+      code: it.indstrytyCd,
+      name: it.indstrytyNm,
+      category: it.indstrytyClsfcNm || null,
+      in_use: it.indstrytyUseYn ? it.indstrytyUseYn === 'Y' : null,
+      base_law: it.baseLawordNm || null,
+      updated_at: new Date().toISOString(),
+    }));
+  console.log(`  업종 목록 ${rows.length}건`);
+  return [...new Map(rows.map((r) => [r.code, r])).values()];
+}
+
 /* ---------- 저장 ---------- */
 async function upsert(sb, table, rows, onConflict) {
   for (let i = 0; i < rows.length; i += 500) {
@@ -283,7 +301,22 @@ async function main() {
     result.errors.push(`계약: ${e.message}`);
   }
 
-  const status = result.errors.length === 0 ? 'ok' : result.errors.length === 2 ? 'failed' : 'partial';
+  // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
+  try {
+    let refresh = DRY || new Date().getUTCHours() === 15;
+    if (sb && !refresh) {
+      const { count } = await sb.from('industries').select('code', { count: 'exact', head: true });
+      refresh = !count;
+    }
+    if (refresh) {
+      const industries = await collectIndustries();
+      if (sb) await upsert(sb, 'industries', industries, 'code');
+    }
+  } catch (e) {
+    result.errors.push(`업종: ${e.message}`);
+  }
+
+  const status = result.errors.length === 0 ? 'ok' : result.errors.length >= 2 ? 'failed' : 'partial';
   console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건, API 호출 ${apiCalls}회`);
   result.errors.forEach((e) => console.error('  오류:', e));
 

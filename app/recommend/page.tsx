@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ChevronDown, Info, SearchX } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
-import { DdayBadge, NewBadge, ResultIcon, STATUS_STYLE, StatusBadge, TypeTag, chipClass } from '@/components/ui';
+import { DdayBadge, NewBadge, NoticesState, ResultIcon, STATUS_STYLE, StatusBadge, TypeTag, chipClass, profileSummary } from '@/components/ui';
 import { fmtRange, fmtShort } from '@/lib/format';
 import { STATUS_LABEL, summarize, type Status } from '@/lib/judge';
 import { useJudged, useStore, type Judged } from '@/lib/store';
@@ -15,14 +15,14 @@ type SortKey = 'relevance' | 'deadline';
 /** S5. 추천 공고 (F3-3) — 판정 통과 공고를 관련도 순으로 */
 export default function RecommendPage() {
   const ready = useRequireStart();
-  const { profile } = useStore();
+  const { profile, notices, noticesError } = useStore();
   const judged = useJudged();
   const [tab, setTab] = useState<Tab>('eligible');
   const [sort, setSort] = useState<SortKey>('relevance');
   const [showIneligible, setShowIneligible] = useState(false);
   if (!ready) return <Shell><Header /></Shell>;
 
-  const by = (s: Status) => judged.filter((j) => j.judgment.status === s);
+  const by = (s: Status) => (judged ?? []).filter((j) => j.judgment.status === s);
   const sorter = (a: Judged, b: Judged) => (sort === 'relevance' ? b.relevance - a.relevance : a.notice.d - b.notice.d);
   const rows = by(tab).sort(sorter);
   const ineligible = by('ineligible').sort(sorter);
@@ -34,7 +34,7 @@ export default function RecommendPage() {
         <section className="px-4 pt-5">
           <h1 className="text-xl font-bold">추천 공고</h1>
           <p className="mt-1 text-sm text-slate-500">
-            <b className="text-slate-700">{profile.industry!.big} &gt; {profile.industry!.mid}</b> · <b className="text-slate-700">{profile.location}</b> 기준으로 판정했어요
+            <b className="text-slate-700">{profileSummary(profile)}</b> 기준으로 판정했어요
             <Link href="/mypage?edit=company" className="ml-1.5 font-semibold text-primary hover:underline">수정</Link>
           </p>
         </section>
@@ -67,8 +67,10 @@ export default function RecommendPage() {
         )}
 
         <div className="mt-3 space-y-3 px-4">
-          {rows.map((j) => <RecommendCard key={j.notice.id} item={j} />)}
-          {!rows.length && <EmptyState tab={tab} />}
+          <NoticesState notices={notices} error={noticesError}>
+            {rows.map((j) => <RecommendCard key={j.notice.id} item={j} />)}
+            {!rows.length && <EmptyState tab={tab} />}
+          </NoticesState>
         </div>
 
         {/* 참여 불가 공고 — 기본 숨김 */}
@@ -93,12 +95,12 @@ function RecommendCard({ item: { notice: n, judgment } }: { item: Judged }) {
         <div className="flex items-center gap-1.5">
           <StatusBadge status={judgment.status} />
           <TypeTag type={n.type} />
-          {n.posted === 0 && <NewBadge />}
+          {n.isNew && <NewBadge />}
           <span className="ml-auto"><DdayBadge d={n.d} /></span>
         </div>
-        <h3 className="mt-2 truncate text-[15px] font-bold">{n.title}</h3>
+        <h3 className="mt-2 line-clamp-2 text-[15px] font-bold">{n.title}</h3>
         <p className="truncate text-sm text-slate-500">
-          {n.org} · <span className="font-semibold text-slate-700">{fmtShort(n.estPrice)}원</span>
+          {n.org} · <span className="font-semibold text-slate-700">{n.estPrice ? `${fmtShort(n.estPrice)}원` : '금액 미공개'}</span>
         </p>
         <p className={`mt-1.5 line-clamp-2 text-xs ${STATUS_STYLE[judgment.status].text}`}>{summarize(judgment)}</p>
       </Link>

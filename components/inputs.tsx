@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState, type KeyboardEvent } from 'react';
-import { Search } from 'lucide-react';
-import { INDUSTRY_OPTIONS, PRICE_STEPS } from '@/lib/data';
+import { useEffect, useState, type KeyboardEvent } from 'react';
+import { Search, X } from 'lucide-react';
+import { PRICE_STEPS, SIDO, SIGUNGU, splitLocation, type Industry } from '@/lib/data';
+import { searchIndustries } from '@/lib/notices';
 import { fmtRange } from '@/lib/format';
 import { INPUT_CLS, chipClass } from './ui';
 
@@ -49,37 +50,92 @@ export function ChoiceChips<T extends string>({ options, value, onChange, label 
   );
 }
 
-/** 검색형 업종 선택 (대분류 > 중분류) */
-export function IndustrySearch({ value, onChange }: {
-  value: { big: string; mid: string } | null;
-  onChange: (v: { big: string; mid: string }) => void;
+/** 나라장터 업종 검색·다중 선택 (업종 2,916개, Supabase industries 테이블) */
+export function IndustryPicker({ value, onChange, max = 10 }: {
+  value: Industry[];
+  onChange: (v: Industry[]) => void;
+  max?: number;
 }) {
   const [q, setQ] = useState('');
-  const results = useMemo(() => {
+  const [results, setResults] = useState<Industry[]>([]);
+  const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  // 입력이 멈추면 검색
+  useEffect(() => {
     const s = q.trim();
-    return s ? INDUSTRY_OPTIONS.filter((o) => o.label.includes(s)) : INDUSTRY_OPTIONS;
+    if (s.length < 1) {
+      setResults([]);
+      return;
+    }
+    setState('loading');
+    const t = setTimeout(() => {
+      searchIndustries(s)
+        .then((r) => { setResults(r); setState('idle'); })
+        .catch(() => setState('error'));
+    }, 250);
+    return () => clearTimeout(t);
   }, [q]);
+
+  const chosen = new Set(value.map((v) => v.code));
+  const toggle = (i: Industry) =>
+    onChange(chosen.has(i.code) ? value.filter((v) => v.code !== i.code) : value.length >= max ? value : [...value, i]);
 
   return (
     <div>
+      {value.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {value.map((i) => (
+            <span key={i.code} className="inline-flex items-center gap-1 rounded-full bg-primary py-1 pl-3 pr-1.5 text-sm font-medium text-white">
+              {i.name}
+              <button type="button" aria-label={`${i.name} 빼기`} onClick={() => toggle(i)} className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-white/20">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <label className="relative block">
-        <span className="sr-only">업종 검색</span>
+        <span className="sr-only">나라장터 업종 검색</span>
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-        <input id="industry-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="업종 검색 (예: 전자부품)"
+        <input id="industry-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="업종 검색 (예: 전기공사업, 의료기기)"
           className={INPUT_CLS + ' pl-11'} />
       </label>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {results.map((o) => {
-          const on = value?.big === o.big && value.mid === o.mid;
-          return (
-            <button key={o.label} type="button" aria-pressed={on} onClick={() => onChange({ big: o.big, mid: o.mid })}
-              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${chipClass(on)}`}>
-              {o.label}
+      {q.trim() && (
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-btn border border-slate-200 bg-white">
+          {state === 'loading' && <p className="px-3 py-3 text-sm text-slate-400">검색 중…</p>}
+          {state === 'error' && <p className="px-3 py-3 text-sm text-red-500">업종 목록을 불러오지 못했습니다</p>}
+          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-slate-400">검색 결과가 없습니다</p>}
+          {state === 'idle' && results.map((i) => (
+            <button key={i.code} type="button" aria-pressed={chosen.has(i.code)} onClick={() => toggle(i)}
+              className={`flex w-full items-center justify-between border-b border-slate-100 px-3 py-2.5 text-left text-sm last:border-0 hover:bg-slate-50 ${chosen.has(i.code) ? 'font-semibold text-primary' : ''}`}>
+              <span>{i.name}</span>
+              <span className="text-xs text-slate-400">{chosen.has(i.code) ? '선택됨' : i.code}</span>
             </button>
-          );
-        })}
-        {!results.length && <p className="py-2 text-sm text-slate-400">검색 결과가 없습니다</p>}
-      </div>
+          ))}
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-slate-400">나라장터에 등록된 업종 기준입니다. 최대 {max}개까지 선택할 수 있습니다.</p>
+    </div>
+  );
+}
+
+/** 소재지 선택 — 시도 → 시군구 (시군구는 선택) */
+export function LocationPicker({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const { sido, sigungu } = splitLocation(value);
+  const list = sido ? SIGUNGU[sido] ?? [] : [];
+  const select = INPUT_CLS + ' py-2.5';
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <select aria-label="시도" value={sido ?? ''} className={select}
+        onChange={(e) => onChange(e.target.value || null)}>
+        <option value="">시도 선택</option>
+        {SIDO.map((s) => <option key={s}>{s}</option>)}
+      </select>
+      <select aria-label="시군구" value={sigungu ?? ''} disabled={!sido || !list.length} className={select + ' disabled:bg-slate-100'}
+        onChange={(e) => onChange(e.target.value ? `${sido} ${e.target.value}` : sido)}>
+        <option value="">{sido && !list.length ? '시군구 없음' : '시군구 선택'}</option>
+        {list.map((g) => <option key={g}>{g}</option>)}
+      </select>
     </div>
   );
 }

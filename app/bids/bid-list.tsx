@@ -4,10 +4,10 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Info, Search, SearchX, SlidersHorizontal } from 'lucide-react';
 import { Sheet } from '@/components/feedback';
-import { BTN_PRIMARY, NoticeCard, chipClass } from '@/components/ui';
+import { BTN_PRIMARY, NoticeCard, NoticesState, chipClass } from '@/components/ui';
 import type { Notice } from '@/lib/data';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
-import { useJudged, type Judged } from '@/lib/store';
+import { useJudged, useStore, type Judged } from '@/lib/store';
 
 type SortKey = 'relevance' | 'deadline' | 'latest' | 'price';
 
@@ -16,40 +16,50 @@ const SORT_LABEL: Record<SortKey, string> = { relevance: '관련도순', deadlin
 const SORTERS: Record<SortKey, (a: Judged, b: Judged) => number> = {
   relevance: (a, b) => b.relevance - a.relevance,
   deadline: (a, b) => a.notice.d - b.notice.d,
-  latest: (a, b) => a.notice.posted - b.notice.posted || b.notice.id - a.notice.id,
+  latest: (a, b) => b.notice.postedAt.getTime() - a.notice.postedAt.getTime(),
   price: (a, b) => b.notice.estPrice - a.notice.estPrice,
 };
 
-/* 필터 그룹 — 각 값은 공고에 대한 조건 함수 */
+/* 필터 그룹 — 각 값은 공고에 대한 조건 함수. 지역·계약방식 선택지는 실제 공고에서 만듦 */
 type Pred = (n: Notice, status: Status) => boolean;
-const GROUPS: { key: string; label: string; options: [string, Pred][] }[] = [
-  { key: 'status', label: '판정 결과', options: (['eligible', 'check', 'ineligible'] as Status[]).map((s) => [STATUS_LABEL[s], (_, st) => st === s]) },
-  { key: 'type', label: '사업유형', options: (['공사', '물품', '용역'] as const).map((t) => [t, (n) => n.type === t]) },
-  { key: 'region', label: '지역', options: [
-    ['제한 없음', (n) => n.regionLimit === null],
-    ...['서울', '경기', '인천', '부산'].map((r): [string, Pred] => [r, (n) => !!n.regionLimit?.includes(r)]),
-  ] },
-  { key: 'price', label: '추정가격', options: [
-    ['1억 미만', (n) => n.estPrice < 1e8],
-    ['1억~5억', (n) => n.estPrice >= 1e8 && n.estPrice < 5e8],
-    ['5억 이상', (n) => n.estPrice >= 5e8],
-  ] },
-  { key: 'deadline', label: '마감일', options: [
-    ['3일 이내', (n) => n.d <= 3],
-    ['7일 이내', (n) => n.d <= 7],
-    ['8일 이상', (n) => n.d > 7],
-  ] },
-  { key: 'contract', label: '계약방식', options: (['일반경쟁', '제한경쟁', '지명경쟁', '수의계약'] as const).map((c) => [c, (n) => n.contract === c]) },
-];
+interface Group { key: string; label: string; options: [string, Pred][] }
+
+const sidoOf = (r: string) => r.split(' ')[0];
+
+function buildGroups(notices: Notice[]): Group[] {
+  const sidos = [...new Set(notices.flatMap((n) => (n.regionLimit ?? []).map(sidoOf)))].sort();
+  const contracts = [...new Set(notices.map((n) => n.contract))].sort();
+  return [
+    { key: 'status', label: '판정 결과', options: (['eligible', 'check', 'ineligible'] as Status[]).map((s) => [STATUS_LABEL[s], (_, st) => st === s]) },
+    { key: 'type', label: '사업유형', options: (['공사', '물품', '용역'] as const).map((t) => [t, (n) => n.type === t]) },
+    { key: 'region', label: '지역', options: [
+      ['제한 없음', (n) => !n.regionLimit],
+      ...sidos.map((r): [string, Pred] => [r, (n) => !!n.regionLimit?.some((x) => sidoOf(x) === r)]),
+    ] },
+    { key: 'price', label: '추정가격', options: [
+      ['1억 미만', (n) => n.estPrice < 1e8],
+      ['1억~5억', (n) => n.estPrice >= 1e8 && n.estPrice < 5e8],
+      ['5억 이상', (n) => n.estPrice >= 5e8],
+    ] },
+    { key: 'deadline', label: '마감일', options: [
+      ['3일 이내', (n) => n.d <= 3],
+      ['7일 이내', (n) => n.d <= 7],
+      ['8일 이상', (n) => n.d > 7],
+    ] },
+    { key: 'contract', label: '계약방식', options: contracts.map((c): [string, Pred] => [c, (n) => n.contract === c]) },
+  ];
+}
 
 type Filters = Record<string, string | null>;
-const EMPTY: Filters = Object.fromEntries(GROUPS.map((g) => [g.key, null]));
+const EMPTY: Filters = { status: null, type: null, region: null, price: null, deadline: null, contract: null };
 const PAGE = 6;
 
 /** S3. 공고 리스트 */
 export default function BidList() {
   const params = useSearchParams();
   const judged = useJudged();
+  const { notices, noticesError } = useStore();
+  const GROUPS = useMemo(() => buildGroups(notices ?? []), [notices]);
   const [filters, setFilters] = useState<Filters>(() => ({ ...EMPTY, deadline: params.get('status') === 'imminent' ? '3일 이내' : null }));
   const [draft, setDraft] = useState<Filters>(filters);
   const [sheet, setSheet] = useState(false);
@@ -63,14 +73,15 @@ export default function BidList() {
 
   const rows = useMemo(() => {
     const query = q.trim().toLowerCase();
-    return judged
+    return (judged ?? [])
       .filter(({ notice: n, judgment }) =>
         GROUPS.every((g) => {
           const v = filters[g.key];
-          return !v || g.options.find(([label]) => label === v)![1](n, judgment.status);
-        }) && (!query || n.title.toLowerCase().includes(query) || n.org.toLowerCase().includes(query)))
+          const opt = v ? g.options.find(([label]) => label === v) : null;
+          return !opt || opt[1](n, judgment.status);
+        }) && (!query || n.title.toLowerCase().includes(query) || n.org.toLowerCase().includes(query) || !!n.demandOrg?.toLowerCase().includes(query)))
       .sort(SORTERS[sort]);
-  }, [judged, filters, q, sort]);
+  }, [judged, filters, q, sort, GROUPS]);
 
   // 조건이 바뀌면 처음부터 다시 보여줌
   useEffect(() => setShown(PAGE), [filters, q, sort]);
@@ -113,7 +124,7 @@ export default function BidList() {
           {(['eligible', 'check', 'ineligible'] as Status[]).map((s) => {
             const label = STATUS_LABEL[s];
             const on = filters.status === label;
-            const count = judged.filter((j) => j.judgment.status === s).length;
+            const count = (judged ?? []).filter((j) => j.judgment.status === s).length;
             return (
               <button key={s} type="button" aria-pressed={on} onClick={() => toggleStatus(label)}
                 className={`shrink-0 rounded-full border px-3 py-1 text-[13px] font-semibold transition ${chipClass(on)}`}>
@@ -143,6 +154,7 @@ export default function BidList() {
           </label>
         </div>
 
+        <NoticesState notices={notices} error={noticesError}>
         {rows.length ? (
           <div className="space-y-3">
             {rows.slice(0, shown).map((j) => <NoticeCard key={j.notice.id} notice={j.notice} judgment={j.judgment} />)}
@@ -157,6 +169,7 @@ export default function BidList() {
             </button>
           </div>
         )}
+        </NoticesState>
       </main>
 
       <Sheet title="필터" open={sheet} onClose={() => setSheet(false)}

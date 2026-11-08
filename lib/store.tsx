@@ -1,9 +1,10 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { EMPTY_PROFILE, OPEN_NOTICES, type Notice, type Profile } from './data';
+import { EMPTY_PROFILE, type Notice, type Profile } from './data';
 import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, uploadLocal } from './db';
 import { judge, relevance, type Judgment } from './judge';
+import { fetchOpenNotices } from './notices';
 import { getSupabase, supabaseEnabled } from './supabase';
 
 /*
@@ -34,6 +35,9 @@ interface Store {
   saved: number[];
   toggleSaved: (id: number) => boolean;
   reset: () => void;
+  /** 마감 전 공고 (Supabase) — null: 불러오는 중 */
+  notices: Notice[] | null;
+  noticesError: string | null;
   /** 서버 저장 실패 메시지 — 화면에서 토스트로 알림 */
   syncError: string | null;
   clearSyncError: () => void;
@@ -43,7 +47,7 @@ const StoreContext = createContext<Store | null>(null);
 
 function read<T>(key: string, fallback: T): T {
   try {
-    const v = localStorage.getItem('bc2:' + key);
+    const v = localStorage.getItem('bc3:' + key);
     return v === null ? fallback : (JSON.parse(v) as T);
   } catch {
     return fallback;
@@ -52,8 +56,8 @@ function read<T>(key: string, fallback: T): T {
 
 function write(key: string, value: unknown) {
   try {
-    if (value === null) localStorage.removeItem('bc2:' + key);
-    else localStorage.setItem('bc2:' + key, JSON.stringify(value));
+    if (value === null) localStorage.removeItem('bc3:' + key);
+    else localStorage.setItem('bc3:' + key, JSON.stringify(value));
   } catch {
     /* 저장 불가 환경에서는 무시 */
   }
@@ -65,6 +69,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(null);
   const [saved, setSavedState] = useState<number[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Notice[] | null>(null);
+  const [noticesError, setNoticesError] = useState<string | null>(null);
   // 비동기 작업에서 최신 값을 쓰기 위한 참조
   const profileRef = useRef(profile);
   const savedRef = useRef(saved);
@@ -102,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (remote.profile) {
         applyProfile(remote.profile);
         applySaved(remote.saved);
-      } else if (profileRef.current.industry && profileRef.current.location) {
+      } else if (profileRef.current.industries !== null && profileRef.current.location) {
         await uploadLocal(a.id, profileRef.current, savedRef.current);
       }
     },
@@ -113,9 +119,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     applyProfile({ ...EMPTY_PROFILE, ...read<Partial<Profile>>('profile', {}) });
     applySaved(read<number[]>('saved', []));
     if (!supabaseEnabled) {
+      setNotices([]);
+      setNoticesError('서버 연결 설정이 없어 공고를 불러올 수 없습니다');
       setLoaded(true);
       return;
     }
+    fetchOpenNotices()
+      .then(setNotices)
+      .catch((e: Error) => {
+        setNotices([]);
+        setNoticesError(`공고를 불러오지 못했습니다: ${e.message}`);
+      });
     getSupabase()
       .auth.getSession()
       .then(async ({ data }) => {
@@ -179,7 +193,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { error: `로그인했지만 정보를 불러오지 못했습니다: ${(e as Error).message}`, started: false };
       }
       const p = profileRef.current;
-      return { error: null, started: !!(p.industry && p.location) };
+      return { error: null, started: !!(p.industries !== null && p.location) };
     },
     [loadAccount],
   );
@@ -201,7 +215,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       loaded,
       profile,
-      started: !!(profile.industry && profile.location),
+      started: !!(profile.industries !== null && profile.location),
       setProfile,
       updateProfile,
       account,
@@ -211,10 +225,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       saved,
       toggleSaved,
       reset,
+      notices,
+      noticesError,
       syncError,
       clearSyncError: () => setSyncError(null),
     }),
-    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, syncError],
+    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, syncError],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -232,11 +248,15 @@ export interface Judged {
   relevance: number;
 }
 
-/** 마감 전 공고 전체를 현재 프로필로 판정 — 프로필이 바뀌면 다시 계산 */
-export function useJudged(): Judged[] {
-  const { profile } = useStore();
+/** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
+export function useJudged(): Judged[] | null {
+  const { profile, notices } = useStore();
   return useMemo(
-    () => OPEN_NOTICES.map((notice) => ({ notice, judgment: judge(notice, profile), relevance: relevance(notice, profile) })),
-    [profile],
+    () =>
+      notices?.map((notice) => {
+        const judgment = judge(notice, profile);
+        return { notice, judgment, relevance: relevance(notice, profile, judgment) };
+      }) ?? null,
+    [profile, notices],
   );
 }
