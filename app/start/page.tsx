@@ -90,9 +90,12 @@ export default function StartPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-slate-50 px-5 md:border-x md:border-slate-200 md:shadow-md">
       <section className="pb-7 pt-14">
-        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-md">
-          <Compass className="h-7 w-7" />
-        </span>
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-md">
+            <Compass className="h-7 w-7" />
+          </span>
+          <span className="text-xl font-extrabold tracking-tight text-slate-800">입찰나침반</span>
+        </div>
         <h1 className="mt-5 text-2xl font-extrabold leading-snug tracking-tight">
           우리 회사가
           <br />
