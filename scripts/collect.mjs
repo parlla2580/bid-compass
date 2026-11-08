@@ -108,11 +108,13 @@ async function collectNotices(from, to) {
   }
 
   const rows = [];
+  const allBases = [];
   for (const t of TYPES) {
     const [items, bases] = await Promise.all([
       fetchAll(`${BID}/getBidPblancListInfo${t.bid}02`, period),
       fetchAll(`${BID}/getBidPblancListInfo${t.bid}BsisAmount02`, period).catch(() => []),
     ]);
+    allBases.push(...bases);
     const baseMap = new Map(bases.map((b) => [b.bidNtceNo, b]));
     for (const it of items) {
       const k = key(it);
@@ -156,8 +158,44 @@ async function collectNotices(from, to) {
     console.log(`  공고 ${t.name}: ${items.length}건 (기초금액 ${bases.length}건)`);
   }
   console.log(`  참가가능지역 ${regions.length}행, 면허제한 ${licenses.length}행`);
+
+  // 기초금액·지역·면허는 공고보다 늦게 등록되기도 함 → 이번 구간에 공고가 없으면 이미 저장된 공고에 덧붙임
+  const rowKeys = new Set(rows.map((r) => `${r.bid_no}-${r.bid_ord}`));
+  const rowNos = new Set(rows.map((r) => r.bid_no));
+  const updates = [];
+  for (const [k, list] of regionMap) {
+    if (rowKeys.has(k)) continue;
+    const [bid_no, bid_ord] = k.split('-');
+    updates.push({ match: { bid_no, bid_ord }, set: { region_limit: list } });
+  }
+  for (const [k, list] of licenseMap) {
+    if (rowKeys.has(k)) continue;
+    const [bid_no, bid_ord] = k.split('-');
+    updates.push({ match: { bid_no, bid_ord }, set: { license_limits: list, industry_mid: list[0]?.name ?? null } });
+  }
+  for (const b of allBases) {
+    if (rowNos.has(b.bidNtceNo)) continue;
+    updates.push({
+      match: { bid_no: b.bidNtceNo },
+      set: { base_price: num(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate) },
+    });
+  }
+
   // 같은 공고번호·차수가 여러 번 나오면 마지막 것만
-  return [...new Map(rows.map((r) => [`${r.bid_no}-${r.bid_ord}`, r])).values()];
+  return { rows: [...new Map(rows.map((r) => [`${r.bid_no}-${r.bid_ord}`, r])).values()], updates };
+}
+
+/** 이미 저장된 공고에 늦게 온 정보 덧붙이기 — 해당 공고가 아직 없으면 건너뜀 */
+async function applyUpdates(sb, updates) {
+  let n = 0;
+  for (const u of updates) {
+    let q = sb.from('notices').update(u.set);
+    for (const [col, val] of Object.entries(u.match)) q = q.eq(col, val);
+    const { error, count } = await q.select('id', { count: 'exact', head: true });
+    if (error) throw new Error(`공고 보완 실패: ${error.message}`);
+    n += count ?? 0;
+  }
+  return n;
 }
 
 /* ---------- 계약 ---------- */
@@ -227,9 +265,13 @@ async function main() {
 
   const result = { notices: 0, contracts: 0, errors: [] };
   try {
-    const notices = await collectNotices(from, to);
+    const { rows: notices, updates } = await collectNotices(from, to);
     result.notices = notices.length;
-    if (sb) await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
+    if (sb) {
+      await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
+      const patched = await applyUpdates(sb, updates);
+      console.log(`  늦게 온 정보 ${updates.length}건 중 ${patched}건을 기존 공고에 반영`);
+    }
   } catch (e) {
     result.errors.push(`공고: ${e.message}`);
   }
