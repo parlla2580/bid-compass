@@ -122,7 +122,7 @@ async function collectNotices(from, to) {
       rows.push({
         bid_no: it.bidNtceNo,
         bid_ord: it.bidNtceOrd,
-        title: it.bidNtceNm,
+        title: it.bidNtceNm || '(공고명 없음)',
         org: it.ntceInsttNm,
         demand_org: it.dminsttNm || null,
         org_type: null,
@@ -179,7 +179,7 @@ async function collectContracts(from, to) {
       rows.push({
         id: it.untyCntrctNo,
         bid_type: t.name,
-        title: it.cntrctNm,
+        title: it.cntrctNm || '(계약명 없음)',
         org: it.cntrctInsttNm || null,
         org_code: it.cntrctInsttCd || null,
         org_kind: it.cntrctInsttJrsdctnDivNm || null,
