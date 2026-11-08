@@ -24,7 +24,8 @@ alter table public.notices add column if not exists product_name      text;     
 alter table public.notices add column if not exists collected_at      timestamptz not null default now();
 
 -- 기존 목데이터 16건 표시
-update public.notices set source = 'sample' where bid_no ~ '^2026110[0-9]{4}' and source = 'api' and raw is null;
+-- 목데이터는 API 원본(raw)이 없음
+update public.notices set source = 'sample' where raw is null and source = 'api';
 
 create index if not exists notices_posted_at_idx on public.notices (posted_at desc);
 create index if not exists notices_source_idx    on public.notices (source);

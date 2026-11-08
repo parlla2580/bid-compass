@@ -8,6 +8,7 @@
 //   COLLECT_HOURS         수집 구간(시간, 기본 6) — 등록일시 기준
 //
 // 실행: node scripts/collect.mjs [--dry]
+// 실행 결과는 Supabase collect_runs 테이블에 기록됩니다.
 // =========================================================
 import { createClient } from '@supabase/supabase-js';
 
