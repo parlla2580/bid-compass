@@ -3,39 +3,45 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Compass, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/components/feedback';
 import { BTN_PRIMARY, INPUT_CLS } from '@/components/ui';
-import { maskBizNo } from '@/lib/format';
+import { DEMO_PROFILE } from '@/lib/data';
+import { useStore } from '@/lib/store';
 
+/**
+ * S1. 로그인 (이메일)
+ * 프로토타입: 아무 값이나 입력하면 로그인되고, 저장된 프로필이 없으면 데모 프로필을 불러옵니다.
+ */
 export default function LoginPage() {
   const router = useRouter();
   const toast = useToast();
-  const [bizNo, setBizNo] = useState('');
+  const { started, setProfile, setAccount } = useStore();
+  const [email, setEmail] = useState('');
   const [showPw, setShowPw] = useState(false);
 
-  return (
-    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-slate-50 px-6 md:border-x md:border-slate-200 md:shadow-md">
-      <section className="flex flex-col items-center pb-10 pt-20 text-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white shadow-md">
-          <Compass className="h-9 w-9" />
-        </span>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">입찰나침반</h1>
-        <p className="mt-1.5 text-sm text-slate-500">우리 회사에 맞는 공공조달 입찰, 무료로 찾아보세요</p>
-      </section>
+  const submit = () => {
+    if (!/^\S+@\S+\.\S+$/.test(email)) return toast('이메일 주소를 확인해주세요');
+    setAccount({ email });
+    if (!started) setProfile(DEMO_PROFILE);
+    router.push('/');
+  };
 
-      <form
-        className="space-y-4"
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          router.push('/');
-        }}
-      >
+  return (
+    <div className="mx-auto min-h-screen max-w-[480px] bg-slate-50 px-5 md:border-x md:border-slate-200 md:shadow-md">
+      <header className="flex h-14 items-center">
+        <Link href="/start" aria-label="간편 시작으로" className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+      </header>
+      <h1 className="pt-4 text-2xl font-extrabold tracking-tight">로그인</h1>
+      <p className="mt-1.5 text-sm text-slate-500">저장한 공고와 기업 정보를 이어서 볼 수 있어요.</p>
+
+      <form className="mt-8 space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <div>
-          <label htmlFor="bizno" className="mb-1.5 block text-sm font-semibold text-slate-700">사업자등록번호</label>
-          <input id="bizno" inputMode="numeric" autoComplete="username" placeholder="000-00-00000" maxLength={12}
-            value={bizNo} onChange={(e) => setBizNo(maskBizNo(e.target.value))} className={INPUT_CLS} />
+          <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">이메일</label>
+          <input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@company.co.kr" className={INPUT_CLS} />
         </div>
         <div>
           <label htmlFor="pw" className="mb-1.5 block text-sm font-semibold text-slate-700">비밀번호</label>
@@ -48,25 +54,14 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between pt-1 text-sm">
-          <label className="flex items-center gap-2 text-slate-600">
-            <input type="checkbox" className="h-4 w-4 rounded border-slate-300 accent-blue-600" defaultChecked /> 로그인 유지
-          </label>
-          <button type="button" onClick={() => toast('프로토타입: 비밀번호 찾기는 준비 중입니다')} className="text-slate-500 hover:text-slate-700">
-            비밀번호 찾기
-          </button>
-        </div>
         <button type="submit" className={BTN_PRIMARY + ' mt-2'}>로그인</button>
       </form>
 
       <p className="mt-8 text-center text-sm text-slate-500">
-        아직 회원이 아니신가요?
-        <Link href="/signup" className="ml-1 font-bold text-primary hover:underline">회원가입</Link>
+        처음이신가요?
+        <Link href="/start" className="ml-1 font-bold text-primary hover:underline">업종·지역만 넣고 시작하기</Link>
       </p>
-
-      <p className="mt-auto pb-8 pt-12 text-center text-[11px] leading-relaxed text-slate-400">
-        프로토타입 화면입니다. 아무 값이나 입력해도 로그인됩니다.
-      </p>
+      <p className="pb-8 pt-12 text-center text-[11px] text-slate-400">프로토타입 화면입니다. 아무 이메일이나 입력하면 로그인됩니다.</p>
     </div>
   );
 }

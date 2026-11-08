@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, Calculator, CircleUserRound, Compass, FileText, House, Sparkles } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useStore } from '@/lib/store';
 
 /** 모바일 앱 셸 — 480px 중앙 정렬 */
 export function Shell({ children, nav = true }: { children: ReactNode; nav?: boolean }) {
@@ -88,4 +89,14 @@ export function BottomNav() {
       </ul>
     </nav>
   );
+}
+
+/** 간편 시작(업종·지역)을 마치지 않았으면 S1로 보냄. 준비되면 true */
+export function useRequireStart() {
+  const { loaded, started } = useStore();
+  const router = useRouter();
+  useEffect(() => {
+    if (loaded && !started) router.replace('/start');
+  }, [loaded, started, router]);
+  return loaded && started;
 }

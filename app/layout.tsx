@@ -2,10 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 import { ToastProvider } from '@/components/feedback';
+import { StoreProvider } from '@/lib/store';
 
 export const metadata: Metadata = {
   title: { default: '입찰나침반', template: '%s · 입찰나침반' },
-  description: '우리 회사에 맞는 공공조달 입찰정보를 무료로 찾아보는 서비스',
+  description: '업종과 지역만 넣으면, 실제로 참여할 수 있는 공공조달 공고를 이유와 함께 골라 주는 무료 입찰정보 서비스',
 };
 
 export const viewport: Viewport = {
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className="bg-slate-100 font-sans text-slate-800">
-        <ToastProvider>{children}</ToastProvider>
+        <StoreProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </StoreProvider>
       </body>
     </html>
   );
