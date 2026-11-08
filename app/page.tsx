@@ -16,7 +16,7 @@ export default function HomePage() {
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
-  const eligible = (judged ?? []).filter((j) => j.judgment.status === 'eligible').sort((a, b) => b.relevance - a.relevance);
+  const eligible = (judged ?? []).filter((j) => j.judgment.status === 'eligible').sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance);
   const newCount = (judged ?? []).filter((j) => j.notice.isNew).length;
   const savedSoon = (notices ?? []).filter((n) => saved.includes(n.id) && n.d >= 0 && n.d <= 3).length;
   const need = topNeed(judged);
@@ -64,7 +64,7 @@ export default function HomePage() {
           </div>
           <NoticesState notices={notices} error={noticesError}>
             <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">
-              {eligible.slice(0, 6).map(({ notice, judgment }) => <NoticeCard key={notice.id} notice={notice} judgment={judgment} />)}
+              {eligible.slice(0, 6).map(({ notice, judgment, fit }) => <NoticeCard key={notice.id} notice={notice} judgment={judgment} fit={fit} />)}
             </div>
             {judged && !eligible.length && (
               <p className="rounded-box bg-white px-5 py-10 text-center text-[15px] text-mute">

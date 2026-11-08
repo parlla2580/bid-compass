@@ -3,6 +3,7 @@ import { CircleAlert, CircleCheck, CircleX } from 'lucide-react';
 import type { BidType, Notice, Profile } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import { STATUS_LABEL, summarize, type Judgment, type RuleResult, type Status } from '@/lib/judge';
+import type { Fit } from '@/lib/fit';
 
 // 폼·버튼 공통 클래스 (v3)
 export const INPUT_CLS =
@@ -61,11 +62,12 @@ export function ResultIcon({ result }: { result: RuleResult }) {
 }
 
 /* ---------- 공고 카드 (리스트 공통) ---------- */
-export function NoticeCard({ notice: n, judgment, note }: { notice: Notice; judgment?: Judgment; note?: React.ReactNode }) {
+export function NoticeCard({ notice: n, judgment, fit, note }: { notice: Notice; judgment?: Judgment; fit?: Fit | null; note?: React.ReactNode }) {
   return (
     <Link href={`/bids/${n.id}`} className="block rounded-box bg-white p-5 transition hover:bg-white/70 active:scale-[.99]">
       <div className="flex items-center gap-2">
         {judgment && <StatusBadge status={judgment.status} />}
+        {fit && <span className="text-[13px] font-semibold text-brand">맞춤 {fit.score}%</span>}
         <TypeTag type={n.type} />
         {n.isNew && <NewBadge />}
         <span className="ml-auto"><DdayBadge d={n.d} /></span>

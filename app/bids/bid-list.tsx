@@ -11,10 +11,10 @@ import { useJudged, useStore, type Judged } from '@/lib/store';
 
 type SortKey = 'relevance' | 'deadline' | 'latest' | 'price';
 
-const SORT_LABEL: Record<SortKey, string> = { relevance: '관련도순', deadline: '마감임박순', latest: '최신순', price: '금액순' };
+const SORT_LABEL: Record<SortKey, string> = { relevance: '맞춤순', deadline: '마감임박순', latest: '최신순', price: '금액순' };
 
 const SORTERS: Record<SortKey, (a: Judged, b: Judged) => number> = {
-  relevance: (a, b) => b.relevance - a.relevance,
+  relevance: (a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance,
   deadline: (a, b) => a.notice.d - b.notice.d,
   latest: (a, b) => b.notice.postedAt.getTime() - a.notice.postedAt.getTime(),
   price: (a, b) => b.notice.estPrice - a.notice.estPrice,
@@ -182,7 +182,7 @@ export default function BidList() {
             <NoticesState notices={notices} error={noticesError}>
               {rows.length ? (
                 <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">
-                  {rows.slice(0, shown).map((j) => <NoticeCard key={j.notice.id} notice={j.notice} judgment={j.judgment} />)}
+                  {rows.slice(0, shown).map((j) => <NoticeCard key={j.notice.id} notice={j.notice} judgment={j.judgment} fit={j.fit} />)}
                   {shown < rows.length && <div ref={sentinel} className="py-4 text-center text-[13px] text-mute lg:col-span-2">불러오는 중…</div>}
                 </div>
               ) : (

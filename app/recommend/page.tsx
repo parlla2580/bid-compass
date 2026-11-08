@@ -23,7 +23,7 @@ export default function RecommendPage() {
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const by = (s: Status) => (judged ?? []).filter((j) => j.judgment.status === s);
-  const sorter = (a: Judged, b: Judged) => (sort === 'relevance' ? b.relevance - a.relevance : a.notice.d - b.notice.d);
+  const sorter = (a: Judged, b: Judged) => (sort === 'relevance' ? (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance : a.notice.d - b.notice.d);
   const rows = by(tab).sort(sorter);
   const ineligible = by('ineligible').sort(sorter);
 
@@ -47,7 +47,7 @@ export default function RecommendPage() {
               <span className="sr-only">정렬</span>
               <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}
                 className="appearance-none bg-transparent py-1 pl-2 pr-6 text-[14px] font-medium text-sub focus:outline-none">
-                <option value="relevance">관련도순</option><option value="deadline">마감임박순</option>
+                <option value="relevance">맞춤순</option><option value="deadline">마감임박순</option>
               </select>
               <ChevronDown className="pointer-events-none absolute right-0 h-4 w-4 text-mute" />
             </label>
@@ -78,9 +78,9 @@ export default function RecommendPage() {
   );
 }
 
-function RecommendCard({ item: { notice, judgment, similar } }: { item: Judged }) {
+function RecommendCard({ item: { notice, judgment, similar, fit } }: { item: Judged }) {
   return (
-    <NoticeCard notice={notice} judgment={judgment}
+    <NoticeCard notice={notice} judgment={judgment} fit={fit}
       note={similar?.best && (
         <p className="mt-2 line-clamp-1 text-[13px] text-sub">
           <span className="font-semibold text-brand">이력</span> {similar.best.won ? '낙찰했던' : '참여했던'} &lsquo;{similar.best.title}&rsquo;와 비슷해요

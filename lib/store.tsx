@@ -6,6 +6,7 @@ import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, upl
 import { judge, relevance, type Judgment } from './judge';
 import { fetchOpenNotices } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
+import { fitScore, type Fit } from './fit';
 import { getSupabase, supabaseEnabled } from './supabase';
 
 /*
@@ -262,6 +263,8 @@ export interface Judged {
   relevance: number;
   /** 과거 입찰 이력과의 유사도 (이력이 있는 회원만) */
   similar: Similarity | null;
+  /** 적합도 — 우리 회사와 맞는 정도 (참여 불가 공고는 null) */
+  fit: Fit | null;
 }
 
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
@@ -275,8 +278,9 @@ export function useJudged(): Judged[] | null {
         const similar = hist.length ? similarity(notice, hist) : null;
         // 이력과 닮은 공고를 위로 (유사도는 순서에만 쓰고 판정에는 쓰지 않음)
         const boost = similar ? Math.min(40, similar.score * 10) : 0;
-        return { notice, judgment, relevance: relevance(notice, profile, judgment) + boost, similar };
+        const fit = fitScore(notice, profile, judgment, similar, history);
+        return { notice, judgment, relevance: relevance(notice, profile, judgment) + boost, similar, fit };
       }) ?? null,
-    [profile, notices, hist],
+    [profile, notices, hist, history],
   );
 }
