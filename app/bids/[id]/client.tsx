@@ -253,7 +253,8 @@ function Briefing({ n }: { n: Notice }) {
     const d = daysUntil(extra.qualifyBy);
     lines.push({ k: '등록 마감', v: <>입찰참가자격 등록 <b className={`font-semibold ${d >= 0 && d <= 2 ? 'text-bad' : 'text-ink'}`}>{dt(extra.qualifyBy)}</b>까지</> });
   }
-  if (extra?.bidBegin) lines.push({ k: '투찰', v: <>{dt(extra.bidBegin)} ~ {fmtDateTime(n.closesAt).slice(5)}{extra.openAt ? <span className="text-mute"> · 개찰 {dt(extra.openAt)}</span> : null}</> });
+  if (extra?.bidBegin) lines.push({ k: '투찰', v: <>{dt(extra.bidBegin)} ~ {fmtDateTime(n.closesAt).slice(5)}</> });
+  if (extra?.openAt) lines.push({ k: '개찰', v: dt(extra.openAt) });
   const cond = [
     extra?.reNotice && '재공고',
     extra?.joint && extra.joint.replace(/공동수급/, '공동수급 '),
@@ -391,9 +392,9 @@ function Similar({ n }: { n: Notice }) {
 
   return (
     <Card title="지난번엔 누가 얼마에 계약했나" aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
-      <p className="-mt-2 mb-3 text-[14px] text-mute">이 기관이 비슷한 이름으로 맺은 과거 계약의 업체와 금액이에요</p>
+      <p className="-mt-2 mb-3 text-[14px] leading-relaxed text-mute">이 기관이 예전에 같은 종류의 일을 어느 업체에 얼마에 맡겼는지 보여드려요</p>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
-      {items && !items.length && <p className="text-[15px] text-mute">아직 찾은 과거 계약이 없어요. 계약 정보가 쌓이면 보여드릴게요.</p>}
+      {items && !items.length && <p className="text-[15px] text-mute">아직 찾지 못했어요. 계약 정보는 2026년 11월부터 모으고 있어서, 시간이 지나면 채워져요.</p>}
       {items && items.length > 0 && (
         <>
           {/* 모바일 */}
