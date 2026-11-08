@@ -19,7 +19,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="bg-slate-100 font-sans text-slate-800">
+      <body className="bg-canvas font-sans text-ink">
         <StoreProvider>
           <ToastProvider>
             {children}

@@ -24,8 +24,8 @@ const config: Config = {
         sans: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
-        card: '12px',
-        btn: '8px',
+        card: '20px',
+        btn: '12px',
         box: '20px',  // v3 카드
         cta: '14px',  // v3 버튼
       },

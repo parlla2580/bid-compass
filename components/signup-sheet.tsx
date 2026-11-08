@@ -96,9 +96,9 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
 
   const field = (id: string, label: string, input: React.ReactNode, hint?: string) => (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</label>
+      <label htmlFor={id} className="mb-2 block text-[14px] text-sub">{label}</label>
       {input}
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-mute">{hint}</p>}
     </div>
   );
 
@@ -110,41 +110,41 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
         </button>
       }>
       <form className="space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
-        <p className="rounded-lg bg-blue-50 px-3 py-2.5 text-sm text-blue-800">{reason}</p>
+        <p className="-mt-1 text-[15px] text-sub">{reason}</p>
         {field('su-email', '이메일 (아이디)', <input id="su-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.co.kr" className={INPUT_CLS} />)}
         <div className="grid grid-cols-2 gap-2">
           {field('su-pw', '비밀번호', <input id="su-pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="8자 이상" className={INPUT_CLS} />)}
           {field('su-pw2', '비밀번호 확인', <input id="su-pw2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="한 번 더" className={INPUT_CLS} />)}
         </div>
-        {pw2 && pw !== pw2 && <p className="-mt-2 text-xs text-red-500">비밀번호가 서로 다릅니다</p>}
+        {pw2 && pw !== pw2 && <p className="-mt-2 text-[13px] text-bad">비밀번호가 서로 달라요</p>}
         {field('su-bizno', '사업자등록번호',
           <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => { setBizno(maskBizNo(e.target.value)); setUnregisteredOk(false); }} placeholder="000-00-00000" className={INPUT_CLS} />)}
         {field('su-ceo', '대표자명',
           <input id="su-ceo" autoComplete="off" value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="사업자등록증의 대표자 성명" className={INPUT_CLS} />,
           '나라장터 등록 정보와 대조해 회사를 확인합니다. 대표자명은 저장하지 않습니다.')}
 
-        <div className="space-y-2 rounded-lg border border-slate-200 p-3 text-sm">
+        <div className="space-y-2 rounded-btn bg-fill p-4 text-[14px]">
           <label className="flex items-center gap-2 font-semibold">
             <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={agreeTerms && agreePrivacy}
               onChange={(e) => { setAgreeTerms(e.target.checked); setAgreePrivacy(e.target.checked); }} />
             전체 동의
           </label>
-          <div className="space-y-1.5 border-t border-slate-100 pt-2 text-slate-600">
+          <div className="space-y-1.5 border-t border-line pt-2 text-sub">
             <label className="flex items-center gap-2">
               <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
               <span className="flex-1">[필수] 이용약관 동의</span>
-              <Link href="/terms" target="_blank" className="text-xs text-slate-400 underline">보기</Link>
+              <Link href="/terms" target="_blank" className="text-xs text-mute underline">보기</Link>
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
               <span className="flex-1">[필수] 개인정보 수집·이용 동의</span>
-              <Link href="/privacy" target="_blank" className="text-xs text-slate-400 underline">보기</Link>
+              <Link href="/privacy" target="_blank" className="text-xs text-mute underline">보기</Link>
             </label>
           </div>
         </div>
 
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-600">{error}</p>}
-        <p className="text-center text-xs text-slate-400">
+        {error && <p role="alert" className="text-[14px] text-bad">{error}</p>}
+        <p className="text-center text-xs text-mute">
           이미 가입하셨나요? <Link href="/login" className="font-semibold text-primary">로그인</Link>
         </p>
         <button type="submit" hidden />

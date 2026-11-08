@@ -26,7 +26,7 @@ export function PriceRange({ value, onChange }: { value: [number, number]; onCha
         <input type="range" min={0} max={LAST} step={1} value={hi} aria-label="최대 금액"
           onChange={(e) => onChange([min, PRICE_STEPS[Math.max(+e.target.value, lo)]])} />
       </div>
-      <div className="mt-2 flex justify-between text-[11px] text-slate-400"><span>1천만원</span><span>50억원</span></div>
+      <div className="mt-2 flex justify-between text-[11px] text-mute"><span>1천만원</span><span>50억원</span></div>
     </div>
   );
 }
@@ -85,7 +85,7 @@ export function IndustryPicker({ value, onChange, max = 10 }: {
       {value.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {value.map((i) => (
-            <span key={i.code} className="inline-flex items-center gap-1 rounded-full bg-primary py-1 pl-3 pr-1.5 text-sm font-medium text-white">
+            <span key={i.code} className="inline-flex items-center gap-1 rounded-full bg-ink py-1 pl-3 pr-1.5 text-sm font-medium text-white">
               {i.name}
               <button type="button" aria-label={`${i.name} 빼기`} onClick={() => toggle(i)} className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-white/20">
                 <X className="h-3.5 w-3.5" />
@@ -96,25 +96,25 @@ export function IndustryPicker({ value, onChange, max = 10 }: {
       )}
       <label className="relative block">
         <span className="sr-only">나라장터 업종 검색</span>
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-mute" />
         <input id="industry-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="업종 검색 (예: 전기공사업, 의료기기)"
           className={INPUT_CLS + ' pl-11'} />
       </label>
       {q.trim() && (
-        <div className="mt-2 max-h-56 overflow-y-auto rounded-btn border border-slate-200 bg-white">
-          {state === 'loading' && <p className="px-3 py-3 text-sm text-slate-400">검색 중…</p>}
-          {state === 'error' && <p className="px-3 py-3 text-sm text-red-500">업종 목록을 불러오지 못했습니다</p>}
-          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-slate-400">검색 결과가 없습니다</p>}
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-btn border border-line bg-white">
+          {state === 'loading' && <p className="px-3 py-3 text-sm text-mute">검색 중…</p>}
+          {state === 'error' && <p className="px-3 py-3 text-sm text-bad">업종 목록을 불러오지 못했습니다</p>}
+          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-mute">검색 결과가 없습니다</p>}
           {state === 'idle' && results.map((i) => (
             <button key={i.code} type="button" aria-pressed={chosen.has(i.code)} onClick={() => toggle(i)}
-              className={`flex w-full items-center justify-between border-b border-slate-100 px-3 py-2.5 text-left text-sm last:border-0 hover:bg-slate-50 ${chosen.has(i.code) ? 'font-semibold text-primary' : ''}`}>
+              className={`flex w-full items-center justify-between border-b border-line px-3 py-2.5 text-left text-sm last:border-0 hover:bg-fill ${chosen.has(i.code) ? 'font-semibold text-primary' : ''}`}>
               <span>{i.name}</span>
-              <span className="text-xs text-slate-400">{chosen.has(i.code) ? '선택됨' : i.code}</span>
+              <span className="text-xs text-mute">{chosen.has(i.code) ? '선택됨' : i.code}</span>
             </button>
           ))}
         </div>
       )}
-      <p className="mt-1.5 text-xs text-slate-400">나라장터에 등록된 업종 기준입니다. 최대 {max}개까지 선택할 수 있습니다.</p>
+      <p className="mt-1.5 text-xs text-mute">나라장터에 등록된 업종 기준입니다. 최대 {max}개까지 선택할 수 있습니다.</p>
     </div>
   );
 }
@@ -133,7 +133,7 @@ export function LocationPicker({ value, onChange }: { value: string | null; onCh
         <option value="">시도 선택</option>
         {SIDO.map((s) => <option key={s}>{s}</option>)}
       </select>
-      <select aria-label="시군구" value={sigungu ?? ''} disabled={!sido || !list.length} className={select + ' disabled:bg-slate-100'}
+      <select aria-label="시군구" value={sigungu ?? ''} disabled={!sido || !list.length} className={select + ' disabled:bg-fill'}
         onChange={(e) => onChange(e.target.value ? (e.target.value === sigungu && rest ? `${sido} ${rest}` : `${sido} ${e.target.value}`) : sido)}>
         <option value="">{sido && !list.length ? '시군구 없음' : '시군구 선택'}</option>
         {list.map((g) => <option key={g}>{g}</option>)}
@@ -164,16 +164,16 @@ export function TagInput({ id, value, onChange, placeholder }: {
     } else if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1));
   };
   return (
-    <div className="flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-btn border border-slate-200 bg-white px-2.5 py-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-blue-100">
+    <div className="flex min-h-[48px] flex-wrap items-center gap-1.5 rounded-btn border border-transparent bg-fill px-3 py-2 focus-within:border-brand focus-within:bg-white">
       {value.map((t) => (
-        <span key={t} className="inline-flex items-center gap-1 rounded-md bg-blue-50 py-1 pl-2 pr-1 text-sm font-medium text-blue-700">
+        <span key={t} className="inline-flex items-center gap-1 rounded-lg bg-white py-1 pl-2.5 pr-1 text-sm font-medium text-ink">
           {t}
           <button type="button" aria-label={`${t} 삭제`} onClick={() => onChange(value.filter((x) => x !== t))}
-            className="flex h-5 w-5 items-center justify-center rounded hover:bg-blue-100">×</button>
+            className="flex h-5 w-5 items-center justify-center rounded text-mute hover:bg-fill">×</button>
         </span>
       ))}
       <input id={id} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={add} placeholder={placeholder}
-        className="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-1 text-[15px] outline-none placeholder:text-slate-400" />
+        className="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-1 text-[15px] outline-none placeholder:text-mute" />
     </div>
   );
 }

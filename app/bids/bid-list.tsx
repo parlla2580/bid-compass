@@ -2,9 +2,9 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Info, Search, SearchX, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, Search, SlidersHorizontal } from 'lucide-react';
 import { Sheet } from '@/components/feedback';
-import { BTN_PRIMARY, NoticeCard, NoticesState, chipClass } from '@/components/ui';
+import { BTN_PRIMARY, CTA_SOFT, NoticeCard, NoticesState, chipClass } from '@/components/ui';
 import type { Notice } from '@/lib/data';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { useJudged, useStore, type Judged } from '@/lib/store';
@@ -52,7 +52,7 @@ function buildGroups(notices: Notice[]): Group[] {
 
 type Filters = Record<string, string | null>;
 const EMPTY: Filters = { status: null, type: null, region: null, price: null, deadline: null, contract: null };
-const PAGE = 6;
+const PAGE = 12;
 
 /** S3. 공고 리스트 */
 export default function BidList() {
@@ -98,103 +98,116 @@ export default function BidList() {
   const active = GROUPS.filter((g) => filters[g.key]);
   const toggleStatus = (label: string) => setFilters({ ...filters, status: filters.status === label ? null : label });
 
+  const chips = (value: Filters, set: (f: Filters) => void, g: Group) =>
+    ['전체', ...g.options.map(([l]) => l)].map((label) => {
+      const on = (value[g.key] ?? '전체') === label;
+      return (
+        <button key={label} type="button" aria-pressed={on} onClick={() => set({ ...value, [g.key]: label === '전체' ? null : label })}
+          className={`rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(on)}`}>
+          {label}
+        </button>
+      );
+    });
+
   return (
     <>
-      <div className="sticky top-14 z-20 border-b border-slate-200 bg-white">
-        {/* 커버리지 안내 (F2-6) */}
-        <p className="flex items-center gap-1.5 bg-slate-50 px-4 py-2 text-xs text-slate-500">
-          <Info className="h-3.5 w-3.5 shrink-0" />
-          나라장터 공고 기준(공공조달 금액의 약 61%) · 기관 자체 조달시스템 공고는 포함되지 않습니다
-        </p>
-        <div className="flex gap-2 px-4 pt-3">
-          <label className="relative block flex-1">
-            <span className="sr-only">공고 검색</span>
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input id="q" type="search" placeholder="공고명, 기관명 검색" value={q} onChange={(e) => setQ(e.target.value)}
-              className="w-full rounded-btn border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-3 text-[15px] placeholder:text-slate-400 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
-          </label>
-          <button type="button" onClick={() => { setDraft(filters); setSheet(true); }}
-            className={`relative flex shrink-0 items-center gap-1 rounded-btn border px-3 text-sm font-semibold ${active.length ? 'border-primary text-primary' : 'border-slate-200 text-slate-600'}`}>
-            <SlidersHorizontal className="h-4 w-4" />필터
-            {active.length > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] text-white">{active.length}</span>}
-          </button>
-        </div>
-        {/* 판정 결과 빠른 필터 */}
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 py-3">
-          {(['eligible', 'check', 'ineligible'] as Status[]).map((s) => {
-            const label = STATUS_LABEL[s];
-            const on = filters.status === label;
-            const count = (judged ?? []).filter((j) => j.judgment.status === s).length;
-            return (
-              <button key={s} type="button" aria-pressed={on} onClick={() => toggleStatus(label)}
-                className={`shrink-0 rounded-full border px-3 py-1 text-[13px] font-semibold transition ${chipClass(on)}`}>
-                {label} {count}
-              </button>
-            );
-          })}
-          {active.filter((g) => g.key !== 'status').map((g) => (
-            <button key={g.key} type="button" onClick={() => setFilters({ ...filters, [g.key]: null })}
-              className="shrink-0 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[13px] font-semibold text-blue-700">
-              {filters[g.key]} ×
-            </button>
-          ))}
-        </div>
+      <div className="px-5 pt-3 lg:px-0 lg:pt-6">
+        <h1 className="text-[24px] font-bold tracking-tight lg:text-[28px]">공고</h1>
+        <p className="mt-1 text-[14px] text-mute">나라장터 공고 기준 · 기관 자체 조달시스템 공고는 빠져 있어요</p>
       </div>
 
-      <main className="px-4 pb-24 pt-3">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm text-slate-500">총 <b className="text-slate-800">{rows.length}</b>건</p>
-          <label className="relative flex items-center">
-            <span className="sr-only">정렬</span>
-            <select id="sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}
-              className="appearance-none rounded-btn border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-sm font-semibold text-slate-700 focus:border-primary focus:outline-none">
-              {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-slate-500" />
-          </label>
-        </div>
+      <div className="lg:mt-6 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {/* 데스크탑: 왼쪽 필터 (바로 적용) */}
+        <aside className="sticky top-6 hidden space-y-6 rounded-box bg-white p-6 lg:block">
+          {GROUPS.map((g) => (
+            <fieldset key={g.key}>
+              <legend className="mb-2.5 text-[14px] font-semibold">{g.label}</legend>
+              <div className="flex flex-wrap gap-1.5">{chips(filters, setFilters, g)}</div>
+            </fieldset>
+          ))}
+          {active.length > 0 && (
+            <button type="button" onClick={() => setFilters(EMPTY)} className="text-[14px] font-medium text-mute hover:text-sub">필터 모두 지우기</button>
+          )}
+        </aside>
 
-        <NoticesState notices={notices} error={noticesError}>
-        {rows.length ? (
-          <div className="space-y-3">
-            {rows.slice(0, shown).map((j) => <NoticeCard key={j.notice.id} notice={j.notice} judgment={j.judgment} />)}
-            {shown < rows.length && <div ref={sentinel} className="py-4 text-center text-xs text-slate-400">불러오는 중…</div>}
+        <div>
+          <div className="sticky top-14 z-20 bg-canvas/95 px-5 pb-2 pt-3 backdrop-blur lg:static lg:bg-transparent lg:px-0 lg:pt-0">
+            <div className="flex gap-2">
+              <label className="relative block flex-1">
+                <span className="sr-only">공고 검색</span>
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-mute" />
+                <input id="q" type="search" placeholder="공고명, 기관명 검색" value={q} onChange={(e) => setQ(e.target.value)}
+                  className="h-12 w-full rounded-btn bg-white pl-12 pr-4 text-[16px] placeholder:text-mute focus:outline-none focus:ring-2 focus:ring-brand/30" />
+              </label>
+              <button type="button" onClick={() => { setDraft(filters); setSheet(true); }}
+                className={`flex h-12 shrink-0 items-center gap-1.5 rounded-btn bg-white px-4 text-[15px] font-semibold lg:hidden ${active.length ? 'text-brand' : 'text-sub'}`}>
+                <SlidersHorizontal className="h-4 w-4" />필터{active.length > 0 && ` ${active.length}`}
+              </button>
+            </div>
+            {/* 판정 결과 빠른 필터 — 모바일 */}
+            <div className="no-scrollbar mt-3 flex gap-1.5 overflow-x-auto lg:hidden">
+              {(['eligible', 'check', 'ineligible'] as Status[]).map((st) => {
+                const label = STATUS_LABEL[st];
+                const on = filters.status === label;
+                const count = (judged ?? []).filter((j) => j.judgment.status === st).length;
+                return (
+                  <button key={st} type="button" aria-pressed={on} onClick={() => toggleStatus(label)}
+                    className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(on)}`}>
+                    {label} {count}
+                  </button>
+                );
+              })}
+              {active.filter((g) => g.key !== 'status').map((g) => (
+                <button key={g.key} type="button" onClick={() => setFilters({ ...filters, [g.key]: null })}
+                  className="shrink-0 rounded-full border border-line bg-white px-3.5 py-1.5 text-[14px] font-medium text-sub">
+                  {filters[g.key]} ×
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="rounded-card border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
-            <SearchX className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-2 text-sm font-semibold text-slate-600">조건에 맞는 공고가 없습니다</p>
-            <button type="button" onClick={() => { setFilters(EMPTY); setQ(''); }} className="mt-3 text-sm font-bold text-primary hover:underline">
-              필터 초기화
-            </button>
-          </div>
-        )}
-        </NoticesState>
-      </main>
+
+          <main className="px-5 pb-28 pt-2 lg:px-0 lg:pb-0 lg:pt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[14px] text-mute">총 <b className="font-semibold text-ink">{rows.length.toLocaleString()}</b>건</p>
+              <label className="relative flex items-center">
+                <span className="sr-only">정렬</span>
+                <select id="sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}
+                  className="appearance-none bg-transparent py-1 pl-2 pr-6 text-[14px] font-medium text-sub focus:outline-none">
+                  {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => <option key={k} value={k}>{SORT_LABEL[k]}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-0 h-4 w-4 text-mute" />
+              </label>
+            </div>
+
+            <NoticesState notices={notices} error={noticesError}>
+              {rows.length ? (
+                <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">
+                  {rows.slice(0, shown).map((j) => <NoticeCard key={j.notice.id} notice={j.notice} judgment={j.judgment} />)}
+                  {shown < rows.length && <div ref={sentinel} className="py-4 text-center text-[13px] text-mute lg:col-span-2">불러오는 중…</div>}
+                </div>
+              ) : (
+                <div className="rounded-box bg-white px-5 py-14 text-center">
+                  <p className="text-[16px] font-semibold">조건에 맞는 공고가 없어요</p>
+                  <button type="button" onClick={() => { setFilters(EMPTY); setQ(''); }} className="mt-3 text-[15px] font-semibold text-brand">필터 초기화</button>
+                </div>
+              )}
+            </NoticesState>
+          </main>
+        </div>
+      </div>
 
       <Sheet title="필터" open={sheet} onClose={() => setSheet(false)}
         footer={
           <div className="flex gap-2">
-            <button type="button" onClick={() => setDraft(EMPTY)} className="w-1/3 rounded-btn border border-slate-200 py-3.5 text-[15px] font-bold text-slate-600">초기화</button>
+            <button type="button" onClick={() => setDraft(EMPTY)} className={`${CTA_SOFT} w-1/3`}>초기화</button>
             <button type="button" onClick={() => { setFilters(draft); setSheet(false); }} className={BTN_PRIMARY}>적용하기</button>
           </div>
         }>
-        <div className="space-y-5">
+        <div className="space-y-6">
           {GROUPS.map((g) => (
             <fieldset key={g.key}>
-              <legend className="mb-2 text-sm font-semibold text-slate-700">{g.label}</legend>
-              <div className="flex flex-wrap gap-2">
-                {['전체', ...g.options.map(([l]) => l)].map((label) => {
-                  const on = (draft[g.key] ?? '전체') === label;
-                  return (
-                    <button key={label} type="button" aria-pressed={on}
-                      onClick={() => setDraft({ ...draft, [g.key]: label === '전체' ? null : label })}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${chipClass(on)}`}>
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+              <legend className="mb-2.5 text-[15px] font-semibold">{g.label}</legend>
+              <div className="flex flex-wrap gap-2">{chips(draft, setDraft, g)}</div>
             </fieldset>
           ))}
         </div>

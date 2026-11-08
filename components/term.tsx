@@ -32,7 +32,7 @@ export function Term({ k, children }: { k: TermKey; children?: ReactNode }) {
       </button>
       {open && (
         <span id={id} role="tooltip"
-          className="fade-in absolute left-0 top-full z-50 mt-1.5 block w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white shadow-md">
+          className="fade-in absolute left-0 top-full z-50 mt-1.5 block w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white">
           <b className="mb-0.5 block text-[13px]">{k}</b>
           {TERMS[k]}
         </span>

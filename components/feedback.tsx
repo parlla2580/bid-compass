@@ -25,7 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         role="status"
-        className={`toast pointer-events-none fixed inset-x-0 bottom-24 z-[60] mx-auto w-fit max-w-[90%] rounded-full bg-slate-900/90 px-4 py-2.5 text-sm font-medium text-white shadow-md ${show ? 'opacity-100' : 'translate-y-2 opacity-0'}`}
+        className={`toast pointer-events-none fixed inset-x-0 bottom-24 z-[60] lg:bottom-10 mx-auto w-fit max-w-[90%] rounded-full bg-slate-900/90 px-4 py-2.5 text-sm font-medium text-white ${show ? 'opacity-100' : 'translate-y-2 opacity-0'}`}
       >
         {msg}
       </div>
@@ -69,15 +69,15 @@ export function Sheet({ title, open, onClose, children, footer }: {
     <div className="fixed inset-0 z-50">
       <div className="fade-in absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div role="dialog" aria-modal="true" aria-label={title}
-        className="sheet-up absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-[480px] flex-col rounded-t-2xl bg-white shadow-md">
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-          <h2 className="text-base font-bold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100">
+        className="sheet-up absolute inset-x-0 bottom-0 mx-auto flex max-h-[88vh] max-w-[520px] flex-col rounded-t-[24px] bg-white lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:w-[480px] lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-box">
+        <div className="flex items-center justify-between px-5 pb-1 pt-5">
+          <h2 className="text-[20px] font-bold">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="닫기" className="flex h-9 w-9 items-center justify-center rounded-full text-mute hover:bg-fill">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="overflow-y-auto px-4 py-4">{children}</div>
-        {footer && <div className="border-t border-slate-100 p-4">{footer}</div>}
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-2">{footer}</div>}
       </div>
     </div>
   );

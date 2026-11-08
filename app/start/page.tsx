@@ -84,26 +84,26 @@ export default function StartPage() {
   const manualReady = !!location;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-slate-50 px-5 md:border-x md:border-slate-200 md:shadow-md">
+    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-canvas px-5 lg:pt-10">
       <section className="pb-7 pt-14">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-md">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white">
             <Compass className="h-7 w-7" />
           </span>
-          <span className="text-xl font-extrabold tracking-tight text-slate-800">입찰나침반</span>
+          <span className="text-xl font-bold tracking-tight text-ink">입찰나침반</span>
         </div>
-        <h1 className="mt-5 text-2xl font-extrabold leading-snug tracking-tight">
+        <h1 className="mt-6 text-[26px] font-bold leading-snug tracking-tight">
           우리 회사가
           <br />
           <span className="text-primary">참여할 수 있는 공고</span>를 골라 드릴게요.
         </h1>
-        <p className="mt-2 text-sm text-slate-500">가입 없이 바로 볼 수 있어요. 무료입니다.</p>
+        <p className="mt-2 text-sm text-mute">가입 없이 바로 볼 수 있어요. 무료입니다.</p>
       </section>
 
       {mode === 'bizno' && (
         <section className="fade-up space-y-4">
           <div>
-            <label htmlFor="bizno" className="mb-1.5 block text-sm font-bold text-slate-700">사업자등록번호</label>
+            <label htmlFor="bizno" className="mb-1.5 block text-sm font-bold text-sub">사업자등록번호</label>
             <div className="flex gap-2">
               <input id="bizno" inputMode="numeric" placeholder="000-00-00000" maxLength={12} value={bizno}
                 onChange={(e) => setBizno(maskBizNo(e.target.value))} onKeyDown={(e) => e.key === 'Enter' && lookup()}
@@ -113,11 +113,11 @@ export default function StartPage() {
                 {busy && <Loader2 className="h-4 w-4 animate-spin" />}조회
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">나라장터에 등록된 업체는 소재지와 등록업종을 자동으로 불러옵니다.</p>
+            <p className="mt-1.5 text-xs text-mute">나라장터에 등록된 업체는 소재지와 등록업종을 자동으로 불러옵니다.</p>
           </div>
-          {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-600">{error}</p>}
-          <div className="flex items-center gap-3 py-2 text-xs text-slate-400">
-            <span className="h-px flex-1 bg-slate-200" />또는<span className="h-px flex-1 bg-slate-200" />
+          {error && <p role="alert" className="text-[14px] text-bad">{error}</p>}
+          <div className="flex items-center gap-3 py-2 text-xs text-mute">
+            <span className="h-px flex-1 bg-line" />또는<span className="h-px flex-1 bg-line" />
           </div>
           <button type="button" onClick={() => { setError(null); setMode('manual'); }} className={BTN_OUTLINE}>
             번호 없이 업종·지역으로 시작
@@ -127,36 +127,36 @@ export default function StartPage() {
 
       {mode === 'confirm' && found && (
         <section className="fade-up space-y-4">
-          <div className="rounded-card border border-blue-100 bg-white p-4 shadow-md">
+          <div className="rounded-box bg-white p-5">
             <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-primary"><BadgeCheck className="h-4 w-4" />나라장터 등록 정보를 찾았어요</div>
-            <p className="text-xs text-slate-500">아래 업종·소재지로 참여 가능 공고를 골라 드릴게요.</p>
+            <p className="text-xs text-mute">아래 업종·소재지로 참여 가능 공고를 골라 드릴게요.</p>
             <dl className="mt-3 grid grid-cols-[64px_1fr] gap-y-2 text-sm">
-              <dt className="text-slate-500">소재지</dt><dd className="font-medium">{found.location ?? '확인 안 됨'}</dd>
-              <dt className="text-slate-500">등록업종</dt>
+              <dt className="text-mute">소재지</dt><dd className="font-medium">{found.location ?? '확인 안 됨'}</dd>
+              <dt className="text-mute">등록업종</dt>
               <dd>
                 {found.industries?.length
-                  ? <span className="flex flex-wrap gap-1">{found.industries.slice(0, 8).map((i) => <span key={i.code} className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{i.name}</span>)}{found.industries.length > 8 && <span className="text-xs text-slate-400">외 {found.industries.length - 8}개</span>}</span>
-                  : <span className="text-amber-600">등록된 업종 없음</span>}
+                  ? <span className="flex flex-wrap gap-1">{found.industries.slice(0, 8).map((i) => <span key={i.code} className="rounded-lg bg-fill px-2.5 py-1 text-[13px] font-medium text-sub">{i.name}</span>)}{found.industries.length > 8 && <span className="text-xs text-mute">외 {found.industries.length - 8}개</span>}</span>
+                  : <span className="text-warn">등록된 업종 없음</span>}
               </dd>
             </dl>
           </div>
-          <p className="text-xs text-slate-500">업체명은 가입할 때 대표자명으로 회사를 확인한 뒤 보여드려요.</p>
+          <p className="text-xs text-mute">업체명은 가입할 때 대표자명으로 회사를 확인한 뒤 보여드려요.</p>
           <button type="button" onClick={confirm} className={BTN_PRIMARY}>이 정보로 공고 보기<ArrowRight className="h-5 w-5" /></button>
-          <button type="button" onClick={() => { setFound(null); setMode('bizno'); }} className="w-full py-2 text-sm font-medium text-slate-500">다른 번호로 조회</button>
+          <button type="button" onClick={() => { setFound(null); setMode('bizno'); }} className="w-full py-2 text-sm font-medium text-mute">다른 번호로 조회</button>
         </section>
       )}
 
       {mode === 'manual' && (
         <section className="fade-up space-y-6">
-          {error && <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-800">{error}</p>}
+          {error && <p role="alert" className="text-[14px] text-warn">{error}</p>}
           <div>
-            <h2 className="mb-2.5 text-sm font-bold text-slate-700"><span className="mr-1.5 text-primary">1</span>어떤 업종인가요?</h2>
+            <h2 className="mb-2.5 text-sm font-bold text-sub"><span className="mr-1.5 text-primary">1</span>어떤 업종인가요?</h2>
             <IndustryPicker value={industries} onChange={setIndustries} />
           </div>
           <div>
-            <h2 className="mb-2.5 text-sm font-bold text-slate-700"><span className="mr-1.5 text-primary">2</span>사업장은 어디에 있나요?</h2>
+            <h2 className="mb-2.5 text-sm font-bold text-sub"><span className="mr-1.5 text-primary">2</span>사업장은 어디에 있나요?</h2>
             <LocationPicker value={location} onChange={setLocation} />
-            <p className="mt-1.5 text-xs text-slate-400">시군구까지 고르면 지역제한 공고를 더 정확히 판정합니다.</p>
+            <p className="mt-1.5 text-xs text-mute">시군구까지 고르면 지역제한 공고를 더 정확히 판정합니다.</p>
           </div>
           <div className="sticky bottom-0 -mx-5 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-50/0 px-5 pb-6 pt-3">
             <button type="button" disabled={!manualReady || !industries.length}
@@ -165,15 +165,15 @@ export default function StartPage() {
               내 공고 보기<ArrowRight className="h-5 w-5" />
             </button>
             <button type="button" disabled={!manualReady} onClick={() => go({ industries: [], location })}
-              className="mt-2 w-full py-2 text-xs font-medium text-slate-500 disabled:text-slate-300">
+              className="mt-2 w-full py-2 text-xs font-medium text-mute disabled:text-slate-300">
               업종 없이 지역만으로 보기
             </button>
-            <button type="button" onClick={() => { setError(null); setMode('bizno'); }} className="w-full py-1 text-xs text-slate-400">사업자등록번호로 조회하기</button>
+            <button type="button" onClick={() => { setError(null); setMode('bizno'); }} className="w-full py-1 text-xs text-mute">사업자등록번호로 조회하기</button>
           </div>
         </section>
       )}
 
-      <p className="mt-auto pb-8 pt-6 text-center text-sm text-slate-500">
+      <p className="mt-auto pb-8 pt-6 text-center text-sm text-mute">
         이미 가입하셨나요?<Link href="/login" className="ml-1 font-bold text-primary hover:underline">로그인</Link>
       </p>
     </div>

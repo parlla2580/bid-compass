@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: '적격심사 도구' };
 
 export default function CalculatorPage() {
   return (
-    <Shell>
+    <Shell wide>
       <Header />
       <Suspense>
         <CalculatorTabs />

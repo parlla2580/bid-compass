@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: '공고' };
 
 export default function BidsPage() {
   return (
-    <Shell>
+    <Shell wide>
       <Header />
       <Suspense>
         <BidList />

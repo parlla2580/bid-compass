@@ -2,85 +2,115 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Calculator, CircleUserRound, Compass, FileText, House, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, Calculator, CircleUserRound, Compass, FileText, House, Sparkles } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
 
-/** 모바일 앱 셸 — 480px 중앙 정렬 */
-export function Shell({ children, nav = true }: { children: ReactNode; nav?: boolean }) {
+/*
+ * 화면 틀 (v3 투트랙)
+ *  - 모바일(1024px 미만): 상단 바 + 하단 탭, 한 칸 세로 배치
+ *  - 데스크탑(1024px 이상): 왼쪽 메뉴 + 넓은 본문 (wide: 최대 1200px / 기본: 최대 760px)
+ */
+export function Shell({ children, nav = true, tabs = nav, wide = false }: { children: ReactNode; nav?: boolean; tabs?: boolean; wide?: boolean }) {
   return (
-    <>
-      <div className="mx-auto min-h-screen max-w-[480px] bg-slate-50 md:border-x md:border-slate-200 md:shadow-md">{children}</div>
-      {nav && <BottomNav />}
-    </>
-  );
-}
-
-function ProfileLink() {
-  return (
-    <Link href="/mypage" aria-label="마이페이지" className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100">
-      <CircleUserRound className="h-6 w-6" />
-    </Link>
-  );
-}
-
-export function Header() {
-  return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
-      <Link href="/" className="flex items-center gap-1.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
-          <Compass className="h-5 w-5" />
-        </span>
-        <span className="text-[17px] font-extrabold tracking-tight text-slate-800">입찰나침반</span>
-      </Link>
-      <ProfileLink />
-    </header>
-  );
-}
-
-/** 뒤로가기형 서브 헤더 */
-export function BackHeader({ title, fallback = '/bids' }: { title: string; fallback?: string }) {
-  const router = useRouter();
-  return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-slate-200 bg-white/90 px-2 backdrop-blur">
-      <button
-        type="button"
-        onClick={() => (window.history.length > 1 ? router.back() : router.push(fallback))}
-        aria-label="뒤로가기"
-        className="flex h-10 w-10 items-center justify-center rounded-full text-slate-700 hover:bg-slate-100"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </button>
-      <span className="truncate text-base font-bold">{title}</span>
-      <div className="ml-auto">
-        <ProfileLink />
+    <div className="min-h-screen bg-canvas text-ink lg:flex">
+      {nav && <SideMenu />}
+      <div className="min-w-0 flex-1">
+        <div className={`mx-auto ${wide ? 'max-w-[1200px]' : 'max-w-[760px]'} lg:px-6 lg:pb-16 lg:pt-4`}>{children}</div>
       </div>
-    </header>
+      {tabs && <BottomNav />}
+    </div>
   );
 }
 
 const NAV = [
   { href: '/', label: '홈', Icon: House, match: (p: string) => p === '/' },
   { href: '/bids', label: '공고', Icon: FileText, match: (p: string) => p.startsWith('/bids') },
-  { href: '/recommend', label: '추천', Icon: Sparkles, match: (p: string) => p.startsWith('/recommend') },
-  { href: '/calculator', label: '도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') },
+  { href: '/recommend', label: '추천', desk: '추천 공고', Icon: Sparkles, match: (p: string) => p.startsWith('/recommend') },
+  { href: '/analysis', label: '분석', desk: '입찰 분석', Icon: BarChart3, match: (p: string) => p.startsWith('/analysis') },
+  { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') },
 ];
 
+function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-2">
+      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white"><Compass className="h-5 w-5" /></span>
+      <span className="text-[17px] font-bold tracking-tight">입찰나침반</span>
+    </Link>
+  );
+}
+
+function SideMenu() {
+  const path = usePathname();
+  const item = (on: boolean) =>
+    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition ${on ? 'bg-fill text-ink' : 'text-mute hover:bg-fill hover:text-sub'}`;
+  return (
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-white px-4 py-6 lg:flex">
+      <div className="mb-8 px-2"><Logo /></div>
+      <nav className="space-y-1">
+        {NAV.map(({ href, label, desk, Icon, match }) => {
+          const on = match(path);
+          return (
+            <Link key={href} href={href} aria-current={on ? 'page' : undefined} className={item(on)}>
+              <Icon className="h-5 w-5" strokeWidth={on ? 2.3 : 2} />{desk ?? label}
+            </Link>
+          );
+        })}
+      </nav>
+      <Link href="/mypage" className={`mt-auto ${item(path.startsWith('/mypage'))}`}>
+        <CircleUserRound className="h-5 w-5" />마이페이지
+      </Link>
+    </aside>
+  );
+}
+
+function ProfileLink() {
+  return (
+    <Link href="/mypage" aria-label="마이페이지" className="flex h-10 w-10 items-center justify-center rounded-full text-sub active:bg-fill">
+      <CircleUserRound className="h-6 w-6" />
+    </Link>
+  );
+}
+
+/** 기본 상단 바 — 모바일만 (데스크탑은 왼쪽 메뉴에 로고) */
+export function Header() {
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-canvas/90 px-5 backdrop-blur lg:hidden">
+      <Logo />
+      <ProfileLink />
+    </header>
+  );
+}
+
+/** 뒤로가기형 상단 바 */
+export function BackHeader({ title, fallback = '/bids' }: { title: string; fallback?: string }) {
+  const router = useRouter();
+  return (
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-1 bg-canvas/90 px-2 backdrop-blur lg:static lg:mb-2 lg:bg-transparent lg:px-0">
+      <button type="button" aria-label="뒤로가기"
+        onClick={() => (window.history.length > 1 ? router.back() : router.push(fallback))}
+        className="flex h-10 w-10 items-center justify-center rounded-full text-ink hover:bg-fill">
+        <ArrowLeft className="h-[22px] w-[22px]" />
+      </button>
+      <span className="truncate text-[17px] font-semibold">{title}</span>
+      <div className="ml-auto lg:hidden"><ProfileLink /></div>
+    </header>
+  );
+}
+
+/** 모바일 하단 탭 */
 export function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-[480px] border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
-      <ul className="grid grid-cols-4">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <ul className="mx-auto grid max-w-[760px] grid-cols-5">
         {NAV.map(({ href, label, Icon, match }) => {
           const on = match(pathname);
           return (
             <li key={href}>
-              <Link
-                href={href}
-                aria-current={on ? 'page' : undefined}
-                className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${on ? 'text-primary' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <Icon className={`h-6 w-6 ${on ? 'fill-blue-100' : ''}`} strokeWidth={on ? 2.4 : 2} />
+              <Link href={href} aria-current={on ? 'page' : undefined}
+                className={`flex h-[60px] flex-col items-center justify-center gap-1 text-[11px] font-medium ${on ? 'text-ink' : 'text-mute'}`}>
+                <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2.3 : 1.8} />
                 {label}
               </Link>
             </li>
@@ -99,4 +129,31 @@ export function useRequireStart() {
     if (loaded && !started) router.replace('/start');
   }, [loaded, started, router]);
   return loaded && started;
+}
+
+/* ---------- v3 공통 조각 ---------- */
+
+/** 흰 카드 — 테두리 없이 여백으로 구분 */
+export function Card({ title, aside, children, className = '' }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-box bg-white p-5 lg:p-6 ${className}`}>
+      {title && (
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-[17px] font-bold">{title}</h2>
+          {aside}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/** 페이지 제목 */
+export function PageTitle({ title, sub }: { title: ReactNode; sub?: ReactNode }) {
+  return (
+    <div className="px-5 pb-2 pt-3 lg:px-0 lg:pt-6">
+      <h1 className="text-[24px] font-bold leading-snug tracking-tight lg:text-[28px]">{title}</h1>
+      {sub && <p className="mt-1.5 text-[15px] text-sub">{sub}</p>}
+    </div>
+  );
 }

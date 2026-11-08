@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: '공고 상세' };
 export default async function NoticeDetailPage({ params }: Props) {
   const { id } = await params;
   return (
-    <Shell>
+    <Shell wide tabs={false}>
       <BackHeader title="공고 상세" />
       <NoticeDetail id={Number(id)} />
     </Shell>
