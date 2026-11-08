@@ -1,0 +1,60 @@
+name: 나라장터 공고·계약 수집
+
+on:
+  schedule:
+    # 3시간마다 (UTC 기준 17분) — 수집 구간 6시간으로 겹쳐 받아 누락 방지
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: '수집 구간(시간)'
+        required: false
+        default: '6'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/collect.mjs'
+      - '.github/workflows/collect.yml'
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 비밀값 확인
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          missing=""
+          [ -z "$NARA_API_KEY" ] && missing="$missing NARA_API_KEY"
+          [ -z "$SUPABASE_SECRET_KEY" ] && missing="$missing SUPABASE_SECRET_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::GitHub Secrets에 다음 값이 없습니다:$missing"
+            exit 1
+          fi
+          case "$SUPABASE_SECRET_KEY" in
+            sb_secret_*) echo "비밀값 2개 확인됨" ;;
+            *) echo "::error::SUPABASE_SECRET_KEY는 sb_secret_ 로 시작해야 합니다 (publishable 키가 들어갔는지 확인)"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: 수집 실행
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_URL: https://tpuhqzxhrwuugojsnfpj.supabase.co
+          COLLECT_HOURS: ${{ github.event.inputs.hours || '6' }}
+        run: node scripts/collect.mjs
