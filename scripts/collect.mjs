@@ -224,8 +224,11 @@ async function collectContracts(from, to) {
     const items = await fetchAll(`${CNT}/getCntrctInfoList${t.cnt}`, period);
     for (const it of items) {
       const corps = parseCorps(it.corpList);
+      const detailUrl = it.cntrctDtlInfoUrl || null;
       rows.push({
         id: it.untyCntrctNo,
+        // 나라장터 계약번호 — 같은 계약이 통합계약번호만 다르게 재등록되는 경우가 있어 이 값으로 한 건만 저장
+        contract_no: /ctrtNo=([^&]+)/.exec(detailUrl ?? '')?.[1] ?? it.untyCntrctNo,
         bid_type: t.name,
         title: it.cntrctNm || '(계약명 없음)',
         org: it.cntrctInsttNm || null,
@@ -240,7 +243,7 @@ async function collectContracts(from, to) {
         notice_no: it.ntceNo || null,
         corps,
         corp_biznos: corps.map((c) => c.bizno).filter(Boolean),
-        detail_url: it.cntrctDtlInfoUrl || null,
+        detail_url: detailUrl,
         raw: null, // 계약은 하루 1만 건 이상이라 원본은 저장하지 않음 (필요 항목만 위에 정리)
         registered_at: kstIso(it.rgstDt),
         collected_at: new Date().toISOString(),
@@ -248,7 +251,9 @@ async function collectContracts(from, to) {
     }
     console.log(`  계약 ${t.name}: ${items.length}건`);
   }
-  return [...new Map(rows.map((r) => [r.id, r])).values()];
+  // 같은 계약번호는 가장 나중에 등록된 것만
+  rows.sort((a, b) => String(a.registered_at ?? '').localeCompare(String(b.registered_at ?? '')));
+  return [...new Map(rows.map((r) => [r.contract_no, r])).values()];
 }
 
 /* ---------- 개찰 결과 (F7 입찰 분석) ---------- */
@@ -387,7 +392,7 @@ async function main() {
     try {
       const contracts = await collectContracts(a, b);
       result.contracts += contracts.length;
-      if (sb) await upsert(sb, 'contracts', contracts, 'id');
+      if (sb) await upsert(sb, 'contracts', contracts, 'contract_no');
     } catch (e) {
       result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
     }
