@@ -252,9 +252,8 @@ function Explain({ n }: { n: Notice }) {
   );
 }
 
-/* ---------- 공고 정보: 모바일 5줄 + 펼치기 / 데스크탑 2열 전체 ---------- */
+/* ---------- 공고 정보: 모바일 1열 / 데스크탑 2열, 모두 표시 ---------- */
 function Info({ n }: { n: Notice }) {
-  const [all, setAll] = useState(false);
   const rows: [React.ReactNode, React.ReactNode][] = [
     ['공고기관', n.org],
     ['입찰마감', fmtDateTime(n.closesAt)],
@@ -272,17 +271,12 @@ function Info({ n }: { n: Notice }) {
     <Card title="공고 정보">
       <dl className="grid lg:grid-cols-2 lg:gap-x-10">
         {rows.map(([k, v], i) => (
-          <div key={i} className={`flex justify-between gap-4 border-b border-line py-3 text-[15px] last:border-0 lg:[&:nth-last-child(2)]:border-0 ${i >= 5 && !all ? 'hidden lg:flex' : ''}`}>
+          <div key={i} className={`flex justify-between gap-4 border-b border-line py-3 text-[15px] last:border-0 lg:[&:nth-last-child(2)]:border-0 `}>
             <dt className="shrink-0 text-mute">{k}</dt>
             <dd className="break-all text-right font-medium">{v}</dd>
           </div>
         ))}
       </dl>
-      {rows.length > 5 && (
-        <button type="button" onClick={() => setAll(!all)} className="mt-2 flex w-full items-center justify-center gap-1 py-2 text-[14px] font-medium text-sub lg:hidden">
-          {all ? '접기' : `${rows.length - 5}개 더 보기`}<ChevronDown className={`h-4 w-4 transition ${all ? 'rotate-180' : ''}`} />
-        </button>
-      )}
       <div className="mt-3 lg:hidden"><OriginalLink n={n} /></div>
     </Card>
   );

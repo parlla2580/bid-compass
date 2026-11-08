@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowRight, BadgeCheck, Compass, Loader2 } from 'lucide-react';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
-import { BTN_OUTLINE, BTN_PRIMARY, INPUT_CLS } from '@/components/ui';
+import { BTN_PRIMARY } from '@/components/ui';
 import type { Industry } from '@/lib/data';
 import { maskBizNo } from '@/lib/format';
 import { useStore } from '@/lib/store';
@@ -85,42 +85,37 @@ export default function StartPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-canvas px-5 lg:pt-10">
-      <section className="pb-7 pt-14">
+      <section className="pb-6 pt-10">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white">
-            <Compass className="h-7 w-7" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
+            <Compass className="h-6 w-6" />
           </span>
-          <span className="text-xl font-bold tracking-tight text-ink">입찰나침반</span>
+          <span className="text-lg font-bold tracking-tight text-ink">입찰나침반</span>
         </div>
         <h1 className="mt-6 text-[26px] font-bold leading-snug tracking-tight">
           우리 회사가
           <br />
-          <span className="text-primary">참여할 수 있는 공고</span>를 골라 드릴게요.
+          <span className="text-primary">참여할 수 있는 공고</span>를<br />골라 드릴게요
         </h1>
-        <p className="mt-2 text-sm text-mute">가입 없이 바로 볼 수 있어요. 무료입니다.</p>
+        <p className="mt-2 text-[15px] text-mute">가입 없이 바로, 무료로 볼 수 있어요</p>
       </section>
 
       {mode === 'bizno' && (
-        <section className="fade-up space-y-4">
-          <div>
-            <label htmlFor="bizno" className="mb-1.5 block text-sm font-bold text-sub">사업자등록번호</label>
-            <div className="flex gap-2">
-              <input id="bizno" inputMode="numeric" placeholder="000-00-00000" maxLength={12} value={bizno}
-                onChange={(e) => setBizno(maskBizNo(e.target.value))} onKeyDown={(e) => e.key === 'Enter' && lookup()}
-                className={INPUT_CLS + ' flex-1'} />
-              <button type="button" onClick={lookup} disabled={busy}
-                className="flex shrink-0 items-center gap-1 rounded-btn bg-slate-800 px-4 text-sm font-bold text-white hover:bg-slate-700 disabled:bg-slate-400">
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}조회
-              </button>
-            </div>
-            <p className="mt-1.5 text-xs text-mute">나라장터에 등록된 업체는 소재지와 등록업종을 자동으로 불러옵니다.</p>
+        <section className="fade-up">
+          <div className="rounded-box bg-white p-5 shadow-[0_8px_24px_rgba(25,28,33,0.06)]">
+            <label htmlFor="bizno" className="block text-[17px] font-bold">사업자등록번호를 넣어 주세요</label>
+            <p className="mt-1 text-[14px] text-mute">나라장터 등록 업체는 업종·소재지를 자동으로 불러와요</p>
+            <input id="bizno" inputMode="numeric" placeholder="000-00-00000" maxLength={12} value={bizno} autoFocus
+              onChange={(e) => setBizno(maskBizNo(e.target.value))} onKeyDown={(e) => e.key === 'Enter' && lookup()}
+              className="mt-4 h-16 w-full rounded-btn border-2 border-brand/30 bg-white px-5 text-[22px] font-semibold tracking-wider text-ink placeholder:font-normal placeholder:text-mute/60 focus:border-brand focus:outline-none" />
+            {error && <p role="alert" className="mt-2 text-[14px] text-bad">{error}</p>}
+            <button type="button" onClick={lookup} disabled={busy} className={`${BTN_PRIMARY} mt-3`}>
+              {busy && <Loader2 className="h-5 w-5 animate-spin" />}우리 회사 공고 찾기
+            </button>
           </div>
-          {error && <p role="alert" className="text-[14px] text-bad">{error}</p>}
-          <div className="flex items-center gap-3 py-2 text-xs text-mute">
-            <span className="h-px flex-1 bg-line" />또는<span className="h-px flex-1 bg-line" />
-          </div>
-          <button type="button" onClick={() => { setError(null); setMode('manual'); }} className={BTN_OUTLINE}>
-            번호 없이 업종·지역으로 시작
+          <button type="button" onClick={() => { setError(null); setMode('manual'); }}
+            className="mx-auto mt-5 block py-2 text-[15px] font-medium text-mute underline-offset-4 hover:text-sub hover:underline">
+            사업자번호 없이 업종·지역으로 시작하기
           </button>
         </section>
       )}
