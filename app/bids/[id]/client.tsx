@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { BookOpen, Bookmark, Calculator, ExternalLink, FileSearch, History, Info, Lock, ShieldCheck } from 'lucide-react';
+import { BookOpen, Bookmark, Calculator, ExternalLink, FileSearch, FileText, History, Info, Lock, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/feedback';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
@@ -124,6 +124,26 @@ export default function NoticeDetail({ id }: { id: number }) {
             ))}
           </tbody>
         </table>
+        <div className="border-t border-slate-100 p-4">
+          {n.url ? (
+            gated ? (
+              <button type="button" onClick={() => setSignup(true)} className={BTN_OUTLINE}>
+                <FileText className="h-5 w-5" />나라장터 공고 원문 보기
+              </button>
+            ) : (
+              <a href={n.url} target="_blank" rel="noopener noreferrer" className={BTN_OUTLINE}>
+                <FileText className="h-5 w-5" />나라장터 공고 원문 보기<ExternalLink className="h-4 w-4" />
+              </a>
+            )
+          ) : (
+            <p className="text-center text-sm text-slate-400">원문 링크가 없는 공고입니다</p>
+          )}
+          {n.url && (
+            <p className="mt-2 text-center text-xs text-slate-400">
+              새 창으로 열려요. 원문 창을 닫으면 지금 이 화면으로 그대로 돌아옵니다.
+            </p>
+          )}
+        </div>
       </section>
 
       {gated ? <SimilarContractsPlaceholder /> : <SimilarContracts notice={n} />}
@@ -254,7 +274,7 @@ function SimilarContracts({ notice }: { notice: Notice }) {
   );
 }
 
-/** 투찰금액 계산 · 공고 저장 · 나라장터 원문 */
+/** 투찰금액 계산 · 공고 저장 */
 function DetailActions({ notice: n }: { notice: Notice }) {
   const { saved, toggleSaved, account } = useStore();
   const toast = useToast();
@@ -278,14 +298,6 @@ function DetailActions({ notice: n }: { notice: Notice }) {
         <Bookmark className={`h-5 w-5 ${on ? 'fill-blue-600' : ''}`} />
         {on ? '저장됨' : '공고 저장'}
       </button>
-      {n.url ? (
-        <a href={n.url} target="_blank" rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-slate-500 hover:text-primary">
-          나라장터 원문 보기<ExternalLink className="h-4 w-4" />
-        </a>
-      ) : (
-        <p className="py-2 text-center text-sm text-slate-400">원문 링크가 없는 공고입니다</p>
-      )}
       <SignupSheet open={signup} onClose={() => setSignup(false)} reason="공고를 저장하고 마감 알림을 받으려면 이메일 가입이 필요해요."
         onDone={() => { setSignup(false); save(); }} />
     </section>
