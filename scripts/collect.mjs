@@ -46,6 +46,8 @@ const ymdhm = (d) => kst(d).slice(0, 16).replace(/[-T:]/g, '');
 /** "2026-11-12 10:00:00" (한국시간) → ISO */
 const kstIso = (s) => (s ? `${s.trim().replace(' ', 'T')}${s.length <= 10 ? 'T00:00:00' : ''}+09:00` : null);
 const num = (s) => (s === undefined || s === null || s === '' ? null : Number(String(s).replace(/,/g, '')));
+/** 원 단위 금액(DB bigint) — 단가 입찰은 소수점(예: 1138.06원)이 있어 반올림 */
+const won = (s) => { const n = num(s); return n === null || Number.isNaN(n) ? null : Math.round(n); };
 
 /* ---------- API 호출 (재시도 + 페이지 넘김) ---------- */
 async function call(url) {
@@ -132,8 +134,8 @@ async function collectNotices(from, to) {
         bid_type: t.name,
         contract: it.cntrctCnclsMthdNm || '미상',
         award: it.sucsfbidMthdNm || '미상',
-        est_price: num(it.presmptPrce) ?? 0,
-        base_price: num(base?.bssamt),
+        est_price: won(it.presmptPrce) ?? 0,
+        base_price: won(base?.bssamt),
         reserve_rate_min: num(base?.rsrvtnPrceRngBgnRate),
         reserve_rate_max: num(base?.rsrvtnPrceRngEndRate),
         floor_rate: num(it.sucsfbidLwltRate),
@@ -178,7 +180,7 @@ async function collectNotices(from, to) {
     if (rowNos.has(b.bidNtceNo)) continue;
     updates.push({
       match: { bid_no: b.bidNtceNo },
-      set: { base_price: num(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate) },
+      set: { base_price: won(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate) },
     });
   }
 
@@ -229,8 +231,8 @@ async function collectContracts(from, to) {
         method: it.cntrctCnclsMthdNm || null,
         base_law: it.baseLawNm || null,
         base_detail: it.baseDtls || null,
-        amount: num(it.thtmCntrctAmt),
-        total_amount: num(it.totCntrctAmt),
+        amount: won(it.thtmCntrctAmt),
+        total_amount: won(it.totCntrctAmt),
         contract_date: it.cntrctCnclsDate || it.cntrctDate || null,
         notice_no: it.ntceNo || null,
         corps,
