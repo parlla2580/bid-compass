@@ -21,7 +21,10 @@ export interface NoticeExtra {
 export interface PastStats {
   basis: 'org' | 'title';     // 같은 기관 / 비슷한 공고명
   count: number;              // 비교한 개찰 건수
-  avgParticipants: number | null;
+  /** 참가업체 수 중앙값 — 평균은 소수의 대량 참여 공고에 끌려가서 쓰지 않음 */
+  medianParticipants: number | null;
+  minParticipants: number | null;
+  maxParticipants: number | null;
   rateLow: number | null;     // 낙찰률 중간 50% 범위
   rateHigh: number | null;
   rateCount: number;
@@ -50,13 +53,15 @@ export async function fetchNoticeExtra(id: number): Promise<NoticeExtra | null> 
 type Row = { participants: number | null; winner_rate: number | null };
 
 function summarize(rows: Row[], basis: PastStats['basis']): PastStats {
-  const parts = rows.map((r) => r.participants).filter((v): v is number => v !== null && v > 0);
+  const parts = rows.map((r) => r.participants).filter((v): v is number => v !== null && v > 0).sort((a, b) => a - b);
   const rates = rows.map((r) => Number(r.winner_rate)).filter((v) => v > 0 && v < 100).sort((a, b) => a - b);
   const q = (p: number) => rates[Math.min(rates.length - 1, Math.floor(p * (rates.length - 1) + 0.5))];
   return {
     basis,
     count: rows.length,
-    avgParticipants: parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null,
+    medianParticipants: parts.length ? (parts.length % 2 ? parts[(parts.length - 1) / 2] : Math.round((parts[parts.length / 2 - 1] + parts[parts.length / 2]) / 2)) : null,
+    minParticipants: parts[0] ?? null,
+    maxParticipants: parts[parts.length - 1] ?? null,
     rateLow: rates.length >= MIN_SAMPLE ? q(0.25) : null,
     rateHigh: rates.length >= MIN_SAMPLE ? q(0.75) : null,
     rateCount: rates.length,

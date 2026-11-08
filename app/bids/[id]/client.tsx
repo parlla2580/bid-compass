@@ -246,7 +246,10 @@ function Briefing({ n }: { n: Notice }) {
   const lines: { k: string; v: React.ReactNode }[] = [];
   if (past) {
     const where = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
-    if (past.avgParticipants) lines.push({ k: '경쟁', v: <>{where}에 평균 <b className="font-semibold text-ink">{past.avgParticipants}개사</b>가 참여했어요 <span className="text-mute">({past.count}건 기준)</span></> });
+    if (past.medianParticipants) {
+      const range = past.minParticipants !== past.maxParticipants ? `${past.minParticipants!.toLocaleString()}~${past.maxParticipants!.toLocaleString()}개사, ` : '';
+      lines.push({ k: '경쟁', v: <>{where}에는 보통 <b className="font-semibold text-ink">{past.medianParticipants.toLocaleString()}개사</b>가 들어왔어요 <span className="text-mute">({range}{past.count}건 기준)</span></> });
+    }
     if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <>낙찰자는 주로 <b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b>에 썼어요 <span className="text-mute">({past.rateCount}건, 참고)</span></> });
   }
   if (extra?.qualifyBy) {
