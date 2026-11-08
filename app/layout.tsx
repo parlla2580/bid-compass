@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
-import { ToastProvider } from '@/components/feedback';
+import { SyncErrorToast, ToastProvider } from '@/components/feedback';
 import { StoreProvider } from '@/lib/store';
 
 export const metadata: Metadata = {
@@ -21,7 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body className="bg-slate-100 font-sans text-slate-800">
         <StoreProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {children}
+            <SyncErrorToast />
+          </ToastProvider>
         </StoreProvider>
       </body>
     </html>

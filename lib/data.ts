@@ -70,13 +70,6 @@ export const EMPTY_PROFILE: Profile = {
   priceRange: null,
 };
 
-/** 이메일 로그인 시 불러오는 데모 프로필 */
-export const DEMO_PROFILE: Profile = {
-  ...EMPTY_PROFILE,
-  industry: { big: '제조업', mid: '전자부품', leaf: null },
-  location: '서울',
-};
-
 // 목데이터 기준일 (D-day 계산 기준)
 export const TODAY = new Date(2026, 10, 9);
 

@@ -25,7 +25,7 @@ export default function MyPage() {
   const params = useSearchParams();
   const router = useRouter();
   const toast = useToast();
-  const { profile, setProfile, account, setAccount, saved, reset } = useStore();
+  const { profile, setProfile, account, signOut, saved, reset } = useStore();
   const [sheet, setSheet] = useState<SheetKey>(null);
   const [signup, setSignup] = useState(false);
 
@@ -138,25 +138,27 @@ export default function MyPage() {
               </button>
             </li>
           ))}
-          {account && (
+          {account ? (
             <li>
-              <button type="button" onClick={() => { setAccount(null); router.push('/start'); }} className="flex w-full items-center gap-3 px-4 py-4 text-left text-slate-600 hover:bg-slate-50">
+              <button type="button" onClick={async () => { await signOut(); router.push('/start'); }} className="flex w-full items-center gap-3 px-4 py-4 text-left text-slate-600 hover:bg-slate-50">
                 <LogOut className="h-5 w-5" /><span className="flex-1 text-[15px] font-semibold">로그아웃</span>
               </button>
             </li>
+          ) : (
+            <li>
+              {/* 가입 전에만 — 브라우저에 입력한 정보를 지우고 간편 시작으로 */}
+              <button type="button" onClick={() => { reset(); router.push('/start'); }} className="flex w-full items-center gap-3 px-4 py-4 text-left text-red-500 hover:bg-red-50">
+                <RotateCcw className="h-5 w-5" /><span className="flex-1 text-[15px] font-semibold">입력한 정보 지우고 처음부터</span>
+              </button>
+            </li>
           )}
-          <li>
-            <button type="button" onClick={() => { reset(); router.push('/start'); }} className="flex w-full items-center gap-3 px-4 py-4 text-left text-red-500 hover:bg-red-50">
-              <RotateCcw className="h-5 w-5" /><span className="flex-1 text-[15px] font-semibold">처음부터 다시 시작</span>
-            </button>
-          </li>
         </ul>
       </section>
 
       {sheet === 'company' && <CompanySheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '기업 정보를 저장했습니다. 판정을 다시 계산했습니다')} />}
       {sheet === 'prefs' && <PrefsSheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '매칭 선호도를 저장했습니다')} />}
       <SignupSheet open={signup} onClose={() => setSignup(false)} reason="가입하면 저장한 공고와 기업 정보를 다른 기기에서도 볼 수 있어요."
-        onDone={() => { setSignup(false); toast('가입했습니다'); }} />
+        onDone={() => { setSignup(false); toast('가입했습니다. 입력한 정보를 서버에 저장했습니다'); }} />
     </main>
   );
 }

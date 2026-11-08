@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useStore } from '@/lib/store';
 
 /* ---------- 토스트 ---------- */
 const ToastContext = createContext<(msg: string) => void>(() => {});
@@ -30,6 +31,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
+}
+
+/** 서버 저장 실패를 토스트로 알림 */
+export function SyncErrorToast() {
+  const { syncError, clearSyncError } = useStore();
+  const toast = useToast();
+  useEffect(() => {
+    if (!syncError) return;
+    toast(syncError);
+    clearSyncError();
+  }, [syncError, clearSyncError, toast]);
+  return null;
 }
 
 /* ---------- 바텀시트 모달 ---------- */
