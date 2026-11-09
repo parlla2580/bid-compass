@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Calculator, CircleUserRound, Compass, FileText, House, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, Calculator, CircleUserRound, Compass, FileText, House } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
 
@@ -26,7 +26,6 @@ export function Shell({ children, nav = true, tabs = nav, wide = false }: { chil
 const NAV = [
   { href: '/', label: '홈', Icon: House, match: (p: string) => p === '/' },
   { href: '/bids', label: '공고', Icon: FileText, match: (p: string) => p.startsWith('/bids') },
-  { href: '/recommend', label: '추천', desk: '추천 공고', Icon: Sparkles, match: (p: string) => p.startsWith('/recommend') },
   { href: '/analysis', label: '분석', desk: '입찰 분석', Icon: BarChart3, match: (p: string) => p.startsWith('/analysis') },
   { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') },
 ];
@@ -117,7 +116,7 @@ export function BottomNav() {
   const pathname = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      <ul className="mx-auto grid max-w-[760px] grid-cols-5">
+      <ul className="mx-auto grid max-w-[760px] grid-cols-4">
         {NAV.map(({ href, label, Icon, match }) => {
           const on = match(pathname);
           return (

@@ -75,7 +75,7 @@ export default function StartPage() {
   };
   const finish = (withProducts: boolean) => {
     updateProfile({ ...pending, products: withProducts && products.length ? products : (pending?.products ?? profile.products ?? null) });
-    router.push('/recommend');
+    router.push('/bids');
   };
 
   const confirm = () => {

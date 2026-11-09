@@ -3,28 +3,29 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
-import { NoticeCard, NoticesState, profileSummary } from '@/components/ui';
+import { NoticeRow, RowList } from '@/components/notice-row';
+import { CTA_PRIMARY, profileSummary } from '@/components/ui';
 import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
 import { useJudged, useStore } from '@/lib/store';
 
-/** S2. 홈 */
+/** S2. 홈 — 오늘의 요약만. 공고 목록은 '공고' 탭 한 곳에서 */
 export default function HomePage() {
   const ready = useRequireStart();
-  const { profile, saved, notices, noticesError } = useStore();
+  const { profile, saved, notices } = useStore();
   const judged = useJudged();
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
-  const eligible = (judged ?? []).filter((j) => j.matched || (j.judgment.status === 'eligible' && j.rel === 'unknown')).sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance);
-  const newCount = (judged ?? []).filter((j) => j.notice.isNew).length;
-  const savedSoon = (notices ?? []).filter((n) => saved.includes(n.id) && n.d >= 0 && n.d <= 3).length;
+  const matched = (judged ?? []).filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none');
+  const newMatched = matched.filter((j) => j.notice.isNew).length;
+  const soon = (judged ?? []).filter((j) => saved.includes(j.notice.id) && j.notice.d >= 0 && j.notice.d <= 3).sort((a, b) => a.notice.d - b.notice.d);
   const need = topNeed(judged);
 
   const stats = [
-    { href: '/recommend', label: '맞춤 공고', value: judged ? eligible.length : null, tone: 'text-brand' },
-    { href: '/bids?sort=latest', label: '오늘 새 공고', value: judged ? newCount : null, tone: 'text-ink' },
-    { href: '/mypage#saved', label: '저장·마감 임박', value: savedSoon, tone: savedSoon ? 'text-bad' : 'text-ink' },
+    { href: '/bids', label: '맞춤 공고', value: judged ? matched.length : null, tone: 'text-brand' },
+    { href: '/bids?sort=latest', label: '그중 새 공고', value: judged ? newMatched : null, tone: 'text-ink' },
+    { href: '/bids?tab=saved', label: '저장·마감 임박', value: judged ? soon.length : null, tone: soon.length ? 'text-bad' : 'text-ink' },
   ];
 
   return (
@@ -34,7 +35,7 @@ export default function HomePage() {
         <section className="pt-3 lg:pt-6">
           <p className="text-[14px] text-mute">{fmtDate(now)} ({weekdayKo(now)})</p>
           <h1 className="mt-1 text-[24px] font-bold leading-snug tracking-tight lg:text-[28px]">
-            {judged ? <>공고 {judged.length.toLocaleString()}건 중<br className="lg:hidden" /> 우리 회사 맞춤 공고는 <span className="text-brand">{eligible.length}건</span>이에요</> : '맞춤 공고를 고르는 중이에요'}
+            {judged ? <>공고 {judged.length.toLocaleString()}건 중<br className="lg:hidden" /> 우리 회사 맞춤 공고는 <span className="text-brand">{matched.length}건</span>이에요</> : '맞춤 공고를 고르는 중이에요'}
           </h1>
           <Link href="/mypage?edit=company" className="mt-1.5 inline-flex items-center text-[15px] text-sub">
             {profileSummary(profile)} 기준<ChevronRight className="h-4 w-4 text-mute" />
@@ -50,6 +51,8 @@ export default function HomePage() {
           ))}
         </section>
 
+        <Link href="/bids" className={`${CTA_PRIMARY} mt-4 lg:max-w-[360px]`}>맞춤 공고 보기</Link>
+
         {need && (
           <Link href="/mypage?edit=company" className="mt-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
             <span className="flex-1 text-sub"><b className="font-semibold text-ink">{withEulReul(NEED_LABEL[need.need])}</b> 입력하면 공고 <b className="font-semibold text-ink">{need.count}건</b>을 더 판정할 수 있어요</span>
@@ -57,22 +60,12 @@ export default function HomePage() {
           </Link>
         )}
 
-        <section className="mt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-[20px] font-bold">추천 공고</h2>
-            <Link href="/recommend" className="flex items-center text-[14px] text-mute hover:text-sub">전체 보기<ChevronRight className="h-4 w-4" /></Link>
-          </div>
-          <NoticesState notices={notices} error={noticesError}>
-            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">
-              {eligible.slice(0, 6).map(({ notice, judgment, fit }) => <NoticeCard key={notice.id} notice={notice} judgment={judgment} fit={fit} />)}
-            </div>
-            {judged && !eligible.length && (
-              <p className="rounded-box bg-white px-5 py-10 text-center text-[15px] text-mute">
-                지금은 참여 가능한 공고가 없어요. <Link href="/recommend" className="font-semibold text-brand">확인이 필요한 공고</Link>를 살펴보세요.
-              </p>
-            )}
-          </NoticesState>
-        </section>
+        {soon.length > 0 && (
+          <section className="mt-8">
+            <h2 className="mb-3 text-[18px] font-bold">곧 마감되는 저장 공고</h2>
+            <RowList>{soon.slice(0, 3).map((j) => <NoticeRow key={j.notice.id} item={j} lead="none" />)}</RowList>
+          </section>
+        )}
 
         <section className="mt-8 grid gap-2 lg:grid-cols-2 lg:gap-3">
           <Link href="/analysis" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
@@ -85,11 +78,12 @@ export default function HomePage() {
           <Link href="/calculator" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">투찰금액 계산기</span>
-              <span className="mt-0.5 block text-[14px] text-mute">하한율로 투찰 가능 구간을 계산해요</span>
+              <span className="mt-0.5 block text-[14px] text-mute">사정률 분포로 투찰금액을 정해요</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
         </section>
+        {!notices && <div className="mt-6 h-20 animate-pulse rounded-box bg-white" />}
       </main>
     </Shell>
   );

@@ -127,7 +127,7 @@ export default function MyPage() {
         {savedNotices && !savedNotices.length && (
           <p className="py-6 text-center text-sm text-mute">
             저장한 공고가 없습니다.<br />
-            <Link href="/recommend" className="font-semibold text-primary">추천 공고</Link>에서 관심 공고를 저장해 보세요.
+            <Link href="/bids" className="font-semibold text-primary">맞춤 공고</Link>에서 관심 공고를 저장해 보세요.
           </p>
         )}
       </section>

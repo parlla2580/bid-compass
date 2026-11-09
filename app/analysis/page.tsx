@@ -53,7 +53,7 @@ export default function AnalysisPage() {
     body = (
       <Empty title="아직 분석할 입찰 이력이 없어요"
         text="개찰 결과를 매일 모으고 있어요. 서비스 공개 때 최근 3년치를 받아오면 성적표가 채워져요.">
-        <Link href="/recommend" className={BTN_PRIMARY}>지금 참여 가능한 공고 보기</Link>
+        <Link href="/bids" className={BTN_PRIMARY}>지금 참여 가능한 공고 보기</Link>
       </Empty>
     );
   } else {
@@ -69,7 +69,7 @@ export default function AnalysisPage() {
         </section>
 
         {similarNow.length > 0 && (
-          <Link href="/recommend" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
+          <Link href="/bids" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
             <span className="flex-1 text-sub">귀사 이력과 비슷한 공고 <b className="font-semibold text-brand">{similarNow.length}건</b>이 지금 열려 있어요</span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
