@@ -179,7 +179,7 @@ export function TagInput({ id, value, onChange, placeholder }: {
 }
 
 /** 주요 품목 선택 — 검색(2글자부터) + 추천 칩 탭 한 번으로 추가 */
-export function ProductPicker({ value, onChange, suggest = [], max = 10 }: {
+export function ProductPicker({ value, onChange, suggest = [], max = 20 }: {
   value: Product[];
   onChange: (v: Product[]) => void;
   /** 추천 품목 (업종·공고에서 뽑은 후보) */
@@ -204,6 +204,7 @@ export function ProductPicker({ value, onChange, suggest = [], max = 10 }: {
   const toggle = (p: Product) =>
     onChange(chosen.has(p.code) ? value.filter((v) => v.code !== p.code) : value.length >= max ? value : [...value, { ...p, source: p.source ?? 'user' }]);
   const chips = suggest.filter((p) => !chosen.has(p.code)).slice(0, 8);
+  const full = value.length >= max;
 
   return (
     <div>
@@ -221,11 +222,11 @@ export function ProductPicker({ value, onChange, suggest = [], max = 10 }: {
       )}
       {chips.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1.5 text-[13px] text-mute">이런 품목은 어때요? 누르면 추가돼요</p>
+          <p className="mb-1.5 text-[13px] text-mute">{full ? `최대 ${max}개까지 넣을 수 있어요. 추가하려면 위에서 하나를 빼 주세요` : '이런 품목은 어때요? 누르면 추가돼요'}</p>
           <div className="flex flex-wrap gap-1.5">
             {chips.map((p) => (
-              <button key={p.code} type="button" onClick={() => toggle(p)}
-                className="rounded-full border border-line bg-white px-3 py-1.5 text-[14px] text-sub hover:bg-fill">+ {p.name}</button>
+              <button key={p.code} type="button" onClick={() => toggle(p)} disabled={full}
+                className="rounded-full border border-line bg-white px-3 py-1.5 text-[14px] text-sub hover:bg-fill disabled:opacity-40">+ {p.name}</button>
             ))}
           </div>
         </div>
@@ -250,7 +251,7 @@ export function ProductPicker({ value, onChange, suggest = [], max = 10 }: {
           ))}
         </div>
       )}
-      <p className="mt-1.5 text-xs text-mute">최근 나라장터 공고에 나온 품목에서 찾아요. 최대 {max}개.</p>
+      <p className={`mt-1.5 text-xs ${full ? 'font-semibold text-warn' : 'text-mute'}`}>최근 나라장터 공고에 나온 품목에서 찾아요. {value.length}/{max}개{full ? ' — 가득 찼어요' : ''}</p>
     </div>
   );
 }
