@@ -9,7 +9,7 @@ import { useRequireStart } from '@/components/layout';
 import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, ProductPicker, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
-import { SIZES, hasSigungu, type BidType, type Notice, type Product, type Profile } from '@/lib/data';
+import { SIZES, hasSigungu, keywordHit, type BidType, type Keywords, type Notice, type Product, type Profile } from '@/lib/data';
 import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
 import { judge } from '@/lib/judge';
 import { suggestProducts } from '@/lib/match';
@@ -49,6 +49,8 @@ export default function MyPage() {
     ['업체명', profile.corpName ? `${profile.corpName}${profile.naraRegistered ? ' (나라장터 등록)' : ''}` : null],
     ['업종', profile.industries?.length ? profile.industries.map((i) => i.name).join(', ') : null],
     ['주요 품목', profile.products?.length ? profile.products.map((i) => i.name).join(', ') : null],
+    ['꼭 볼 단어', profile.keywords?.plus?.length ? profile.keywords.plus.join(', ') : null],
+    ['빼고 싶은 단어', profile.keywords?.minus?.length ? profile.keywords.minus.join(', ') : null],
     ['소재지', profile.location ? `${profile.location}${hasSigungu(profile.location) ? '' : ' (시군구 미입력)'}` : null],
     ['기업규모', profile.size],
     ['수행실적', profile.records || null],
@@ -234,7 +236,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
           <IndustryPicker value={form.industries ?? []} onChange={(v) => setForm({ ...form, industries: v })} />
           {!!form.industries?.length && (
             <div className="mt-3 rounded-btn bg-fill p-3">
-              <p className="mb-2 text-[13px] text-mute">등록만 해두고 실제로 하지 않는 업종은 꺼 주세요. 그 업종을 요구하는 공고는 맞춤 공고에서 빠져요.</p>
+              <p className="mb-2 text-[13px] text-mute">실제로 하지 않는 업종은 꺼 주세요. 그 업종 공고는 맞춤에서 빠져요.</p>
               <ul className="space-y-2">
                 {form.industries.map((i) => {
                   const off = (form.muted ?? []).some((m) => m.kind === 'industry' && m.code === i.code);
@@ -263,6 +265,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
           <ProductPicker value={form.products ?? []} onChange={(v) => setForm({ ...form, products: v })}
             suggest={suggestProducts(notices, form.industries, form.products ?? [])} />
         </div>
+        <KeywordFields value={form.keywords ?? {}} onChange={(k) => setForm({ ...form, keywords: k })} />
         {(form.muted ?? []).some((m) => m.kind !== 'industry') && (
           <div>
             <p className="mb-2 text-sm font-semibold text-sub">관심 없음으로 뺀 항목</p>
@@ -337,5 +340,28 @@ function PrefsSheet({ profile, onClose, onSave }: { profile: Profile; onClose: (
         </div>
       </div>
     </Sheet>
+  );
+}
+
+/** 꼭 볼 단어 / 빼고 싶은 단어 — 입력하면 지금 공고 몇 건에 해당하는지 바로 보여줌 */
+function KeywordFields({ value, onChange }: { value: Keywords; onChange: (k: Keywords) => void }) {
+  const { notices } = useStore();
+  const count = (w: string) => (notices ?? []).filter((n) => keywordHit(n, [w])).length;
+  const minusTotal = (notices ?? []).filter((n) => keywordHit(n, value.minus)).length;
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="mb-1 text-sm font-semibold text-sub">꼭 볼 단어</p>
+        <p className="mb-2 text-[13px] text-mute">이 단어가 들어간 공고는 맞춤 공고에 넣어요</p>
+        <TagInput id="kw-plus" value={value.plus ?? []} onChange={(v) => onChange({ ...value, plus: v })} placeholder="예: CCTV, 방역 (Enter)" />
+        {!!value.plus?.length && <p className="mt-1.5 text-[12px] text-mute">{value.plus.map((w) => `${w} ${count(w)}건`).join(' · ')}</p>}
+      </div>
+      <div>
+        <p className="mb-1 text-sm font-semibold text-sub">빼고 싶은 단어</p>
+        <p className="mb-2 text-[13px] text-mute">이 단어가 들어간 공고는 맞춤 공고에서 빼요</p>
+        <TagInput id="kw-minus" value={value.minus ?? []} onChange={(v) => onChange({ ...value, minus: v })} placeholder="예: 유지보수, 임차 (Enter)" />
+        {!!value.minus?.length && <p className="mt-1.5 text-[12px] font-medium text-brand">지금 공고 중 {minusTotal.toLocaleString()}건이 빠져요</p>}
+      </div>
+    </div>
   );
 }

@@ -88,6 +88,18 @@ export interface Profile {
   products: Product[] | null;
   /** 관심 없음 — 업종(실제로 하지 않는 면허)·품목·공고 */
   muted: MuteItem[];
+  /** 꼭 볼 단어 / 빼고 싶은 단어 */
+  keywords: Keywords;
+}
+
+export interface Keywords { plus?: string[]; minus?: string[] }
+
+/** 공고 제목·품명에서 단어 찾기 (띄어쓰기·대소문자 무시) */
+const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
+export function keywordHit(n: Pick<Notice, 'title' | 'products'>, words?: string[]): string | null {
+  if (!words?.length) return null;
+  const text = norm(`${n.title} ${n.products.map((p) => p.name).join(' ')}`);
+  return words.find((w) => w.trim() && text.includes(norm(w))) ?? null;
 }
 
 export interface MuteItem {
@@ -109,6 +121,7 @@ export const EMPTY_PROFILE: Profile = {
   priceRange: null,
   products: null,
   muted: [],
+  keywords: {},
 };
 
 export const SIZES: CompanySize[] = ['중소기업', '중견기업', '대기업'];

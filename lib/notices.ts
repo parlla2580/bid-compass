@@ -156,3 +156,24 @@ export async function searchProducts(q: string): Promise<Product[]> {
   // 공고에 자주 나온 품목부터
   return [...out.values()].sort((a, b) => b.n - a.n).slice(0, 30).map(({ code, name }) => ({ code, name }));
 }
+
+/** 기관·유형별 경쟁 강도 (013 org_competition) — 키: '기관|유형' */
+export interface Competition { byOrg: Map<string, { median: number; n: number }>; byType: Map<string, number> }
+
+export async function fetchCompetition(): Promise<Competition | null> {
+  const sb = getSupabase();
+  const rows: { org: string; bid_type: string; openings: number; median_participants: number }[] = [];
+  for (let from = 0; from < 20 * PAGE; from += PAGE) {
+    const { data, error } = await sb.from('org_competition').select('org,bid_type,openings,median_participants').range(from, from + PAGE - 1);
+    if (error) return null; // 013 실행 전
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  const byOrg = new Map(rows.map((r) => [`${r.org}|${r.bid_type}`, { median: r.median_participants, n: r.openings }]));
+  const byType = new Map<string, number>();
+  for (const t of ['물품', '용역', '공사']) {
+    const v = rows.filter((r) => r.bid_type === t).map((r) => r.median_participants).sort((a, b) => a - b);
+    if (v.length) byType.set(t, v[Math.floor(v.length / 2)]);
+  }
+  return { byOrg, byType };
+}

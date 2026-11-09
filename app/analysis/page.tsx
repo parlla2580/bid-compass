@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
@@ -27,7 +28,7 @@ export default function AnalysisPage() {
   }, [account, profile.corpName]);
 
   // 맞춤 공고 중 '이력' 근거가 있는 공고 — 맞춤 공고 수의 부분집합이 되도록 같은 기준 사용
-  const matched = useMemo(() => (judged ?? []).filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none'), [judged]);
+  const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
   const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5)), [matched]);
   const [tab, setTab] = useState<'me' | 'market'>('me');
 
@@ -36,7 +37,7 @@ export default function AnalysisPage() {
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
-        text="회사를 확인하면 나라장터 개찰 결과에서 귀사의 투찰 이력을 찾아 분석해요. 따로 입력할 건 없어요.">
+        text="회사를 확인하면 투찰 이력을 찾아 분석해요. 따로 입력할 건 없어요.">
         <button type="button" onClick={() => setSignup(true)} className={BTN_PRIMARY}>가입하고 성적표 보기</button>
       </Empty>
     );
@@ -96,7 +97,7 @@ export default function AnalysisPage() {
 
             {fromHistory.length > 0 && (
               <Link href="/bids?hist=1" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-                <span className="flex-1 text-sub">맞춤 공고 {matched.length.toLocaleString()}건 중 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b>은 귀사가 참여·낙찰했던 공고와 비슷해요</span>
+                <span className="flex-1 text-sub">맞춤 공고 {matched.length.toLocaleString()}건 중 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b>은 우리가 참여·낙찰했던 공고와 비슷해요</span>
                 <ChevronRight className="h-5 w-5 text-mute" />
               </Link>
             )}
@@ -146,7 +147,7 @@ export default function AnalysisPage() {
         )}
 
         <p className="px-1 text-[13px] leading-relaxed text-mute">
-          나라장터 개찰 결과로 만든 참고 정보예요. 낙찰 여부는 최종낙찰자 기준이고, 수집되지 않은 기간·공고는 빠질 수 있어요.
+          {COPY.reference} {COPY.referenceMore}
         </p>
       </div>
     );

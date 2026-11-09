@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/layout';
 import { fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
@@ -63,7 +64,7 @@ export default function OpeningView({ id }: { id: number }) {
       {/* 순위표 — 나와 1순위 주변 */}
       {bidders.length > 0 && <Ranking bidders={bidders} />}
 
-      <p className="px-1 text-[13px] leading-relaxed text-mute">나라장터 개찰 결과로 만든 참고 정보예요. 낙찰자는 최종낙찰자 기준이며, 적격심사에서는 1순위가 낙찰되지 않을 수 있어요.</p>
+      <p className="px-1 text-[13px] leading-relaxed text-mute">{COPY.reference} {COPY.firstNotWin}</p>
     </main>
   );
 }
@@ -106,8 +107,8 @@ function DistributionCard({ o, bidders, floor }: { o: NonNullable<OpeningDetail[
     ) : <span className="text-[13px] text-mute">투찰률 = 투찰금액 ÷ 예정가격</span>}>
       <p className="-mt-1 mb-2 text-[13px] text-mute">
         {m === 'rate'
-          ? '투찰률 = 투찰금액 ÷ 예정가격. 빨간 선(낙찰하한율)보다 낮으면 하한 미달이에요.'
-          : '건 사정률 = 투찰금액 ÷ (기초금액 × 하한율). 실제 사정률(빨간 선)보다 높게 건 업체만 하한을 넘었어요.'}
+          ? '투찰률 = 투찰금액 ÷ 예정가격. 빨간 선보다 낮으면 하한 미달이에요.'
+          : '건 사정률 = 투찰금액 ÷ (기초금액 × 하한율). 빨간 선보다 높게 건 곳만 하한을 넘었어요.'}
       </p>
       <Distribution bidders={bidders} value={val}
         cut={m === 'rate' ? floor : Number(o.sajeong)}

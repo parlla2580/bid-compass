@@ -67,7 +67,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
       if (v.status === 'mismatch') throw new Error('대표자명이 나라장터에 등록된 정보와 다릅니다. 사업자등록증의 대표자명을 확인해 주세요');
       if (v.status === 'unregistered' && !unregisteredOk) {
         setUnregisteredOk(true);
-        throw new Error('나라장터에 등록되지 않은 사업자등록번호라 대표자명을 확인할 수 없습니다. 번호가 맞다면 한 번 더 누르면 그대로 가입됩니다');
+        throw new Error('나라장터에 없는 번호라 대표자명은 확인하지 않아요. 번호가 맞다면 한 번 더 눌러 주세요');
       }
 
       // 2) 계정 생성 (가입 전 정보는 이 단계에서 서버로 옮겨짐)

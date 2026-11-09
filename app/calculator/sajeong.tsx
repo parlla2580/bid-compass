@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { COPY } from '@/lib/copy';
 import { Term } from '@/components/term';
 import type { BidType } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
@@ -145,7 +146,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
         </div>
       )}
       <p className="mt-4 text-[12px] leading-relaxed text-mute">
-        과거 분포로 본 참고 정보예요. 이번 공고의 사정률은 추첨으로 정해져 누구도 미리 알 수 없어요. 1순위는 가격 기준 순위이며, 적격심사는 다른 점수에 따라 낙찰이 달라질 수 있어요.
+        {COPY.drawUnknown} {COPY.firstNotWin}
       </p>
     </div>
   );

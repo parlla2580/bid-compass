@@ -175,7 +175,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">
       {(noDraw || (notice && !notice.basePrice) || unit) && (
         <div className="rounded-box bg-white px-5 py-4 text-[14px] leading-relaxed text-sub lg:col-span-2">
-          {noDraw && <p><b className="font-semibold text-ink">{method} 공고예요.</b> {method === '비예가' ? '예정가격 없이 제안서 평가 등으로 정해서 투찰금액 계산이 맞지 않을 수 있어요. 공고문을 확인해 주세요.' : '예정가격이 추첨 없이 하나로 정해져 사정률 분포는 보여드리지 않아요.'}</p>}
+          {noDraw && <p><b className="font-semibold text-ink">{method} 공고예요.</b> {method === '비예가' ? '예정가격이 없는 공고라 계산이 맞지 않을 수 있어요. 공고문을 확인하세요.' : '예정가격이 추첨 없이 하나로 정해져 사정률 분포는 보여드리지 않아요.'}</p>}
           {notice && !notice.basePrice && <p className={noDraw ? 'mt-1' : ''}><b className="font-semibold text-ink">공고에 기초금액이 없어요.</b> 공고문에서 확인한 값을 직접 넣어 주세요.</p>}
           {unit && <p><b className="font-semibold text-ink">단가 입찰로 보여요.</b> 기초금액({fmtWon(notice!.basePrice!)})이 추정가격보다 훨씬 작아요. 1개·1회 단가 기준으로 계산돼요. (추정)</p>}
         </div>
@@ -265,7 +265,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {constructionWarn && (
             <p className="flex gap-2 text-[15px] font-medium text-bad">
               <TriangleAlert className="mt-0.5 h-[18px] w-[18px] shrink-0" />
-              투찰금액이 (재료비+노무비+경비+부가가치세)의 98% 미만이에요. 공고에서 이 기준이 적용되는지 확인하세요.
+              원가 합계의 98%보다 낮아요. 공고에 이 기준이 있는지 확인하세요.
             </p>
           )}
           {type === '공사' && costSum > 0 && bid === null && <p className="text-[13px] text-mute">내 투찰금액을 넣으면 경고 여부를 알려드려요</p>}
@@ -273,7 +273,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
       )}
 
       <p className="px-1 text-[13px] leading-relaxed text-mute lg:col-span-2">
-        계산 결과는 참고용이에요. 예비가격 범위·낙찰하한율·공사 하한 기준은 공고의 세부기준표로 확인하세요.
+        계산 결과는 참고용이에요. 공고 세부기준표로 꼭 확인하세요.
       </p>
     </section>
   );
@@ -361,7 +361,7 @@ function ScorePanel({ type }: { type: BidType }) {
       </div>
 
       <p className="px-1 text-[13px] leading-relaxed text-mute lg:col-span-2">
-        배점(가격 60·경영상태 14·수행실적 20)과 기준점은 일반적인 예시예요. 공고의 적격심사 세부기준표로 확인하세요.
+        배점과 기준점은 일반 예시예요. 공고 세부기준표로 확인하세요.
       </p>
     </section>
   );

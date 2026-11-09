@@ -17,7 +17,7 @@ export default function HomePage() {
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
-  const matched = (judged ?? []).filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none');
+  const matched = (judged ?? []).filter((j) => j.matched);
   const newMatched = matched.filter((j) => j.notice.isNew).length;
   const soon = (judged ?? []).filter((j) => saved.includes(j.notice.id) && j.notice.d >= 0 && j.notice.d <= 3).sort((a, b) => a.notice.d - b.notice.d);
   const need = topNeed(judged);

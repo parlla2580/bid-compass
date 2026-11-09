@@ -1,4 +1,4 @@
-import type { Notice, Product, Profile } from './data';
+import { keywordHit, type Notice, type Product, type Profile } from './data';
 import type { Judgment } from './judge';
 import type { Similarity } from './analysis';
 import { words } from './notices';
@@ -46,7 +46,7 @@ export function productMatch(n: Notice, mine: Product[] | null): ProductMatch | 
   return best && best.sim > 0 ? best : null;
 }
 
-export type RelevanceReason = 'product' | 'license' | 'history' | 'unknown' | 'none';
+export type RelevanceReason = 'product' | 'keyword' | 'license' | 'history' | 'unknown' | 'none' | 'excluded';
 
 /**
  * 관련성 판단
@@ -58,6 +58,9 @@ export function relevanceOf(n: Notice, p: Profile, j: Judgment, pm: ProductMatch
   const mutedOf = (kind: 'industry' | 'product' | 'notice') => new Set(muted.filter((m) => m.kind === kind).map((m) => m.code));
   // '관심 없음' — 이 공고 / 공고 품목이 모두 뺀 품목
   if (mutedOf('notice').has(String(n.id))) return 'none';
+  // 빼고 싶은 단어가 들어간 공고는 맞춤에서 제외, 꼭 볼 단어가 들어가면 맞춤에 포함
+  if (keywordHit(n, p.keywords?.minus)) return 'excluded';
+  if (keywordHit(n, p.keywords?.plus)) return 'keyword';
   const mp = mutedOf('product');
   if (n.products.length && n.products.every((x) => mp.has(x.code))) return 'none';
 
@@ -75,7 +78,7 @@ export function relevanceOf(n: Notice, p: Profile, j: Judgment, pm: ProductMatch
   return 'none';
 }
 
-export const isRelevant = (r: RelevanceReason) => r !== 'none';
+export const isRelevant = (r: RelevanceReason) => r !== 'none' && r !== 'excluded';
 
 /** 추천 품목 칩 — 회사 업종명의 핵심어가 들어간 공고 품목 중 자주 나온 것 */
 export function suggestProducts(notices: Notice[] | null, industries: { name: string }[] | null, have: Product[] = []): Product[] {

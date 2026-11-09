@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { EMPTY_PROFILE, type Notice, type Profile } from './data';
 import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, uploadLocal } from './db';
 import { judge, relevance, type Judgment } from './judge';
-import { fetchOpenNotices } from './notices';
+import { fetchCompetition, fetchOpenNotices, type Competition } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { fitScore, type Fit } from './fit';
 import { isRelevant, productMatch, relevanceOf, type ProductMatch, type RelevanceReason } from './match';
@@ -40,6 +40,8 @@ interface Store {
   reset: () => void;
   /** 회사 확인 회원의 개찰 이력 (F7) — 없으면 빈 배열 */
   history: HistoryItem[];
+  /** 기관·유형별 경쟁 강도 (013 전이면 null) */
+  competition: Competition | null;
   /** 마감 전 공고 (Supabase) — null: 불러오는 중 */
   notices: Notice[] | null;
   noticesError: string | null;
@@ -77,6 +79,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [noticesError, setNoticesError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [competition, setCompetition] = useState<Competition | null>(null);
+  useEffect(() => { if (supabaseEnabled) fetchCompetition().then(setCompetition).catch(() => setCompetition(null)); }, []);
   // 비동기 작업에서 최신 값을 쓰기 위한 참조
   const profileRef = useRef(profile);
   const savedRef = useRef(saved);
@@ -243,10 +247,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notices,
       noticesError,
       history,
+      competition,
       syncError,
       clearSyncError: () => setSyncError(null),
     }),
-    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, syncError],
+    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, competition, syncError],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -276,7 +281,7 @@ export interface Judged {
 
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
 export function useJudged(): Judged[] | null {
-  const { profile, notices, history } = useStore();
+  const { profile, notices, history, competition } = useStore();
   const hist = useMemo(() => prepareHistory(history), [history]);
   return useMemo(
     () =>
@@ -286,13 +291,13 @@ export function useJudged(): Judged[] | null {
         // 이력과 닮은 공고를 위로 (유사도는 순서에만 쓰고 판정에는 쓰지 않음)
         const boost = similar ? Math.min(40, similar.score * 10) : 0;
         const product = productMatch(notice, profile.products);
-        const fit = fitScore(notice, profile, judgment, similar, history, product);
+        const fit = fitScore(notice, profile, judgment, similar, history, product, competition);
         const rel = relevanceOf(notice, profile, judgment, product, similar);
         return {
           notice, judgment, relevance: relevance(notice, profile, judgment) + boost + (product ? product.sim * 40 : 0),
           similar, fit, product, rel, matched: judgment.status === 'eligible' && isRelevant(rel),
         };
       }) ?? null,
-    [profile, notices, hist, history],
+    [profile, notices, hist, history, competition],
   );
 }

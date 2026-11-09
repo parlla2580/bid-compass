@@ -28,7 +28,7 @@ export function MarketSection() {
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
         <h2 className="text-[20px] font-bold">시장 분석</h2>
-        <p className="mt-0.5 text-[14px] text-mute">귀사가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
+        <p className="mt-0.5 text-[14px] text-mute">우리가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
         {thin && <p className="mt-1 text-[13px] font-medium text-warn">아직 근거가 적어요({n}건). 데이터가 쌓이면 더 정확해져요.</p>}
       </div>
 
@@ -46,7 +46,7 @@ export function MarketSection() {
           {m.other_markets?.length
             ? <Bars rows={m.other_markets.map((o) => ({ label: `${o.org}`, tag: o.type, value: o.firms, sub: `공고 ${o.openings}건`, unit: '곳' }))} />
             : <Empty text="아직 찾은 다른 시장이 없어요" />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">자주 만나는 회사 중 몇 곳이 들어갔는지예요. 귀사가 아직 들어가지 않은 기관만 보여드려요.</p>
+          <p className="mt-3 text-[12px] leading-relaxed text-mute">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가본 기관만 보여드려요.</p>
         </Card>
 
         <Card title="새로 들어온 회사" aside={<span className="text-[13px] text-mute">최근 90일</span>}>

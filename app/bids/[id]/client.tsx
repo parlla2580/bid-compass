@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { COPY } from '@/lib/copy';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Bookmark, Check, ChevronDown, CircleAlert, Lock, X } from 'lucide-react';
 import { useToast } from '@/components/feedback';
@@ -59,13 +60,13 @@ export default function NoticeDetail({ id }: { id: number }) {
 }
 
 function Detail({ n }: { n: Notice }) {
-  const { profile, saved, toggleSaved, account, loaded, history } = useStore();
+  const { profile, saved, toggleSaved, account, loaded, history, competition } = useStore();
   // 가입 전에는 상세를 흐리게 보여주고 가입 안내 (기획 v2.2)
   const gated = loaded && !account;
   const toast = useToast();
   const [signup, setSignup] = useState(false);
   const j = judge(n, profile);
-  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history)) : null, history, productMatch(n, profile.products));
+  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history)) : null, history, productMatch(n, profile.products), competition);
   const closed = n.d < 0;
   const on = saved.includes(n.id);
   const save = () => toast(toggleSaved(n.id) ? '저장했어요' : '저장을 취소했어요');
@@ -224,7 +225,7 @@ function Judgment({ status, reasons, fit }: { status: Status; reasons: Reason[];
   );
 }
 
-/** 적합도 — 우리 회사와 맞는 정도 + 근거 */
+/** 맞춤 점수 — 우리 회사와 맞는 정도 + 근거 */
 function FitBlock({ fit }: { fit: Fit }) {
   const mark = { good: 'text-ok', mid: 'text-warn', low: 'text-mute' } as const;
   const sym = { good: '✓', mid: '△', low: '–' } as const;
@@ -244,7 +245,7 @@ function FitBlock({ fit }: { fit: Fit }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-[12px] text-mute">낙찰 확률이 아니라, 귀사 정보·이력과 공고가 얼마나 맞는지예요. 정보를 더 넣을수록 정확해져요.</p>
+      <p className="mt-3 text-[12px] text-mute">{COPY.notWinChance}</p>
     </div>
   );
 }
@@ -295,7 +296,7 @@ function Briefing({ n }: { n: Notice }) {
               </li>
             ))}
           </ul>
-          {past === null && <p className="mt-3 text-[13px] text-mute">비슷한 과거 개찰 결과가 아직 적어서 경쟁·낙찰률은 보여드리지 못해요. 데이터가 쌓이면 채워져요.</p>}
+          {past === null && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요. 쌓이면 보여드려요.</p>}
         </>
       )}
     </Card>
@@ -407,7 +408,7 @@ function Original({ n }: { n: Notice }) {
   return (
     <Card>
       <p className="text-[15px] font-semibold">공고 원문</p>
-      <p className="mt-1 text-[13px] leading-relaxed text-mute">팝업 창으로 열려요. 닫으면 이 화면 그대로예요. 첨부파일(공고문·과업내용서)은 원문에서 받을 수 있어요.</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-mute">팝업으로 열려요. 첨부파일은 원문에서 받으세요.</p>
       <div className="mt-4"><OriginalLink n={n} /></div>
     </Card>
   );
@@ -422,9 +423,9 @@ function Similar({ n }: { n: Notice }) {
 
   return (
     <Card title="지난번엔 누가 얼마에 계약했나" aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
-      <p className="-mt-2 mb-3 text-[14px] leading-relaxed text-mute">이 기관이 예전에 같은 종류의 일을 어느 업체에 얼마에 맡겼는지 보여드려요</p>
+      <p className="-mt-2 mb-3 text-[14px] leading-relaxed text-mute">{COPY.pastContracts}</p>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
-      {items && !items.length && <p className="text-[15px] text-mute">아직 찾지 못했어요. 계약 정보는 2026년 11월부터 모으고 있어서, 시간이 지나면 채워져요.</p>}
+      {items && !items.length && <p className="text-[15px] text-mute">아직 찾지 못했어요. 계약 정보가 쌓이면 보여드려요.</p>}
       {items && items.length > 0 && (
         <>
           {/* 모바일 */}

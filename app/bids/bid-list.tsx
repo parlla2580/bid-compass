@@ -96,11 +96,12 @@ export default function BidList() {
 
   const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5);
-  const matchedAll = all.filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none');
+  const matchedAll = all.filter((j) => j.matched);
   const histCount = matchedAll.filter(isHist).length;
   const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
   const checkRows = all.filter((j) => j.judgment.status === 'check');
   const otherRows = all.filter((j) => j.judgment.status === 'eligible' && j.rel === 'none');
+  const excludedRows = all.filter((j) => j.judgment.status === 'eligible' && j.rel === 'excluded');
 
   // 저장 공고 — 마감된 공고도 보이도록 id로 불러옴
   const [savedNotices, setSavedNotices] = useState<Notice[] | null>(null);
@@ -207,6 +208,7 @@ export default function BidList() {
                   <Paged rows={matched} lead="score" selected={selected} onSelect={setSelected} empty="조건에 맞는 맞춤 공고가 없어요" />
                   <Folded title="확인이 필요한 공고" hint="정보가 부족해 판정하지 못한 공고예요" rows={checkRows} lead="status" selected={selected} onSelect={setSelected} />
                   <Folded title="다른 참여 가능 공고" hint="참여는 가능하지만 우리 회사 일과는 거리가 있어 보여요" rows={otherRows} lead="score" selected={selected} onSelect={setSelected} />
+                  <Folded title="빼고 싶은 단어로 뺀 공고" hint={`'${(profile.keywords?.minus ?? []).join("', '")}'이(가) 들어간 공고예요`} rows={excludedRows} lead="score" selected={selected} onSelect={setSelected} />
                 </>
               ) : (
                 <Paged rows={all} lead="status" selected={selected} onSelect={setSelected} empty="조건에 맞는 공고가 없어요" />

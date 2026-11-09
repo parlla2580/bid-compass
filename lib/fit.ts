@@ -2,7 +2,8 @@ import type { Notice, Profile } from './data';
 import type { Judgment } from './judge';
 import type { HistoryItem, Similarity } from './analysis';
 import type { ProductMatch } from './match';
-import { words } from './notices';
+import { words, type Competition } from './notices';
+import { keywordHit } from './data';
 
 /* =========================================================
  * 맞춤 점수 v2 — '우리 회사와 맞는 정도' (판정과 별개, 낙찰 확률 아님)
@@ -51,7 +52,7 @@ function keywordScore(keys: Set<string>, text: string): { v: number; hit: string
   return { v: clamp(base + specific), hit };
 }
 
-export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[], pm: ProductMatch | null = null): Fit | null {
+export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[], pm: ProductMatch | null = null, comp: Competition | null = null): Fit | null {
   if (j.status === 'ineligible') return null;
   const f: FitFactor[] = [];
   const mark = (v: number): FitMark => (v >= 0.75 ? 'good' : v >= 0.45 ? 'mid' : 'low');
@@ -83,6 +84,10 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   const keys = new Set([...industryWords(activeInd.map((i) => i.name)), ...(p.products ?? []).flatMap((x) => [...words(x.name)])]);
   const kw = keywordScore(keys, text);
   if (kw.v > 0) { cores.push(kw.v); push('keyword', '핵심어', kw.v, `공고에 '${kw.hit.slice(0, 3).join("', '")}' 포함`, 2); }
+
+  // 꼭 볼 단어 — 사용자가 직접 지정한 단어는 강한 근거
+  const plus = keywordHit(n, p.keywords?.plus);
+  if (plus) { cores.push(0.9); push('plus', '꼭 볼 단어', 0.9, `'${plus}'이(가) 들어간 공고`, 3); }
 
   // 이력
   if (hist.length) {
@@ -141,6 +146,17 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     const narrow = n.regionLimit.every((r) => r.trim().includes(' ')); // 시군구 단위 제한
     mod *= narrow ? 1.08 : 1.04;
     push('region', '지역', 1, narrow ? '우리 시군구 업체로 제한 (경쟁 범위 매우 좁음)' : '우리 시도 업체로 제한 (경쟁 범위 좁음)');
+  }
+
+  // 경쟁 강도 — 이 기관의 같은 유형 공고에 보통 몇 곳이 들어오나 (최근 1년, 3건 이상일 때만, 참고)
+  const org = n.demandOrg ?? n.org;
+  const c = comp?.byOrg.get(`${org}|${n.type}`) ?? comp?.byOrg.get(`${n.org}|${n.type}`);
+  const typical = comp?.byType.get(n.type);
+  if (c && typical) {
+    const ratio = c.median / typical;
+    if (ratio <= 0.5) { mod *= 1.06; push('competition', '경쟁', 1, `경쟁이 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    else if (ratio <= 0.8) { mod *= 1.03; push('competition', '경쟁', 0.8, `경쟁이 조금 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    else if (ratio >= 2) { mod *= 0.95; push('competition', '경쟁', 0.3, `경쟁이 많은 편이에요 (보통 ${c.median}곳, 참고)`); }
   }
 
   // 기관 — 선호하거나 참여해 본 기관

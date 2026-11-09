@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type KeyboardEvent } from 'react';
+import { COPY } from '@/lib/copy';
 import { Search, X } from 'lucide-react';
 import { PRICE_STEPS, SIDO, SIGUNGU, splitLocation, type Industry, type Product } from '@/lib/data';
 import { searchIndustries, searchProducts } from '@/lib/notices';
@@ -222,7 +223,7 @@ export function ProductPicker({ value, onChange, suggest = [], max = 20 }: {
       )}
       {chips.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1.5 text-[13px] text-mute">{full ? `최대 ${max}개까지 넣을 수 있어요. 추가하려면 위에서 하나를 빼 주세요` : '이런 품목은 어때요? 누르면 추가돼요'}</p>
+          <p className="mb-1.5 text-[13px] text-mute">{full ? COPY.productsFull(max) : COPY.productsSuggest}</p>
           <div className="flex flex-wrap gap-1.5">
             {chips.map((p) => (
               <button key={p.code} type="button" onClick={() => toggle(p)} disabled={full}
