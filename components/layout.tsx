@@ -40,8 +40,15 @@ function Logo() {
   );
 }
 
+/** 로그인했고 회사 확인을 마친 경우 업체명 */
+function useCorpName() {
+  const { account, profile } = useStore();
+  return account && profile.corpName ? profile.corpName : null;
+}
+
 function SideMenu() {
   const path = usePathname();
+  const corp = useCorpName();
   const item = (on: boolean) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition ${on ? 'bg-fill text-ink' : 'text-mute hover:bg-fill hover:text-sub'}`;
   return (
@@ -58,16 +65,23 @@ function SideMenu() {
         })}
       </nav>
       <Link href="/mypage" className={`mt-auto ${item(path.startsWith('/mypage'))}`}>
-        <CircleUserRound className="h-5 w-5" />마이페이지
+        <CircleUserRound className="h-5 w-5 shrink-0" />
+        <span className="min-w-0">
+          <span className="block">마이페이지</span>
+          {corp && <span className="block truncate text-[13px] font-medium text-mute">{corp}</span>}
+        </span>
       </Link>
     </aside>
   );
 }
 
 function ProfileLink() {
+  const corp = useCorpName();
   return (
-    <Link href="/mypage" aria-label="마이페이지" className="flex h-10 w-10 items-center justify-center rounded-full text-sub active:bg-fill">
-      <CircleUserRound className="h-6 w-6" />
+    <Link href="/mypage" aria-label={corp ? `마이페이지 (${corp})` : '마이페이지'}
+      className="flex h-10 max-w-[55vw] items-center gap-1.5 rounded-full px-2 text-sub active:bg-fill">
+      {corp && <span className="truncate text-[14px] font-semibold">{corp}</span>}
+      <CircleUserRound className="h-6 w-6 shrink-0" />
     </Link>
   );
 }

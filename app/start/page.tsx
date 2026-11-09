@@ -13,6 +13,7 @@ import { useStore } from '@/lib/store';
 
 interface Lookup {
   registered: boolean;
+  corpName?: string | null;
   location?: string | null;
   industries?: Industry[];
   products?: Product[];
@@ -135,8 +136,9 @@ export default function StartPage() {
         <section className="fade-up space-y-4">
           <div className="rounded-box bg-white p-5">
             <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-primary"><BadgeCheck className="h-4 w-4" />나라장터 등록 정보를 찾았어요</div>
-            <p className="text-xs text-mute">아래 업종·소재지로 참여 가능 공고를 골라 드릴게요.</p>
+            <p className="text-xs text-mute">우리 회사가 맞는지 확인해 주세요.</p>
             <dl className="mt-3 grid grid-cols-[64px_1fr] gap-y-2 text-sm">
+              {found.corpName && <><dt className="text-mute">업체명</dt><dd className="font-semibold">{found.corpName}</dd></>}
               <dt className="text-mute">소재지</dt><dd className="font-medium">{found.location ?? '확인 안 됨'}</dd>
               <dt className="text-mute">등록업종</dt>
               <dd>
@@ -146,7 +148,6 @@ export default function StartPage() {
               </dd>
             </dl>
           </div>
-          <p className="text-xs text-mute">업체명은 가입할 때 대표자명으로 회사를 확인한 뒤 보여드려요.</p>
           <button type="button" onClick={confirm} className={BTN_PRIMARY}>이 정보로 공고 보기<ArrowRight className="h-5 w-5" /></button>
           <button type="button" onClick={() => { setFound(null); setMode('bizno'); }} className="w-full py-2 text-sm font-medium text-mute">다른 번호로 조회</button>
         </section>
