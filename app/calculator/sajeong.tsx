@@ -131,7 +131,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
             <dl className="mt-4 space-y-2.5 border-t border-line pt-4 text-[15px]">
               <div className="flex justify-between gap-3"><dt className="text-mute">과거 기준 하한 이상</dt><dd className="font-semibold">{Math.round(ok * 100)}%</dd></div>
               <div className="flex justify-between gap-3"><dt className="text-mute">하한 미달</dt><dd className={`font-semibold ${ok < 0.5 ? 'text-bad' : ''}`}>{Math.round((1 - ok) * 100)}%</dd></div>
-              {bt && bt.n > 0 && (
+              {bt && bt.n >= 30 && (
                 <div className="rounded-2xl bg-fill p-3.5 text-[14px] leading-relaxed text-sub">
                   이 금액 방식으로 <b className="text-ink">지난 {bt.n}건</b>에 썼다면<br />
                   1순위 <b className="text-brand">{bt.first}번</b> · 3위 안 {bt.top3}번 · 하한 미달 {bt.below}번
