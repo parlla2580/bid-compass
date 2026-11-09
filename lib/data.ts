@@ -80,6 +80,14 @@ export interface Profile {
   priceRange: [number, number] | null;
   /** 주요 품목 — null: 미입력 */
   products: Product[] | null;
+  /** 관심 없음 — 업종(실제로 하지 않는 면허)·품목·공고 */
+  muted: MuteItem[];
+}
+
+export interface MuteItem {
+  kind: 'industry' | 'product' | 'notice';
+  code: string;
+  name: string;
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -94,6 +102,7 @@ export const EMPTY_PROFILE: Profile = {
   preferredOrgs: [],
   priceRange: null,
   products: null,
+  muted: [],
 };
 
 export const SIZES: CompanySize[] = ['중소기업', '중견기업', '대기업'];

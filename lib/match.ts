@@ -54,9 +54,22 @@ export type RelevanceReason = 'product' | 'license' | 'history' | 'unknown' | 'n
  * - 회사 품목도 이력도 없으면 판단할 근거가 없음 → 'unknown' (걸러내지 않고 품목 입력을 안내)
  */
 export function relevanceOf(n: Notice, p: Profile, j: Judgment, pm: ProductMatch | null, similar: Similarity | null): RelevanceReason {
-  if (pm && pm.sim >= 0.5) return 'product';
+  const muted = p.muted ?? [];
+  const mutedOf = (kind: 'industry' | 'product' | 'notice') => new Set(muted.filter((m) => m.kind === kind).map((m) => m.code));
+  // '관심 없음' — 이 공고 / 공고 품목이 모두 뺀 품목
+  if (mutedOf('notice').has(String(n.id))) return 'none';
+  const mp = mutedOf('product');
+  if (n.products.length && n.products.every((x) => mp.has(x.code))) return 'none';
+
+  if (pm && pm.sim >= 0.5 && !mp.has(pm.theirs.code)) return 'product';
   const ind = j.reasons.find((r) => r.rule === 'industry');
-  if (n.licenseLimits && ind?.result === 'pass') return 'license';
+  // 내 업종을 요구하는 공고 — 단, '실제로 하지 않는 업종'으로 끈 업종만 맞는 경우는 제외
+  if (n.licenseLimits && ind?.result === 'pass') {
+    const off = mutedOf('industry');
+    const active = new Set((p.industries ?? []).map((i) => i.code).filter((c) => !off.has(c)));
+    const hit = n.licenseLimits.some((l) => (l.code && active.has(l.code)) || l.allowed.some((a) => active.has(/\/(\w+)$/.exec(a)?.[1] ?? '')));
+    if (hit) return 'license';
+  }
   if ((similar?.score ?? 0) >= 1.5) return 'history';
   if (!p.products?.length && !similar) return 'unknown';
   return 'none';

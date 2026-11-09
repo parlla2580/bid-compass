@@ -62,7 +62,15 @@ export function ResultIcon({ result }: { result: RuleResult }) {
 }
 
 /* ---------- 공고 카드 (리스트 공통) ---------- */
-export function NoticeCard({ notice: n, judgment, fit, note }: { notice: Notice; judgment?: Judgment; fit?: Fit | null; note?: React.ReactNode }) {
+export function NoticeCard({ notice: n, judgment, fit, note, footer }: { notice: Notice; judgment?: Judgment; fit?: Fit | null; note?: React.ReactNode; footer?: React.ReactNode }) {
+  if (footer) {
+    return (
+      <div className="rounded-box bg-white">
+        <NoticeCard notice={n} judgment={judgment} fit={fit} note={note} />
+        <div className="-mt-2 flex justify-end px-5 pb-3">{footer}</div>
+      </div>
+    );
+  }
   return (
     <Link href={`/bids/${n.id}`} className="block rounded-box bg-white p-5 transition hover:bg-white/70 active:scale-[.99]">
       <div className="flex items-center gap-2">

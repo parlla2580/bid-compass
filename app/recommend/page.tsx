@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Header, PageTitle, Shell, useRequireStart } from '@/components/layout';
 import { CTA_SOFT, NoticeCard, NoticesState, profileSummary } from '@/components/ui';
+import { MuteSheet } from '@/components/mute';
+import type { Notice } from '@/lib/data';
 import { fmtRange } from '@/lib/format';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { useJudged, useStore, type Judged } from '@/lib/store';
@@ -21,6 +23,7 @@ export default function RecommendPage() {
   const [sort, setSort] = useState<SortKey>('relevance');
   const [showIneligible, setShowIneligible] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const [mute, setMute] = useState<Notice | null>(null);
   if (!ready) return <Shell wide><Header /></Shell>;
 
   // '참여 가능' 탭은 맞춤 공고(참여 가능 + 우리 일과 관련)만, 관련 없는 참여 가능 공고는 아래에 접음
@@ -64,7 +67,7 @@ export default function RecommendPage() {
 
         <div className="mt-3 grid grid-cols-1 gap-2 px-5 lg:grid-cols-2 lg:gap-3 lg:px-0">
           <NoticesState notices={notices} error={noticesError}>
-            {rows.map((j) => <RecommendCard key={j.notice.id} item={j} />)}
+            {rows.map((j) => <RecommendCard key={j.notice.id} item={j} onMute={setMute} />)}
             {!rows.length && <div className="lg:col-span-2"><EmptyState tab={tab} /></div>}
           </NoticesState>
         </div>
@@ -84,7 +87,7 @@ export default function RecommendPage() {
               다른 참여 가능 공고 {otherRows.length.toLocaleString()}건 {showOther ? '숨기기' : '보기'}
               <ChevronDown className={`h-4 w-4 transition ${showOther ? 'rotate-180' : ''}`} />
             </button>
-            {showOther && <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">{otherRows.slice(0, 60).map((j) => <RecommendCard key={j.notice.id} item={j} />)}</div>}
+            {showOther && <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">{otherRows.slice(0, 60).map((j) => <RecommendCard key={j.notice.id} item={j} onMute={setMute} />)}</div>}
           </div>
         )}
 
@@ -95,16 +98,20 @@ export default function RecommendPage() {
             참여할 수 없는 공고 {ineligible.length}건 {showIneligible ? '숨기기' : '보기'}
             <ChevronDown className={`h-4 w-4 transition ${showIneligible ? 'rotate-180' : ''}`} />
           </button>
-          {showIneligible && <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">{ineligible.map((j) => <RecommendCard key={j.notice.id} item={j} />)}</div>}
+          {showIneligible && <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">{ineligible.map((j) => <RecommendCard key={j.notice.id} item={j} onMute={setMute} />)}</div>}
         </div>
       </main>
+      <MuteSheet notice={mute} onClose={() => setMute(null)} />
     </Shell>
   );
 }
 
-function RecommendCard({ item: { notice, judgment, similar, fit, product } }: { item: Judged }) {
+function RecommendCard({ item: { notice, judgment, similar, fit, product }, onMute }: { item: Judged; onMute?: (n: Notice) => void }) {
   return (
     <NoticeCard notice={notice} judgment={judgment} fit={fit}
+      footer={onMute && judgment.status === 'eligible' ? (
+        <button type="button" onClick={() => onMute(notice)} className="py-1 text-[13px] text-mute hover:text-sub">관심 없음</button>
+      ) : undefined}
       note={product && product.sim >= 0.5 ? (
         <p className="mt-2 line-clamp-1 text-[13px] text-sub">
           <span className="font-semibold text-brand">품목</span> 주요 품목 &lsquo;{product.mine.name}&rsquo;{product.sim >= 0.8 ? '과 같은 품목이에요' : '과 비슷한 품목이에요'}

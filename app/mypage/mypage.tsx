@@ -228,6 +228,30 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
         <div>
           <p className="mb-2 text-sm font-semibold text-sub">업종 (나라장터 업종)</p>
           <IndustryPicker value={form.industries ?? []} onChange={(v) => setForm({ ...form, industries: v })} />
+          {!!form.industries?.length && (
+            <div className="mt-3 rounded-btn bg-fill p-3">
+              <p className="mb-2 text-[13px] text-mute">등록만 해두고 실제로 하지 않는 업종은 꺼 주세요. 그 업종을 요구하는 공고는 맞춤 공고에서 빠져요.</p>
+              <ul className="space-y-2">
+                {form.industries.map((i) => {
+                  const off = (form.muted ?? []).some((m) => m.kind === 'industry' && m.code === i.code);
+                  return (
+                    <li key={i.code} className="flex items-center justify-between gap-3 text-[14px]">
+                      <span className={off ? 'text-mute line-through' : ''}>{i.name}</span>
+                      <label className="switch" aria-label={`${i.name} 실제로 하는 일`}>
+                        <input type="checkbox" checked={!off} onChange={() => setForm({
+                          ...form,
+                          muted: off
+                            ? (form.muted ?? []).filter((m) => !(m.kind === 'industry' && m.code === i.code))
+                            : [...(form.muted ?? []), { kind: 'industry', code: i.code, name: i.name }],
+                        })} />
+                        <span />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
         <div>
           <p className="mb-1 text-sm font-semibold text-sub">주요 품목</p>
@@ -235,6 +259,21 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
           <ProductPicker value={form.products ?? []} onChange={(v) => setForm({ ...form, products: v })}
             suggest={suggestProducts(notices, form.industries, form.products ?? [])} />
         </div>
+        {(form.muted ?? []).some((m) => m.kind !== 'industry') && (
+          <div>
+            <p className="mb-2 text-sm font-semibold text-sub">관심 없음으로 뺀 항목</p>
+            <div className="flex flex-wrap gap-1.5">
+              {(form.muted ?? []).filter((m) => m.kind !== 'industry').map((m) => (
+                <button key={`${m.kind}-${m.code}`} type="button"
+                  onClick={() => setForm({ ...form, muted: (form.muted ?? []).filter((x) => !(x.kind === m.kind && x.code === m.code)) })}
+                  className="max-w-full truncate rounded-full border border-line bg-white px-3 py-1.5 text-[13px] text-sub hover:bg-fill">
+                  {m.kind === 'product' ? '품목' : '공고'} · {m.name} ×
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-mute">누르면 다시 맞춤 공고에 나와요</p>
+          </div>
+        )}
         <div>
           <p className="mb-2 text-sm font-semibold text-sub">소재지</p>
           <LocationPicker value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
