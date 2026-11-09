@@ -30,6 +30,8 @@ export interface BidReport {
   below_floor_list?: { id: number; title: string; org: string | null; opened_at: string; rate: number }[];
   by_type?: Record<string, { total: number; won: number }>;
   top_orgs?: { org: string; total: number; won: number }[];
+  /** 투찰 순위까지 받은 건수 (나머지는 낙찰 결과만) */
+  detailed?: number;
 }
 
 export async function fetchMyReport(years = 3): Promise<BidReport> {

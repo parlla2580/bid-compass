@@ -139,6 +139,7 @@ export default function AnalysisPage() {
 
         <p className="px-1 text-[13px] leading-relaxed text-mute">
           나라장터 개찰 결과로 만든 참고 정보예요. 낙찰 여부는 최종낙찰자 기준이고, 수집되지 않은 기간·공고는 빠질 수 있어요.
+          {r.detailed !== undefined && r.detailed < total && ` 지금은 ${total.toLocaleString()}건 중 ${r.detailed.toLocaleString()}건만 투찰 순위까지 받아서, 아깝게 놓친 공고·하한선 미달은 일부만 보여요.`}
         </p>
       </div>
     );
