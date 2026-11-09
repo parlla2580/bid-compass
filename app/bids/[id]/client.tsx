@@ -387,6 +387,14 @@ function OriginalLink({ n }: { n: Notice }) {
   if (!n.url) return <p className="text-center text-[14px] text-mute">원문 링크가 없는 공고예요</p>;
   return (
     <a href={n.url} target="_blank" rel="noopener noreferrer"
+      onClick={(e) => {
+        // 데스크탑은 팝업 창으로 (나라장터는 화면 안 삽입을 막아 팝업이 최선). 모바일·팝업 차단 시에는 새 탭
+        if (!window.matchMedia('(min-width: 1024px)').matches) return;
+        const w = Math.min(1280, window.screen.availWidth - 80), h = Math.min(960, window.screen.availHeight - 80);
+        const left = Math.round((window.screen.availWidth - w) / 2), top = Math.round((window.screen.availHeight - h) / 2);
+        const pop = window.open(n.url!, 'g2b-notice', `popup=yes,width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+        if (pop) { e.preventDefault(); pop.focus(); }
+      }}
       className="flex h-12 w-full items-center justify-center gap-1 rounded-cta bg-fill text-[15px] font-semibold text-sub hover:bg-line">
       나라장터 원문 보기<ArrowUpRight className="h-4 w-4" />
     </a>
@@ -398,7 +406,7 @@ function Original({ n }: { n: Notice }) {
   return (
     <Card>
       <p className="text-[15px] font-semibold">공고 원문</p>
-      <p className="mt-1 text-[13px] leading-relaxed text-mute">새 창으로 열려요. 첨부파일(공고문·과업내용서)은 원문에서 받을 수 있어요.</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-mute">팝업 창으로 열려요. 닫으면 이 화면 그대로예요. 첨부파일(공고문·과업내용서)은 원문에서 받을 수 있어요.</p>
       <div className="mt-4"><OriginalLink n={n} /></div>
     </Card>
   );
