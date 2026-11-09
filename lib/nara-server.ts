@@ -35,18 +35,33 @@ async function call<T>(op: string, params: Record<string, string>): Promise<T[]>
 interface CorpRow { corpNm?: string; rgnNm?: string; ceoNm?: string }
 interface IndRow { indstrytyCd?: string; indstrytyNm?: string; rprsntIndstrytyYn?: string }
 
+/** 조달업체 공급물품 (세부품명번호 10자리) */
+export interface SupplyProduct { code: string; name: string }
+
 export interface NaraCompany {
   corpName: string | null;
   ceo: string | null;
   location: string | null;
   industries: Industry[];
+  products: SupplyProduct[];
+}
+
+/** 응답 필드 이름이 서비스 버전마다 달라질 수 있어, 코드(10자리)·이름 필드를 찾아 씀 */
+function toProduct(r: Record<string, string | undefined>): SupplyProduct | null {
+  const keys = Object.keys(r);
+  const codeKey = keys.find((k) => /Clsfc(No)?$/i.test(k) && /^\d{8,10}$/.test(r[k] ?? '')) ?? keys.find((k) => /^\d{10}$/.test(r[k] ?? ''));
+  const nameKey = keys.find((k) => /(Clsfc(No)?Nm|PrdctNm|prdctNm)$/i.test(k) && r[k]);
+  if (!codeKey) return null;
+  return { code: r[codeKey]!, name: (nameKey && r[nameKey]) || r[codeKey]! };
 }
 
 /** 사업자번호 → 나라장터 등록 업체 정보. 미등록이면 null */
 export async function lookupCompany(bizno: string): Promise<NaraCompany | null> {
-  const [corps, inds] = await Promise.all([
+  const [corps, inds, prds] = await Promise.all([
     call<CorpRow>('getPrcrmntCorpBasicInfo02', { inqryDiv: '3', bizno }),
     call<IndRow>('getPrcrmntCorpIndstrytyInfo02', { inqryDiv: '1', bizno }),
+    // 공급물품은 없거나 조회 실패해도 업체 조회는 계속
+    call<Record<string, string>>('getPrcrmntCorpSplyPrdctInfo02', { inqryDiv: '1', bizno }).catch(() => []),
   ]);
   const corp = corps[0];
   if (!corp) return null;
@@ -56,7 +71,8 @@ export async function lookupCompany(bizno: string): Promise<NaraCompany | null> 
       .sort((a, b) => (b.rprsntIndstrytyYn === 'Y' ? 1 : 0) - (a.rprsntIndstrytyYn === 'Y' ? 1 : 0))
       .map((i) => [i.indstrytyCd!, { code: i.indstrytyCd!, name: i.indstrytyNm! }]),
   ).values()];
-  return { corpName: corp.corpNm ?? null, ceo: corp.ceoNm ?? null, location: corp.rgnNm?.trim() || null, industries };
+  const products = [...new Map(prds.map(toProduct).filter((x): x is SupplyProduct => !!x).map((x) => [x.code, x])).values()];
+  return { corpName: corp.corpNm ?? null, ceo: corp.ceoNm ?? null, location: corp.rgnNm?.trim() || null, industries, products };
 }
 
 /**
