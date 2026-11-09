@@ -73,7 +73,11 @@ function limitMet(l: LicenseLimit, codes: Set<string>) {
 
 function industryRule(n: Notice, p: Profile): Reason {
   const rule = 'industry';
-  if (!n.licenseLimits) return { rule, result: 'pass', text: '업종(면허) 제한 없음' };
+  if (!n.licenseLimits) {
+    // 공고 원본은 '업종 제한 있음'인데 제한 내용을 아직 못 받은 경우 — '제한 없음'으로 오판하지 않음
+    if (n.industryLimited) return { rule, result: 'check', text: '업종(면허) 제한이 있는 공고예요. 제한 내용을 받는 중이라 원문에서 확인해 주세요' };
+    return { rule, result: 'pass', text: '업종(면허) 제한 없음' };
+  }
   const label = (l: LicenseLimit) => `${l.name}${l.code ? `(${l.code})` : ''}`;
   const required = n.licenseLimits.map(label).join(', ');
   if (p.industries === null || p.industries.length === 0) {

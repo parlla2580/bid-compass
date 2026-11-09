@@ -73,7 +73,13 @@ export default function AnalysisPage() {
           <>
             {/* 한눈에: 낙찰률 도넛 + 핵심 숫자 */}
             <section className="grid gap-3 rounded-box bg-white p-5 lg:grid-cols-[220px_1fr] lg:items-center lg:gap-8 lg:p-7">
-              <Donut value={total ? won / total : 0} label="낙찰률" />
+              {/* 낙찰률은 투찰 순위를 받은 개찰 기준 (012). 012 실행 전이면 전체 기준 */}
+              {r.won_detailed !== undefined && r.detailed ? (
+                <div>
+                  <Donut value={r.won_detailed / r.detailed} label="낙찰률" />
+                  <p className="mt-1 text-center text-[12px] text-mute">투찰 순위를 받은 {r.detailed}건 기준</p>
+                </div>
+              ) : <Donut value={total ? won / total : 0} label="낙찰률" />}
               <div>
                 <div className="grid grid-cols-3 gap-2">
                   <Mini label="투찰" value={total.toLocaleString()} unit="건" />

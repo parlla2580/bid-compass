@@ -32,6 +32,8 @@ export interface BidReport {
   top_orgs?: { org: string; total: number; won: number }[];
   /** 투찰 순위까지 받은 건수 (나머지는 낙찰 결과만) */
   detailed?: number;
+  /** 투찰 순위를 받은 개찰 중 낙찰 수 (012) */
+  won_detailed?: number;
 }
 
 export async function fetchMyReport(years = 3): Promise<BidReport> {

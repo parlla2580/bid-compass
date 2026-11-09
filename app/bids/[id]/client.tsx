@@ -9,7 +9,7 @@ import { CTA_PRIMARY, CTA_SOFT } from '@/components/ui';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
-import type { Industry, Notice } from '@/lib/data';
+import { looksUnitPrice, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
@@ -279,7 +279,8 @@ function Briefing({ n }: { n: Notice }) {
   const cond = [
     extra?.reNotice && '재공고',
     extra?.joint && extra.joint.replace(/공동수급/, '공동수급 '),
-    extra?.reserveTotal && extra.reserveDraw && `복수예가 ${extra.reserveTotal}개 중 ${extra.reserveDraw}개 추첨`,
+    extra?.reserveTotal && extra.reserveDraw ? `복수예가 ${extra.reserveTotal}개 중 ${extra.reserveDraw}개 추첨` : n.prearng && n.prearng !== '복수예가' && n.prearng,
+    looksUnitPrice(n) && '단가 입찰로 보여요(기초금액이 단가 기준, 추정)',
   ].filter(Boolean) as string[];
   if (cond.length) lines.push({ k: '조건', v: cond.join(' · ') });
 

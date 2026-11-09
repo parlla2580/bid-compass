@@ -124,10 +124,11 @@ async function collectNotices(from, to) {
       fetchAll(`${BID}/getBidPblancListInfo${t.bid}BsisAmount02`, period).catch(() => []),
     ]);
     allBases.push(...bases);
-    const baseMap = new Map(bases.map((b) => [b.bidNtceNo, b]));
+    // 기초금액은 공고번호+차수로 맞춤 (번호만으로 맞추면 다른 차수 값이 섞임)
+    const baseMap = new Map(bases.map((b) => [`${b.bidNtceNo}|${b.bidNtceOrd ?? '000'}`, b]));
     for (const it of items) {
       const k = key(it);
-      const base = baseMap.get(it.bidNtceNo);
+      const base = baseMap.get(`${it.bidNtceNo}|${it.bidNtceOrd ?? '000'}`);
       const regionList = regionMap.get(k) ?? null;
       const licenseList = licenseMap.get(k) ?? null;
       rows.push({
@@ -185,7 +186,7 @@ async function collectNotices(from, to) {
   for (const b of allBases) {
     if (rowNos.has(b.bidNtceNo)) continue;
     updates.push({
-      match: { bid_no: b.bidNtceNo },
+      match: { bid_no: b.bidNtceNo, bid_ord: b.bidNtceOrd ?? '000' },
       set: { base_price: won(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate) },
     });
   }

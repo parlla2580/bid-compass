@@ -59,6 +59,10 @@ export interface Notice {
   products: Product[];
   /** 공고종류 — 등록공고 / 변경공고 / 재공고 / 취소공고 */
   kind: string | null;
+  /** 예정가격 결정방법 — 복수예가 / 단일예가 / 비예가 */
+  prearng: string | null;
+  /** 공고 원본의 업종제한여부 (Y면 면허 제한이 있는 공고) */
+  industryLimited: boolean;
   url: string | null;
   postedAt: Date;
   /** 오늘 게시 */
@@ -138,10 +142,12 @@ export interface NoticeRow {
   s_code?: string | null;
   s_name?: string | null;
   kind?: string | null;
+  prearng?: string | null;
+  ind_lmt?: string | null;
 }
 
 export const NOTICE_COLUMNS =
-  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm,kind:raw->>ntceKindNm';
+  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm,kind:raw->>ntceKindNm,prearng:raw->>prearngPrceDcsnMthdNm,ind_lmt:raw->>indstrytyLmtYn';
 
 /** '[1^1016170701^꽃꽂이],[2^…]' + 세부품명번호 + 공공조달분류 → 품목 목록 */
 function noticeProducts(r: NoticeRow): Product[] {
@@ -181,6 +187,8 @@ export function toNotice(r: NoticeRow, now = new Date()): Notice {
     productName: r.product_name,
     products: noticeProducts(r),
     kind: r.kind ?? null,
+    prearng: r.prearng || null,
+    industryLimited: r.ind_lmt === 'Y',
     url: r.url,
     postedAt,
     isNew: kstDay(postedAt) === kstDay(now),
@@ -239,3 +247,7 @@ export const hasSigungu = (loc: string | null) => {
 
 // 추정가격 범위 슬라이더 단계 (1천만원 ~ 50억원)
 export const PRICE_STEPS = [10e6, 30e6, 50e6, 1e8, 2e8, 3e8, 5e8, 7e8, 10e8, 20e8, 30e8, 50e8];
+
+/** 기초금액이 추정가격보다 훨씬 작으면 단가(1개·1회 기준) 입찰로 보임 — 추정 */
+export const looksUnitPrice = (n: Pick<Notice, 'basePrice' | 'estPrice'>) =>
+  !!n.basePrice && n.estPrice > 0 && n.basePrice < n.estPrice * 0.2;

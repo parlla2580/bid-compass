@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, CircleX, ChevronRight, TriangleAlert } from 'lucide-react';
 import { PageTitle } from '@/components/layout';
 import { Term } from '@/components/term';
-import type { BidType, Notice } from '@/lib/data';
+import { looksUnitPrice, type BidType, type Notice } from '@/lib/data';
 import { fetchNotice } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 import { fmtKorean, fmtNum, fmtShort, fmtWon, round1 } from '@/lib/format';
@@ -112,7 +112,9 @@ export default function CalculatorTabs() {
         </div>
         {tab === 'bid'
           ? <BidPanel key={`bid-${type}`} type={type} estPrice={from?.estPrice}
-              initialBase={Number(params.get('base')) || from?.basePrice || 132_000_000}
+              // 공고에서 왔는데 기초금액이 없으면 예시값을 채우지 않음 (단일예가·비예가 공고 등)
+              initialBase={Number(params.get('base')) || from?.basePrice || (fromId ? null : 132_000_000)}
+              notice={from}
               initialRange={params.get('range') ? Number(params.get('range')) : null}
               initialRate={params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null}
               fromNotice={fromParams && type === params.get('type')}
@@ -130,11 +132,12 @@ const CHECK_STYLE: Record<BidCheck['level'], { Icon: typeof CircleCheck; cls: st
 };
 
 /* ---------- 탭 1: 투찰금액 계산기 (F4-1) ---------- */
-function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice, org, demandOrg }: {
+function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice, org, demandOrg, notice }: {
   type: BidType;
+  notice?: Notice | null;
   org?: string | null;
   demandOrg?: string | null;
-  initialBase: number;
+  initialBase: number | null;
   estPrice?: number;
   /** 공고값 (없으면 예시값) */
   initialRange: number | null;
@@ -163,8 +166,20 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   const lo = r.floor[0] * 0.98, hi = r.plan[1] * 1.02;
   const pos = (v: number) => (hi > lo ? Math.min(100, Math.max(0, ((v - lo) / (hi - lo)) * 100)) : 0);
 
+  // 예정가격 결정방법 — 추첨(복수예가)이 없는 공고는 사정률 분포가 의미 없음
+  const method = notice?.prearng ?? null;
+  const noDraw = !!method && method !== '복수예가';
+  const unit = !!notice && looksUnitPrice(notice);
+
   return (
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">
+      {(noDraw || (notice && !notice.basePrice) || unit) && (
+        <div className="rounded-box bg-white px-5 py-4 text-[14px] leading-relaxed text-sub lg:col-span-2">
+          {noDraw && <p><b className="font-semibold text-ink">{method} 공고예요.</b> {method === '비예가' ? '예정가격 없이 제안서 평가 등으로 정해서 투찰금액 계산이 맞지 않을 수 있어요. 공고문을 확인해 주세요.' : '예정가격이 추첨 없이 하나로 정해져 사정률 분포는 보여드리지 않아요.'}</p>}
+          {notice && !notice.basePrice && <p className={noDraw ? 'mt-1' : ''}><b className="font-semibold text-ink">공고에 기초금액이 없어요.</b> 공고문에서 확인한 값을 직접 넣어 주세요.</p>}
+          {unit && <p><b className="font-semibold text-ink">단가 입찰로 보여요.</b> 기초금액({fmtWon(notice!.basePrice!)})이 추정가격보다 훨씬 작아요. 1개·1회 단가 기준으로 계산돼요. (추정)</p>}
+        </div>
+      )}
       <div className="space-y-5 rounded-box bg-white p-5 lg:p-6">
         <NumField id="base" label={<Term k="기초금액" />} value={base} onChange={setBase} unit="원" hint={base ? fmtKorean(base) : undefined} />
         <div className="grid grid-cols-2 gap-3">
@@ -220,7 +235,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
         </div>
       </div>
 
-      {B > 0 && rate ? (
+      {B > 0 && rate && !noDraw ? (
         <SajeongPanel type={type} base={B} floor={rate} range={range ?? 2} org={org} demandOrg={demandOrg}
           onUse={(v) => { setBid(v); document.getElementById('bid')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} />
       ) : null}
