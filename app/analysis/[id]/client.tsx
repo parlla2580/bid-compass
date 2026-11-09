@@ -32,6 +32,7 @@ export default function OpeningView({ id }: { id: number }) {
   const valid = bidders.filter((b) => b.note === null && b.rate !== null);
   const floor = o.floor_rate ?? estimateFloor(bidders);
 
+  const pending = !o.winner && !o.winner_is_me; // 적격심사·PQ 등으로 낙찰자 결정 전
   const verdict = o.winner_is_me ? { t: '낙찰했어요', c: 'text-brand' }
     : me?.note === 1 ? { t: '하한 미달로 빠졌어요', c: 'text-bad' }
       : me?.rank ? { t: `${me.rank}위였어요`, c: 'text-ink' } : { t: '결과 확인', c: 'text-ink' };
@@ -46,18 +47,18 @@ export default function OpeningView({ id }: { id: number }) {
 
       {/* 핵심 숫자 */}
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
-        <Stat k="낙찰자" v={o.winner_is_me ? '우리 회사' : o.winner ?? '미상'} small />
+        <Stat k="낙찰자" v={o.winner_is_me ? '우리 회사' : o.winner ?? '결정 전'} sub={pending ? `1순위 ${bidders.find((b) => b.rank === 1)?.name ?? '-'}` : undefined} small />
         <Stat k="낙찰금액" v={o.winner_amount ? `${fmtShort(o.winner_amount)}원` : '–'} sub={o.winner_rate ? `낙찰률 ${o.winner_rate}%` : undefined} />
         <Stat k="사정률" v={o.sajeong ? `${o.sajeong}%` : '–'} sub={o.planned_price ? `예정가격 ${fmtShort(o.planned_price)}원` : undefined} />
         <Stat k="참가업체" v={o.participants ? `${o.participants.toLocaleString()}곳` : '–'} sub={o.base_amount ? `기초금액 ${fmtShort(o.base_amount)}원` : undefined} />
       </section>
 
-      {/* 투찰률 분포 */}
-      <Card title="참가업체 투찰률 분포" aside={<span className="text-[13px] text-mute">투찰률 = 투찰금액 ÷ 예정가격</span>}>
-        {valid.length >= 2 ? <Distribution bidders={bidders} floor={floor} floorKnown={o.floor_rate !== null} /> : (
+      {/* 분포 — 투찰률 / 건 사정률 */}
+      {valid.length >= 2 ? <DistributionCard o={o} bidders={bidders} floor={floor} /> : (
+        <Card title="참가업체 분포">
           <p className="py-8 text-center text-[14px] text-mute">{o.details_fetched ? '분포를 그릴 만큼 투찰 기록이 없어요' : '이 개찰은 아직 투찰 순위를 받지 못했어요. 곧 채워져요.'}</p>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* 순위표 — 나와 1순위 주변 */}
       {bidders.length > 0 && <Ranking bidders={bidders} />}
@@ -85,17 +86,52 @@ function estimateFloor(b: OpeningBidder[]): number | null {
   return below.length ? (Math.max(...below) + Math.min(...ok)) / 2 : null;
 }
 
-/** 밀도 곡선(가우시안 커널) + 업체별 점 — 하한선, 나, 낙찰자 표시 */
-function Distribution({ bidders, floor, floorKnown }: { bidders: OpeningBidder[]; floor: number | null; floorKnown: boolean }) {
-  const pts = bidders.filter((b) => b.rate !== null && Number(b.rate) > 0).map((b) => ({ ...b, r: Number(b.rate) }));
+/** 분포 카드 — [투찰률 | 업체가 건 사정률] 두 가지 눈금 */
+function DistributionCard({ o, bidders, floor }: { o: NonNullable<OpeningDetail['opening']>; bidders: OpeningBidder[]; floor: number | null }) {
+  const canSajeong = !!o.base_amount && !!floor && !!o.sajeong;
+  const [mode, setMode] = useState<'rate' | 'sajeong'>('rate');
+  const m = canSajeong ? mode : 'rate';
+  // 업체가 건 사정률 = 투찰금액 ÷ (기초금액 × 하한율). 실제 사정률보다 높게 건 업체만 하한 이상
+  const val = (b: OpeningBidder) => m === 'rate'
+    ? (b.rate !== null ? Number(b.rate) : null)
+    : (b.amount ? (Number(b.amount) / (Number(o.base_amount) * (floor! / 100))) * 100 : null);
+  return (
+    <Card title="참가업체 분포" aside={canSajeong ? (
+      <div className="flex rounded-[10px] bg-line/60 p-0.5 text-[13px]">
+        {([['rate', '투찰률'], ['sajeong', '건 사정률']] as const).map(([k, label]) => (
+          <button key={k} type="button" onClick={() => setMode(k)} aria-pressed={m === k}
+            className={`rounded-[8px] px-3 py-1 font-semibold ${m === k ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
+        ))}
+      </div>
+    ) : <span className="text-[13px] text-mute">투찰률 = 투찰금액 ÷ 예정가격</span>}>
+      <p className="-mt-1 mb-2 text-[13px] text-mute">
+        {m === 'rate'
+          ? '투찰률 = 투찰금액 ÷ 예정가격. 빨간 선(낙찰하한율)보다 낮으면 하한 미달이에요.'
+          : '건 사정률 = 투찰금액 ÷ (기초금액 × 하한율). 실제 사정률(빨간 선)보다 높게 건 업체만 하한을 넘었어요.'}
+      </p>
+      <Distribution bidders={bidders} value={val}
+        cut={m === 'rate' ? floor : Number(o.sajeong)}
+        cutLabel={m === 'rate' ? `하한 ${floor?.toFixed(3)}%${o.floor_rate === null ? '(추정)' : ''}` : `실제 사정률 ${o.sajeong}%`} />
+    </Card>
+  );
+}
+
+/** 밀도 곡선(가우시안 커널) + 업체별 점 — 기준선, 우리, 낙찰자(없으면 1순위) 표시 */
+function Distribution({ bidders, value, cut, cutLabel }: { bidders: OpeningBidder[]; value: (b: OpeningBidder) => number | null; cut: number | null; cutLabel: string }) {
+  const pts = bidders.map((b) => ({ ...b, r: value(b) })).filter((p): p is OpeningBidder & { r: number } => p.r !== null && p.r > 0);
   const rates = pts.map((p) => p.r).sort((a, b) => a - b);
   const q = (p: number) => rates[Math.min(rates.length - 1, Math.max(0, Math.round(p * (rates.length - 1))))];
-  // 보이는 범위: 극단값을 빼고 하한선·나·낙찰자가 들어오게
-  const marks = [floor, ...pts.filter((p) => p.me || p.winner).map((p) => p.r)].filter((x): x is number => x !== null);
+  // 낙찰자가 아직 없으면(적격심사 중 등) 1순위를 대신 표시
+  const winP = pts.find((p) => p.winner);
+  const firstP = winP ? null : pts.find((p) => p.rank === 1);
+  const lead = winP ?? firstP;
+  const meP = pts.find((p) => p.me);
+  const marks = [cut, lead?.r, meP?.r].filter((x): x is number => x != null);
   let lo = Math.min(q(0.02), ...marks) - 0.3, hi = Math.max(q(0.98), ...marks) + 0.3;
   if (hi - lo < 1) { lo -= 0.5; hi += 0.5; }
-  const W = 640, H = 200, padB = 28, plotH = H - padB - 56;
+  const W = 640, H = 210, padB = 28, top = 62, plotH = H - padB - top;
   const x = (v: number) => ((v - lo) / (hi - lo)) * W;
+  const anchor = (v: number) => (x(v) > W - 90 ? 'end' : x(v) < 90 ? 'start' : 'middle');
 
   const curve = useMemo(() => {
     const inR = rates.filter((r) => r >= lo && r <= hi);
@@ -109,53 +145,54 @@ function Distribution({ bidders, floor, floorKnown }: { bidders: OpeningBidder[]
       ys.push(inR.reduce((s, r) => s + Math.exp(-0.5 * ((v - r) / bw) ** 2), 0));
     }
     const max = Math.max(...ys) || 1;
-    return ys.map((y, i) => `${i ? 'L' : 'M'}${((i / steps) * W).toFixed(1)},${(56 + plotH - (y / max) * plotH).toFixed(1)}`).join(' ');
+    return ys.map((y, i) => `${i ? 'L' : 'M'}${((i / steps) * W).toFixed(1)},${(top + plotH - (y / max) * plotH).toFixed(1)}`).join(' ');
   }, [rates, lo, hi, plotH]);
 
-  // 점: 같은 위치가 겹치지 않게 작은 칸 단위로 위로 쌓음
   const stack = new Map<number, number>();
   const dots = pts.filter((p) => p.r >= lo && p.r <= hi).map((p) => {
     const bin = Math.round(x(p.r) / 6);
     const n = stack.get(bin) ?? 0; stack.set(bin, n + 1);
     return { ...p, cx: x(p.r), cy: H - padB - 4 - Math.min(n, 8) * 5 };
   });
-  const meP = pts.find((p) => p.me), winP = pts.find((p) => p.winner);
   const ticks = Array.from({ length: 5 }, (_, i) => lo + ((hi - lo) * i) / 4);
+  const fmt = (v: number) => `${v.toFixed(3)}%`;
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="참가업체 투찰률 분포">
-        {floor !== null && floor >= lo && floor <= hi && (
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="참가업체 분포">
+        {cut !== null && cut >= lo && cut <= hi && (
           <>
-            <rect x={0} y={56} width={x(floor)} height={H - padB - 56} fill="#FDECEC" opacity={0.6} />
-            <line x1={x(floor)} x2={x(floor)} y1={40} y2={H - padB} stroke="#E5484D" strokeWidth={1.5} strokeDasharray="4 3" />
-            <text x={x(floor)} y={34} textAnchor="middle" fontSize={12} fill="#E5484D">하한 {floor.toFixed(3)}%{floorKnown ? '' : '(추정)'}</text>
+            <rect x={0} y={top} width={x(cut)} height={H - padB - top} fill="#FDECEC" opacity={0.6} />
+            <line x1={x(cut)} x2={x(cut)} y1={44} y2={H - padB} stroke="#E5484D" strokeWidth={1.5} strokeDasharray="4 3" />
+            {/* 1순위·낙찰 선과 가까우면 라벨을 반대쪽으로 */}
+            <text x={x(cut)} y={38} dx={lead && Math.abs(x(lead.r) - x(cut)) < 140 ? (lead.r >= cut ? -6 : 6) : 0}
+              textAnchor={lead && Math.abs(x(lead.r) - x(cut)) < 140 ? (lead.r >= cut ? 'end' : 'start') : anchor(cut)} fontSize={12} fill="#E5484D">{cutLabel}</text>
           </>
         )}
-        {curve && <path d={curve} fill="none" stroke="#2563EB" strokeWidth={2} />}
+        {curve && <path d={curve} fill="none" stroke="#9DB7F4" strokeWidth={2} />}
         {dots.map((p, i) => (
-          <circle key={i} cx={p.cx} cy={p.cy} r={p.me || p.winner ? 0 : 2.2} fill={p.note === 1 ? '#C9CED6' : '#93B4F5'} />
+          <circle key={i} cx={p.cx} cy={p.cy} r={p.me || p === lead ? 0 : 2.2} fill={p.note === 1 ? '#C9CED6' : '#93B4F5'} />
         ))}
-        {winP && winP.r >= lo && winP.r <= hi && (
+        {lead && lead.r >= lo && lead.r <= hi && (
           <g>
-            <line x1={x(winP.r)} x2={x(winP.r)} y1={18} y2={H - padB} stroke="#2563EB" strokeWidth={1} />
-            <circle cx={x(winP.r)} cy={H - padB - 4} r={6} fill="#2563EB" stroke="#fff" strokeWidth={2} />
-            <text x={x(winP.r)} y={12} textAnchor={x(winP.r) > W - 90 ? 'end' : x(winP.r) < 90 ? 'start' : 'middle'} fontSize={12} fontWeight={700} fill="#2563EB">낙찰 {winP.r}%</text>
+            <line x1={x(lead.r)} x2={x(lead.r)} y1={18} y2={H - padB} stroke="#2563EB" strokeWidth={2} strokeDasharray={winP ? undefined : '5 3'} />
+            <circle cx={x(lead.r)} cy={H - padB - 4} r={6} fill="#2563EB" stroke="#fff" strokeWidth={2} />
+            <text x={x(lead.r)} y={12} textAnchor={anchor(lead.r)} fontSize={12} fontWeight={700} fill="#2563EB">{winP ? '낙찰' : '1순위(낙찰자 결정 전)'} {fmt(lead.r)}</text>
           </g>
         )}
         {meP && meP.r >= lo && meP.r <= hi && !meP.winner && (
           <g>
-            <line x1={x(meP.r)} x2={x(meP.r)} y1={50} y2={H - padB} stroke="#191C21" strokeWidth={1} />
+            <line x1={x(meP.r)} x2={x(meP.r)} y1={56} y2={H - padB} stroke="#191C21" strokeWidth={2} />
             <circle cx={x(meP.r)} cy={H - padB - 4} r={6} fill="#191C21" stroke="#fff" strokeWidth={2} />
-            <text x={x(meP.r)} y={46} textAnchor={x(meP.r) > W - 90 ? 'end' : x(meP.r) < 90 ? 'start' : 'middle'} fontSize={12} fontWeight={700} fill="#191C21">우리 {meP.r}%</text>
+            <text x={x(meP.r)} y={52} textAnchor={anchor(meP.r)} fontSize={12} fontWeight={700} fill="#191C21">우리 {fmt(meP.r)}</text>
           </g>
         )}
         <line x1={0} x2={W} y1={H - padB} y2={H - padB} stroke="#E8EAED" />
         {ticks.map((t, i) => <text key={t} x={x(t)} y={H - 8} textAnchor={i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle'} fontSize={12} fill="#8A929E">{t.toFixed(2)}%</text>)}
       </svg>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-mute">
-        <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-brand align-middle" />낙찰자</span>
-        <span><i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-ink align-middle" />우리 회사</span>
+        <span><i className="mr-1 inline-block h-0.5 w-4 bg-brand align-middle" />{winP ? '낙찰자' : '1순위 (낙찰자 결정 전)'}</span>
+        <span><i className="mr-1 inline-block h-0.5 w-4 bg-ink align-middle" />우리 회사</span>
         <span><i className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: '#93B4F5' }} />다른 업체</span>
         <span><i className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: '#C9CED6' }} />하한 미달</span>
         <span>곡선: 업체들이 몰린 정도</span>
