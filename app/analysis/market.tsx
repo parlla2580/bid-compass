@@ -27,7 +27,7 @@ export function MarketSection() {
   return (
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
-        <h2 className="text-[20px] font-bold">우리 시장</h2>
+        <h2 className="text-[20px] font-bold">시장 분석</h2>
         <p className="mt-0.5 text-[14px] text-mute">귀사가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
         {thin && <p className="mt-1 text-[13px] font-medium text-warn">아직 근거가 적어요({n}건). 데이터가 쌓이면 더 정확해져요.</p>}
       </div>

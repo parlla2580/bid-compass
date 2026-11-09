@@ -6,7 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
-import { fetchMyReport, type BidReport, type NearMiss } from '@/lib/analysis';
+import { fetchMyBidList, fetchMyReport, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
@@ -63,7 +63,7 @@ export default function AnalysisPage() {
       <div className="space-y-3 lg:space-y-4">
         {/* 탭: 우리 회사 성적 / 우리 시장 */}
         <div className="flex rounded-btn bg-line/60 p-1 lg:inline-flex" role="tablist">
-          {([['me', '우리 회사 성적'], ['market', '우리 시장']] as const).map(([t, label]) => (
+          {([['me', '입찰 성과'], ['market', '시장 분석']] as const).map(([t, label]) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
               className={`flex-1 rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
           ))}
@@ -89,13 +89,15 @@ export default function AnalysisPage() {
             </section>
 
             {fromHistory.length > 0 && (
-              <Link href="/bids" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
+              <Link href="/bids?hist=1" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
                 <span className="flex-1 text-sub">맞춤 공고 {matched.length.toLocaleString()}건 중 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b>은 귀사가 참여·낙찰했던 공고와 비슷해요</span>
                 <ChevronRight className="h-5 w-5 text-mute" />
               </Link>
             )}
 
             <MonthlyCard />
+
+            <HistoryCard />
 
             <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
               <Card title="유형·기관별 성적" aside={<Legend />}>
@@ -119,9 +121,14 @@ export default function AnalysisPage() {
                       <div className="bg-bad" style={{ width: `${total ? ((r.below_floor ?? 0) / total) * 100 : 0}%` }} />
                     </div>
                     <More items={r.below_floor_list} render={(m) => (
-                      <li key={m.id} className="py-3">
-                        <p className="line-clamp-1 text-[15px] font-medium">{m.title}</p>
-                        <p className="mt-0.5 text-[13px] text-mute">{m.org ?? ''} · {fmtDate(new Date(m.opened_at))} · 투찰률 {m.rate}%</p>
+                      <li key={m.id}>
+                        <Link href={`/analysis/${m.id}`} className="flex items-center gap-2 py-3 hover:bg-fill/60">
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-1 block text-[15px] font-medium">{m.title}</span>
+                            <span className="mt-0.5 block text-[13px] text-mute">{m.org ?? ''} · {fmtDate(new Date(m.opened_at))} · 투찰률 {m.rate}%</span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
+                        </Link>
                       </li>
                     )} />
                     <Link href="/calculator" className="mt-2 inline-flex items-center text-[15px] font-semibold text-brand">투찰 전에 하한 구간 계산하기<ChevronRight className="h-4 w-4" /></Link>
@@ -276,10 +283,10 @@ function GapBars({ items }: { items: NearMiss[] }) {
   return (
     <More items={items} render={(m) => (
       <li key={m.id} className="py-3">
-        <div className="flex items-start justify-between gap-3">
+        <Link href={`/analysis/${m.id}`} className="flex items-start justify-between gap-3 hover:text-brand">
           <p className="line-clamp-1 text-[15px] font-medium">{m.title}</p>
           <p className="shrink-0 text-[15px] font-semibold tabular-nums text-warn">{m.gap}%p</p>
-        </div>
+        </Link>
         <div className="mt-1.5 h-1.5 rounded-full bg-fill"><div className="h-1.5 rounded-full bg-warn/70" style={{ width: `${(Number(m.gap) / max) * 100}%` }} /></div>
         <p className="mt-1 text-[12px] text-mute">{m.rank}위{m.participants ? `/${m.participants}개사` : ''} · 내 {m.rate}% · 1순위 {m.first_rate}% · {fmtDate(new Date(m.opened_at))}</p>
       </li>
@@ -297,5 +304,51 @@ function More<T>({ items, render }: { items: T[]; render: (x: T) => React.ReactN
         <button type="button" onClick={() => setAll(!all)} className="w-full py-2 text-[14px] font-medium text-sub">{all ? '접기' : `${items.length - 3}건 더 보기`}</button>
       )}
     </>
+  );
+}
+
+/** 투찰·낙찰한 공고 목록 — 누르면 개찰 결과 요약 */
+function HistoryCard() {
+  const [items, setItems] = useState<MyBidItem[] | null | undefined>(undefined);
+  const [f, setF] = useState<'all' | 'won' | 'lost' | 'below'>('all');
+  const [n, setN] = useState(10);
+  useEffect(() => { fetchMyBidList().then(setItems).catch(() => setItems(null)); }, []);
+  if (items === undefined) return <div className="h-40 animate-pulse rounded-box bg-white" />;
+  if (!items) return null; // 011 실행 전
+  const pick = { all: items, won: items.filter((i) => i.won), lost: items.filter((i) => !i.won && i.note !== 1), below: items.filter((i) => i.note === 1) };
+  const rows = pick[f];
+  const tag = (i: MyBidItem) => i.won ? { t: '낙찰', c: 'bg-brand text-white' } : i.note === 1 ? { t: '하한 미달', c: 'bg-bad/10 text-bad' } : { t: i.rank ? `${i.rank}위` : '탈락', c: 'bg-fill text-sub' };
+  return (
+    <Card title="투찰한 공고" aside={<span className="text-[13px] text-mute">{items.length}건</span>}>
+      <div className="no-scrollbar -mt-1 mb-2 flex gap-1.5 overflow-x-auto">
+        {([['all', '전체'], ['won', '낙찰'], ['lost', '탈락'], ['below', '하한 미달']] as const).map(([k, label]) => (
+          <button key={k} type="button" onClick={() => { setF(k); setN(10); }} aria-pressed={f === k}
+            className={`shrink-0 rounded-full border px-3 py-1 text-[13px] font-medium ${f === k ? 'border-ink bg-ink text-white' : 'border-line bg-white text-sub'}`}>
+            {label} {pick[k].length}
+          </button>
+        ))}
+      </div>
+      {rows.length ? (
+        <ul className="divide-y divide-line">
+          {rows.slice(0, n).map((i) => {
+            const t = tag(i);
+            return (
+              <li key={i.id}>
+                <Link href={`/analysis/${i.id}`} className="flex items-center gap-3 py-3 hover:bg-fill/60">
+                  <span className={`w-[68px] shrink-0 rounded-full py-1 text-center text-[12px] font-semibold ${t.c}`}>{t.t}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-1 block text-[15px] font-medium">{i.title}</span>
+                    <span className="mt-0.5 block truncate text-[12px] text-mute">{i.org ?? ''} · {fmtDate(new Date(i.opened_at))}{i.participants ? ` · ${i.participants}곳 참가` : ''}{!i.won && i.winner ? ` · 낙찰 ${i.winner}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 text-right text-[13px] tabular-nums text-sub">{i.rate ? `${i.rate}%` : ''}</span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : <p className="py-6 text-center text-[14px] text-mute">해당하는 공고가 없어요</p>}
+      {rows.length > n && <button type="button" onClick={() => setN(n + 20)} className="w-full py-2 text-[14px] font-medium text-sub">{Math.min(20, rows.length - n)}건 더 보기</button>}
+    </Card>
   );
 }

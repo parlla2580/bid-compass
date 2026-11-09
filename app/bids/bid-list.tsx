@@ -82,6 +82,8 @@ export default function BidList() {
   });
   const [selected, setSelected] = useState<Notice | null>(null);
   const [mute, setMute] = useState<Notice | null>(null);
+  // 참여·낙찰 이력과 비슷한 공고만 (입찰 분석에서 넘어오면 켜짐)
+  const [histOnly, setHistOnly] = useState(params.get('hist') === '1');
 
   // 검색·필터 (맞춤·전체 공통)
   const query = q.trim().toLowerCase();
@@ -93,7 +95,10 @@ export default function BidList() {
     }) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
 
   const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS]); // eslint-disable-line react-hooks/exhaustive-deps
-  const matched = all.filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none');
+  const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5);
+  const matchedAll = all.filter((j) => j.judgment.status === 'eligible' && j.rel !== 'none');
+  const histCount = matchedAll.filter(isHist).length;
+  const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
   const checkRows = all.filter((j) => j.judgment.status === 'check');
   const otherRows = all.filter((j) => j.judgment.status === 'eligible' && j.rel === 'none');
 
@@ -118,7 +123,7 @@ export default function BidList() {
       );
     });
 
-  const counts = { match: matched.length, all: all.length, saved: saved.length };
+  const counts = { match: matchedAll.length, all: all.length, saved: saved.length };
 
   return (
     <>
@@ -170,6 +175,14 @@ export default function BidList() {
 
       <div className="px-5 pb-28 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-5 lg:px-0 lg:pb-0">
         <main className="min-w-0">
+          {tab === 'match' && histCount > 0 && (
+            <div className="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto">
+              {([[false, `맞춤 공고 전체 ${matchedAll.length.toLocaleString()}`], [true, `참여·낙찰 이력과 비슷한 공고 ${histCount.toLocaleString()}`]] as const).map(([v, label]) => (
+                <button key={String(v)} type="button" aria-pressed={histOnly === v} onClick={() => setHistOnly(v)}
+                  className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(histOnly === v)}`}>{label}</button>
+              ))}
+            </div>
+          )}
           {tab === 'match' && !profile.products?.length && (
             <Link href="/mypage?edit=company" className="mb-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
               <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b>을 넣으면 우리 회사 일과 맞는 공고만 골라 드려요</span>

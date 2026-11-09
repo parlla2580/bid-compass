@@ -110,3 +110,34 @@ export async function fetchMyMarket(years = 3): Promise<MyMarket | null> {
   if (error) return null; // 010 실행 전이면 숨김
   return data as MyMarket;
 }
+
+/* ---------- 입찰 이력 목록과 개찰 1건 요약 (011) ---------- */
+export interface MyBidItem {
+  id: number; title: string; org: string | null; type: string; opened_at: string; participants: number | null;
+  rank: number | null; rate: number | null; amount: number | null; note: number | null; won: boolean; winner: string | null;
+}
+
+export async function fetchMyBidList(): Promise<MyBidItem[] | null> {
+  const { data, error } = await getSupabase().rpc('my_bid_list', { p_years: 3, p_limit: 500 });
+  if (error || !data?.verified) return null;
+  return data.items as MyBidItem[];
+}
+
+export interface OpeningBidder { rank: number | null; rate: number | null; amount: number | null; note: number | null; name: string; me: boolean; winner: boolean }
+export interface OpeningDetail {
+  verified: boolean;
+  found?: boolean;
+  opening?: {
+    id: number; bid_no: string; bid_ord: string; title: string; org: string | null; demand_org: string | null; type: string;
+    opened_at: string; participants: number | null; base_amount: number | null; planned_price: number | null;
+    sajeong: number | null; floor_rate: number | null; winner: string | null; winner_is_me: boolean;
+    winner_amount: number | null; winner_rate: number | null; details_fetched: boolean;
+  };
+  bidders?: OpeningBidder[];
+}
+
+export async function fetchOpeningDetail(id: number): Promise<OpeningDetail | null> {
+  const { data, error } = await getSupabase().rpc('my_opening_detail', { p_id: id });
+  if (error) return null;
+  return data as OpeningDetail;
+}
