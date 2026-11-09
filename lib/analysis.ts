@@ -92,3 +92,21 @@ export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>): 
   }
   return { score: bestScore, best };
 }
+
+/* ---------- 우리 시장 (010) ---------- */
+export interface MarketCompetitor { bizno: number; name: string; shared: number; their_total: number; sim: number; wins: number; win_amount: number }
+export interface MyMarket {
+  verified: boolean;
+  years?: number;
+  my_openings?: number;
+  competitors?: MarketCompetitor[];
+  market?: { openings_with_winner: number; total_amount: number; mine: number; leaders: { name: string; amount: number; wins: number; me: boolean }[] };
+  other_markets?: { org: string; type: string; firms: number; openings: number }[];
+  newcomers?: { name: string; shared: number; first_seen: string }[];
+}
+
+export async function fetchMyMarket(years = 3): Promise<MyMarket | null> {
+  const { data, error } = await getSupabase().rpc('my_market', { p_years: years });
+  if (error) return null; // 010 실행 전이면 숨김
+  return data as MyMarket;
+}

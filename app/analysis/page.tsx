@@ -7,6 +7,7 @@ import { SignupSheet } from '@/components/signup-sheet';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
 import { fetchMyReport, type BidReport } from '@/lib/analysis';
+import { MarketSection } from './market';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 
@@ -86,18 +87,11 @@ export default function AnalysisPage() {
           </Card>
 
           {/* 유형·기관별 */}
-          <Card title="유형·기관별 성적">
-            <table className="w-full text-[14px]">
-              <thead><tr className="text-left text-[13px] text-mute"><th className="pb-2 font-medium">구분</th><th className="pb-2 text-right font-medium">투찰</th><th className="pb-2 text-right font-medium">낙찰</th><th className="pb-2 text-right font-medium">낙찰률</th></tr></thead>
-              <tbody className="divide-y divide-line">
-                {Object.entries(r.by_type ?? {}).map(([k, v]) => (
-                  <tr key={k}><td className="py-2.5 font-medium">{k}</td><td className="py-2.5 text-right">{v.total}</td><td className="py-2.5 text-right">{v.won}</td><td className="py-2.5 text-right font-semibold">{pct(v.won, v.total)}</td></tr>
-                ))}
-                {(r.top_orgs ?? []).map((o) => (
-                  <tr key={o.org}><td className="max-w-[180px] truncate py-2.5 text-sub">{o.org}</td><td className="py-2.5 text-right">{o.total}</td><td className="py-2.5 text-right">{o.won}</td><td className="py-2.5 text-right font-semibold">{pct(o.won, o.total)}</td></tr>
-                ))}
-              </tbody>
-            </table>
+          <Card title="유형·기관별 성적" aside={<span className="flex items-center gap-3 text-[12px] text-mute"><span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-sm bg-line" />투찰</span><span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded-sm bg-brand" />낙찰</span></span>}>
+            <WinBars rows={[
+              ...Object.entries(r.by_type ?? {}).map(([k, v]) => ({ label: k, total: v.total, won: v.won, strong: true })),
+              ...(r.top_orgs ?? []).map((o) => ({ label: o.org, total: o.total, won: o.won, strong: false })),
+            ]} />
           </Card>
 
           {/* F7-2 아깝게 놓친 공고 */}
@@ -136,6 +130,8 @@ export default function AnalysisPage() {
             ) : <p className="text-[15px] text-mute">하한선 미달로 빠진 공고가 없어요</p>}
           </Card>
         </div>
+
+        <MarketSection />
 
         <p className="px-1 text-[13px] leading-relaxed text-mute">
           나라장터 개찰 결과로 만든 참고 정보예요. 낙찰 여부는 최종낙찰자 기준이고, 수집되지 않은 기간·공고는 빠질 수 있어요.
@@ -177,5 +173,26 @@ function Empty({ title, text, children }: { title: string; text: string; childre
       <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-sub">{text}</p>
       <div className="mx-auto mt-6 max-w-[360px]">{children}</div>
     </section>
+  );
+}
+
+/** 투찰(회색) 위에 낙찰(파랑)을 겹친 막대 + 낙찰률 */
+function WinBars({ rows }: { rows: { label: string; total: number; won: number; strong: boolean }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  return (
+    <ul className="space-y-3">
+      {rows.map((r, i) => (
+        <li key={`${r.label}-${i}`}>
+          <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px]">
+            <span className={`min-w-0 truncate ${r.strong ? 'font-semibold' : 'text-sub'}`}>{r.label}</span>
+            <span className="shrink-0 tabular-nums text-mute">{r.won}/{r.total}건 · <b className="font-semibold text-ink">{pct(r.won, r.total)}</b></span>
+          </div>
+          <div className="relative h-2.5 rounded-full bg-fill">
+            <div className="absolute inset-y-0 left-0 rounded-full bg-line" style={{ width: `${(r.total / max) * 100}%` }} />
+            <div className="absolute inset-y-0 left-0 rounded-full bg-brand" style={{ width: `${(r.won / max) * 100}%` }} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
