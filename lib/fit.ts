@@ -11,7 +11,9 @@ import { keywordHit } from './data';
  * v1 문제: 요소 값이 1 / 0.5처럼 몇 단계뿐이라 같은 점수(77, 58…)가 무더기로 나오고,
  *          기본값(관심 유형 3개 모두 선택 등)이 점수를 부풀려 차별성이 없었다.
  *
- * v2 구조: 점수 = 핵심 관련도(0~1) × 보정(0.75~1.1)
+ * v3 구조(2026-11-09): 점수 = 15 + 관련도(≤70점) + 조건(더하고 빼기)
+ *   v2(곱하기)는 품목 일치만으로 상한(99)에 닿아 상위가 모두 99점이던 문제를 고침
+ *   예) 같은 품목만 맞음 ≈77, + 금액대 안 ≈83, + 시도 제한 ≈87, + 경쟁 적음 ≈93, + 거래 기관 99
  *  ① 핵심 관련도 — '우리 일인가'. 아래 중 가장 높은 값 + 여러 근거가 겹치면 가산
  *     - 품목: 품명번호 앞자리 일치(10자리 1.0 / 8 0.85 / 6 0.6 / 4 0.35), 공고 품목 중 맞는 비율로 세분
  *     - 핵심어: 회사 품목·업종 이름의 핵심어가 공고명·품명에 얼마나 들어 있나 (연속값)
@@ -82,8 +84,11 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   const off = new Set((p.muted ?? []).filter((m) => m.kind === 'industry').map((m) => m.code));
   const activeInd = (p.industries ?? []).filter((i) => !off.has(i.code));
   const keys = new Set([...industryWords(activeInd.map((i) => i.name)), ...(p.products ?? []).flatMap((x) => [...words(x.name)])]);
-  const kw = keywordScore(keys, text);
-  if (kw.v > 0) { cores.push(kw.v); push('keyword', '핵심어', kw.v, `공고에 '${kw.hit.slice(0, 3).join("', '")}' 포함`, 2); }
+  // 공고 제목에 나오면 그 일이 공고의 중심 — 품명에만 있으면(여러 품목 중 하나일 수 있음) 70%만 인정
+  const kwTitle = keywordScore(keys, n.title);
+  const kwAll = keywordScore(keys, text);
+  const kw = kwTitle.v >= kwAll.v * 0.7 ? { ...kwTitle, where: '제목' } : { v: kwAll.v * 0.7, hit: kwAll.hit, where: '품명' };
+  if (kw.v > 0) { cores.push(kw.v); push('keyword', '핵심어', kw.v, `공고 ${kw.where}에 '${kw.hit.slice(0, 3).join("', '")}' 포함`, 2); }
 
   // 꼭 볼 단어 — 사용자가 직접 지정한 단어는 강한 근거
   const plus = keywordHit(n, p.keywords?.plus);
@@ -117,34 +122,31 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     cores.push(p.products?.length || hist.length ? 0.15 : 0.35);
   }
   const sorted = cores.sort((a, b) => b - a);
-  // 가장 강한 근거 + 다른 근거가 겹칠수록 더 (둘째 ×0.25, 셋째 ×0.1)
-  const core = clamp(sorted[0] + (sorted[1] ?? 0) * 0.25 + (sorted[2] ?? 0) * 0.1, 0, 1);
+  // 관련도 점수(최대 70) — 가장 강한 근거 58점 + 다른 근거가 겹치면 최대 12점
+  const relPts = 58 * sorted[0] + 12 * clamp((sorted[1] ?? 0) * 0.6 + (sorted[2] ?? 0) * 0.4);
 
-  /* ---------- ② 보정 ---------- */
-  let mod = 1;
+  /* ---------- ② 조건 점수 (더하고 빼기) ---------- */
+  let cond = 0;
 
-  // 금액대 — 평소 투찰 금액대(이력) 또는 선호 범위에서 로그 거리로 멀어질수록 감점
-  if (n.estPrice > 0) {
-    const range = amountBand(hist) ?? p.priceRange;
-    if (range) {
-      const [lo, hi] = range;
-      const dist = n.estPrice < lo ? Math.log10(lo / n.estPrice) : n.estPrice > hi ? Math.log10(n.estPrice / hi) : 0;
-      const m = dist === 0 ? 1.05 : clamp(1 - dist * 0.25, 0.75, 1);
-      mod *= m;
-      push('price', '금액대', dist === 0 ? 1 : clamp(1 - dist * 0.5), `${amountBand(hist) ? '평소 투찰' : '선호'} 금액대 ${short(lo)}~${short(hi)}원 ${dist === 0 ? '안' : '밖'}`);
-    }
-  }
+  // 금액대 — 평소 투찰 금액대(이력) 또는 선호 범위. 모르면 중간값(+4)
+  const range = amountBand(hist) ?? p.priceRange;
+  if (n.estPrice > 0 && range) {
+    const [lo, hi] = range;
+    const dist = n.estPrice < lo ? Math.log10(lo / n.estPrice) : n.estPrice > hi ? Math.log10(n.estPrice / hi) : 0;
+    cond += dist === 0 ? 10 : Math.max(-10, 6 - dist * 20);
+    push('price', '금액대', dist === 0 ? 1 : clamp(1 - dist * 0.5), `${amountBand(hist) ? '평소 투찰' : '선호'} 금액대 ${short(lo)}~${short(hi)}원 ${dist === 0 ? '안' : '밖'}`);
+  } else cond += 4;
 
-  // 마감 여유 — 오늘·내일 마감은 준비가 빠듯, 3~14일이 적당
-  if (n.d >= 0 && n.d <= 1) { mod *= 0.88; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감이라 준비가 빠듯해요' : '내일 마감이라 준비가 빠듯해요'); }
-  else if (n.d === 2) mod *= 0.95;
-  else if (n.d > 30) mod *= 0.97;
+  // 마감 여유 — 오늘·내일 마감은 준비가 빠듯
+  if (n.d >= 0 && n.d <= 1) { cond -= 10; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감이라 준비가 빠듯해요' : '내일 마감이라 준비가 빠듯해요'); }
+  else if (n.d === 2) cond -= 4;
+  else if (n.d > 30) cond -= 2;
 
   // 지역 — 우리 지역으로 제한된 공고는 경쟁 범위가 좁음
   const reg = j.reasons.find((r) => r.rule === 'region');
   if (n.regionLimit && reg?.result === 'pass') {
     const narrow = n.regionLimit.every((r) => r.trim().includes(' ')); // 시군구 단위 제한
-    mod *= narrow ? 1.08 : 1.04;
+    cond += narrow ? 8 : 4;
     push('region', '지역', 1, narrow ? '우리 시군구 업체로 제한 (경쟁 범위 매우 좁음)' : '우리 시도 업체로 제한 (경쟁 범위 좁음)');
   }
 
@@ -154,19 +156,20 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   const typical = comp?.byType.get(n.type);
   if (c && typical) {
     const ratio = c.median / typical;
-    if (ratio <= 0.5) { mod *= 1.06; push('competition', '경쟁', 1, `경쟁이 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
-    else if (ratio <= 0.8) { mod *= 1.03; push('competition', '경쟁', 0.8, `경쟁이 조금 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
-    else if (ratio >= 2) { mod *= 0.95; push('competition', '경쟁', 0.3, `경쟁이 많은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    if (ratio <= 0.5) { cond += 6; push('competition', '경쟁', 1, `경쟁이 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    else if (ratio <= 0.8) { cond += 3; push('competition', '경쟁', 0.8, `경쟁이 조금 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    else if (ratio >= 2) { cond -= 4; push('competition', '경쟁', 0.3, `경쟁이 많은 편이에요 (보통 ${c.median}곳, 참고)`); }
   }
 
   // 기관 — 선호하거나 참여해 본 기관
   const orgHit = p.preferredOrgs.some((o) => n.org.includes(o) || n.demandOrg?.includes(o))
     || hist.some((h) => h.org === n.org || (!!n.demandOrg && h.demand_org === n.demandOrg));
-  if (orgHit) { mod *= 1.05; push('org', '기관', 1, '선호하거나 참여해 본 기관'); }
+  if (orgHit) { cond += 6; push('org', '기관', 1, '선호하거나 참여해 본 기관'); }
 
   // 관심 유형 — 사용자가 직접 좁힌 경우에만 반영 (기본값 '전체'는 점수에 영향 없음)
-  if (p.types.length && p.types.length < 3 && !p.types.includes(n.type)) { mod *= 0.8; push('type', '사업유형', 0.2, `관심 유형 아님(${n.type})`); }
+  if (p.types.length && p.types.length < 3 && !p.types.includes(n.type)) { cond -= 15; push('type', '사업유형', 0.2, `관심 유형 아님(${n.type})`); }
 
-  const score = Math.round(clamp(core * mod, 0.05, 0.99) * 100);
+  // 최종 = 기본 15 + 관련도(≤70) + 조건(대략 -25~+40). 99점은 모든 근거가 겹칠 때만
+  const score = Math.round(clamp(15 + relPts + cond, 5, 99));
   return { score, factors: f.sort((a, b) => b.weight - a.weight || b.value - a.value) };
 }
