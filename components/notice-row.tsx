@@ -58,15 +58,23 @@ export function RowList({ children }: { children: React.ReactNode }) {
 }
 
 /** 맞춤 점수 — 순번처럼 보이지 않도록 원형 게이지 + % */
+/** 맞춤 점수 단계 — 80 이상 진한 파랑, 60~79 연한 파랑, 60 미만 회색 */
+export const fitTone = (score: number | null) =>
+  score === null ? { stroke: '#E8EAED', text: 'text-mute' }
+    : score >= 80 ? { stroke: '#2563EB', text: 'text-brand' }
+      : score >= 60 ? { stroke: '#93B4F5', text: 'text-brand/70' }
+        : { stroke: '#C9CED6', text: 'text-mute' };
+
 function ScoreRing({ score }: { score: number | null }) {
   const r = 17, c = 2 * Math.PI * r;
+  const tone = fitTone(score);
   return (
     <span className="relative flex h-10 w-10 items-center justify-center" title="우리 회사와 맞는 정도" aria-label={score === null ? '맞춤 점수 없음' : `맞춤 ${score}%`}>
       <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90">
         <circle cx="20" cy="20" r={r} fill="none" stroke="#E8EAED" strokeWidth="3" />
-        {score !== null && <circle cx="20" cy="20" r={r} fill="none" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />}
+        {score !== null && <circle cx="20" cy="20" r={r} fill="none" stroke={tone.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />}
       </svg>
-      <span className="text-[12px] font-bold tabular-nums text-brand">{score ?? '–'}<span className="text-[9px]">%</span></span>
+      <span className={`text-[12px] font-bold tabular-nums ${tone.text}`}>{score ?? '–'}<span className="text-[9px]">%</span></span>
     </span>
   );
 }

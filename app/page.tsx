@@ -24,7 +24,7 @@ export default function HomePage() {
 
   const stats = [
     { href: '/bids', label: '맞춤 공고', value: judged ? matched.length : null, tone: 'text-brand' },
-    { href: '/bids?sort=latest', label: '그중 새 공고', value: judged ? newMatched : null, tone: 'text-ink' },
+    { href: '/bids?sort=latest', label: '오늘 새로 나온', value: judged ? newMatched : null, tone: 'text-ink' },
     { href: '/bids?tab=saved', label: '저장·마감 임박', value: judged ? soon.length : null, tone: soon.length ? 'text-bad' : 'text-ink' },
   ];
 
