@@ -16,6 +16,7 @@ import { fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/
 import { fetchNoticeExtra, fetchPastStats, type NoticeExtra, type PastStats } from '@/lib/briefing';
 import { prepareHistory, similarity } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
+import { productMatch } from '@/lib/match';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
 
@@ -64,7 +65,7 @@ function Detail({ n }: { n: Notice }) {
   const toast = useToast();
   const [signup, setSignup] = useState(false);
   const j = judge(n, profile);
-  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history)) : null, history);
+  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history)) : null, history, productMatch(n, profile.products));
   const closed = n.d < 0;
   const on = saved.includes(n.id);
   const save = () => toast(toggleSaved(n.id) ? '저장했어요' : '저장을 취소했어요');

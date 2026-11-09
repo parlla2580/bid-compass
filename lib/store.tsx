@@ -7,6 +7,7 @@ import { judge, relevance, type Judgment } from './judge';
 import { fetchOpenNotices } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { fitScore, type Fit } from './fit';
+import { isRelevant, productMatch, relevanceOf, type ProductMatch, type RelevanceReason } from './match';
 import { getSupabase, supabaseEnabled } from './supabase';
 
 /*
@@ -265,6 +266,12 @@ export interface Judged {
   similar: Similarity | null;
   /** 적합도 — 우리 회사와 맞는 정도 (참여 불가 공고는 null) */
   fit: Fit | null;
+  /** 회사 품목과 공고 품목의 일치 */
+  product: ProductMatch | null;
+  /** 관련성 — 'none'이면 '다른 참여 가능 공고'로 접음 */
+  rel: RelevanceReason;
+  /** 맞춤 공고 = 참여 가능 + 관련 있음 */
+  matched: boolean;
 }
 
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
@@ -278,8 +285,13 @@ export function useJudged(): Judged[] | null {
         const similar = hist.length ? similarity(notice, hist) : null;
         // 이력과 닮은 공고를 위로 (유사도는 순서에만 쓰고 판정에는 쓰지 않음)
         const boost = similar ? Math.min(40, similar.score * 10) : 0;
-        const fit = fitScore(notice, profile, judgment, similar, history);
-        return { notice, judgment, relevance: relevance(notice, profile, judgment) + boost, similar, fit };
+        const product = productMatch(notice, profile.products);
+        const fit = fitScore(notice, profile, judgment, similar, history, product);
+        const rel = relevanceOf(notice, profile, judgment, product, similar);
+        return {
+          notice, judgment, relevance: relevance(notice, profile, judgment) + boost + (product ? product.sim * 40 : 0),
+          similar, fit, product, rel, matched: judgment.status === 'eligible' && isRelevant(rel),
+        };
       }) ?? null,
     [profile, notices, hist, history],
   );

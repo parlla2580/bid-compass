@@ -6,12 +6,13 @@ import { useEffect, useState } from 'react';
 import { Bell, Bookmark, Building2, FileBadge, History, Loader2, LogIn, LogOut, Pencil, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { Sheet, useToast } from '@/components/feedback';
 import { useRequireStart } from '@/components/layout';
-import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, TagInput } from '@/components/inputs';
+import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, ProductPicker, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
-import { SIZES, hasSigungu, type BidType, type Notice, type Profile } from '@/lib/data';
+import { SIZES, hasSigungu, type BidType, type Notice, type Product, type Profile } from '@/lib/data';
 import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
 import { judge } from '@/lib/judge';
+import { suggestProducts } from '@/lib/match';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 
@@ -47,6 +48,7 @@ export default function MyPage() {
   const companyRows: [string, React.ReactNode][] = [
     ['업체명', profile.corpName ? `${profile.corpName}${profile.naraRegistered ? ' (나라장터 등록)' : ''}` : null],
     ['업종', profile.industries?.length ? profile.industries.map((i) => i.name).join(', ') : null],
+    ['주요 품목', profile.products?.length ? profile.products.map((i) => i.name).join(', ') : null],
     ['소재지', profile.location ? `${profile.location}${hasSigungu(profile.location) ? '' : ' (시군구 미입력)'}` : null],
     ['기업규모', profile.size],
     ['수행실적', profile.records || null],
@@ -180,6 +182,7 @@ export default function MyPage() {
 
 function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose: () => void; onSave: (p: Profile) => void }) {
   const toast = useToast();
+  const { notices } = useStore();
   const [form, setForm] = useState(profile);
   const [busy, setBusy] = useState(false);
 
@@ -196,6 +199,9 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
         ...form, naraRegistered: true, corpName: data.corpName ?? form.corpName,
         location: data.location ?? form.location,
         industries: data.industries?.length ? data.industries : form.industries,
+        products: data.products?.length
+          ? [...(form.products ?? []).filter((p) => p.source === 'user'), ...data.products.map((p: Product) => ({ ...p, source: 'nara' as const }))]
+          : form.products,
       });
       toast('나라장터 정보를 불러왔습니다');
     } catch (e) {
@@ -222,6 +228,12 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
         <div>
           <p className="mb-2 text-sm font-semibold text-sub">업종 (나라장터 업종)</p>
           <IndustryPicker value={form.industries ?? []} onChange={(v) => setForm({ ...form, industries: v })} />
+        </div>
+        <div>
+          <p className="mb-1 text-sm font-semibold text-sub">주요 품목</p>
+          <p className="mb-2 text-[13px] text-mute">주로 납품·수행하는 품목을 넣으면 우리 일과 맞는 공고만 골라 드려요</p>
+          <ProductPicker value={form.products ?? []} onChange={(v) => setForm({ ...form, products: v })}
+            suggest={suggestProducts(notices, form.industries, form.products ?? [])} />
         </div>
         <div>
           <p className="mb-2 text-sm font-semibold text-sub">소재지</p>

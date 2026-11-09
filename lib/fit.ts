@@ -1,6 +1,7 @@
 import type { Notice, Profile } from './data';
 import type { Judgment } from './judge';
 import type { HistoryItem, Similarity } from './analysis';
+import type { ProductMatch } from './match';
 
 /* =========================================================
  * 적합도 — '우리 회사와 맞는 정도' (판정과 별개, 낙찰 확률 아님)
@@ -13,7 +14,7 @@ export type FitMark = 'good' | 'mid' | 'low';
 export interface FitFactor { key: string; label: string; mark: FitMark; text: string; weight: number; value: number }
 export interface Fit { score: number; factors: FitFactor[] }
 
-const W = { industry: 30, history: 25, price: 20, region: 10, type: 10, org: 5 };
+const W = { product: 35, industry: 25, history: 25, price: 15, region: 10, type: 5, org: 5 };
 
 /** 과거 투찰 금액 중간 80% 범위 */
 function amountBand(hist: HistoryItem[]): [number, number] | null {
@@ -24,11 +25,16 @@ function amountBand(hist: HistoryItem[]): [number, number] | null {
 
 const short = (n: number) => (n >= 1e8 ? `${Math.round(n / 1e7) / 10}억` : `${Math.round(n / 1e4).toLocaleString()}만`);
 
-export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[]): Fit | null {
+export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[], pm: ProductMatch | null = null): Fit | null {
   if (j.status === 'ineligible') return null;
   const f: FitFactor[] = [];
   const add = (key: keyof typeof W, label: string, value: number, text: string) =>
     f.push({ key, label, weight: W[key], value, text, mark: value >= 0.8 ? 'good' : value >= 0.45 ? 'mid' : 'low' });
+
+  // 0) 품목 — 회사 주요 품목과 공고 품목 (물품·용역 공고에 품목이 있을 때)
+  if (p.products?.length && n.products.length) {
+    add('product', '품목', pm?.sim ?? 0, pm ? `주요 품목 '${pm.mine.name}'${pm.sim >= 1 ? '과 같은 품목' : pm.sim >= 0.8 ? '과 같은 품명' : '과 비슷한 품목'}` : '주요 품목과 다른 품목');
+  }
 
   // 1) 업종 — 내 업종을 요구하는 공고가 가장 잘 맞음
   const ind = j.reasons.find((r) => r.rule === 'industry');

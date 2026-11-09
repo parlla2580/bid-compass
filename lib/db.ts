@@ -1,4 +1,4 @@
-import { EMPTY_PROFILE, type BidType, type CompanySize, type Industry, type Profile } from './data';
+import { EMPTY_PROFILE, type BidType, type CompanySize, type Industry, type Product, type Profile } from './data';
 import { getSupabase } from './supabase';
 
 /* =========================================================
@@ -18,6 +18,7 @@ interface ProfileRow {
   pref_orgs: string[];
   price_min: number | null;
   price_max: number | null;
+  products?: Product[] | null;
 }
 
 function toRow(userId: string, p: Profile): ProfileRow {
@@ -34,6 +35,7 @@ function toRow(userId: string, p: Profile): ProfileRow {
     pref_orgs: p.preferredOrgs,
     price_min: p.priceRange?.[0] ?? null,
     price_max: p.priceRange?.[1] ?? null,
+    products: p.products,
   };
 }
 
@@ -50,6 +52,7 @@ function fromRow(r: ProfileRow): Profile {
     types: r.pref_types,
     preferredOrgs: r.pref_orgs,
     priceRange: r.price_min !== null && r.price_max !== null ? [Number(r.price_min), Number(r.price_max)] : null,
+    products: r.products ?? null,
   };
 }
 

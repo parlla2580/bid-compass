@@ -1,4 +1,4 @@
-import { NOTICE_COLUMNS, toNotice, type Industry, type Notice, type NoticeRow } from './data';
+import { NOTICE_COLUMNS, toNotice, type Industry, type Notice, type NoticeRow, type Product } from './data';
 import { getSupabase } from './supabase';
 
 /* =========================================================
@@ -107,4 +107,31 @@ export async function searchIndustries(q: string): Promise<Industry[]> {
     .limit(30);
   if (error) throw error;
   return (data ?? []) as Industry[];
+}
+
+/** 품목 검색 — 수집된 공고의 품명(물품 세부품명·용역 공공조달분류)에서 찾음.
+ *  물품목록정보서비스(공식 분류 목록) 연결 전까지 쓰는 방식 */
+export async function searchProducts(q: string): Promise<Product[]> {
+  const s = q.trim().replace(/[%_,()*"]/g, '');
+  if (!s) return [];
+  const { data, error } = await getSupabase()
+    .from('notices')
+    .select('product_name, p_code:raw->>dtilPrdctClsfcNo, p_list:raw->>purchsObjPrdctList, s_code:raw->>pubPrcrmntClsfcNo, s_name:raw->>pubPrcrmntClsfcNm')
+    .or(`product_name.ilike.*${s}*,raw->>pubPrcrmntClsfcNm.ilike.*${s}*,raw->>purchsObjPrdctList.ilike.*${s}*`)
+    .order('id', { ascending: false })
+    .limit(300);
+  if (error) throw error;
+  const out = new Map<string, Product & { n: number }>();
+  const add = (code: string | null | undefined, name: string | null | undefined) => {
+    if (!code || !name || !/^\d{8,10}$/.test(code) || !name.includes(s)) return;
+    const cur = out.get(code);
+    out.set(code, { code, name: name.trim(), n: (cur?.n ?? 0) + 1 });
+  };
+  for (const r of data ?? []) {
+    for (const m of (r.p_list ?? '').matchAll(/\^(\d{8,10})\^([^\],]+)/g)) add(m[1], m[2]);
+    add(r.p_code, r.product_name);
+    add(r.s_code, r.s_name);
+  }
+  // 공고에 자주 나온 품목부터
+  return [...out.values()].sort((a, b) => b.n - a.n).slice(0, 30).map(({ code, name }) => ({ code, name }));
 }

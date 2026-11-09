@@ -2,8 +2,8 @@
 
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Search, X } from 'lucide-react';
-import { PRICE_STEPS, SIDO, SIGUNGU, splitLocation, type Industry } from '@/lib/data';
-import { searchIndustries } from '@/lib/notices';
+import { PRICE_STEPS, SIDO, SIGUNGU, splitLocation, type Industry, type Product } from '@/lib/data';
+import { searchIndustries, searchProducts } from '@/lib/notices';
 import { fmtRange } from '@/lib/format';
 import { INPUT_CLS, chipClass } from './ui';
 
@@ -174,6 +174,83 @@ export function TagInput({ id, value, onChange, placeholder }: {
       ))}
       <input id={id} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} onBlur={add} placeholder={placeholder}
         className="min-w-[120px] flex-1 border-0 bg-transparent px-1 py-1 text-[15px] outline-none placeholder:text-mute" />
+    </div>
+  );
+}
+
+/** 주요 품목 선택 — 검색(2글자부터) + 추천 칩 탭 한 번으로 추가 */
+export function ProductPicker({ value, onChange, suggest = [], max = 10 }: {
+  value: Product[];
+  onChange: (v: Product[]) => void;
+  /** 추천 품목 (업종·공고에서 뽑은 후보) */
+  suggest?: Product[];
+  max?: number;
+}) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<Product[]>([]);
+  const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  useEffect(() => {
+    const s = q.trim();
+    if (s.length < 2) { setResults([]); return; }
+    setState('loading');
+    const t = setTimeout(() => {
+      searchProducts(s).then((r) => { setResults(r); setState('idle'); }).catch(() => setState('error'));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const chosen = new Set(value.map((v) => v.code));
+  const toggle = (p: Product) =>
+    onChange(chosen.has(p.code) ? value.filter((v) => v.code !== p.code) : value.length >= max ? value : [...value, { ...p, source: p.source ?? 'user' }]);
+  const chips = suggest.filter((p) => !chosen.has(p.code)).slice(0, 8);
+
+  return (
+    <div>
+      {value.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {value.map((p) => (
+            <span key={p.code} className="inline-flex items-center gap-1 rounded-full bg-ink py-1 pl-3 pr-1.5 text-sm font-medium text-white">
+              {p.name}
+              <button type="button" aria-label={`${p.name} 빼기`} onClick={() => toggle(p)} className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-white/20">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {chips.length > 0 && (
+        <div className="mb-3">
+          <p className="mb-1.5 text-[13px] text-mute">이런 품목은 어때요? 누르면 추가돼요</p>
+          <div className="flex flex-wrap gap-1.5">
+            {chips.map((p) => (
+              <button key={p.code} type="button" onClick={() => toggle(p)}
+                className="rounded-full border border-line bg-white px-3 py-1.5 text-[14px] text-sub hover:bg-fill">+ {p.name}</button>
+            ))}
+          </div>
+        </div>
+      )}
+      <label className="relative block">
+        <span className="sr-only">품목 검색</span>
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-mute" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="품목 검색 (예: 의자, 소프트웨어, 청소)"
+          className={INPUT_CLS + ' pl-11'} />
+      </label>
+      {q.trim().length >= 2 && (
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-btn border border-line bg-white">
+          {state === 'loading' && <p className="px-3 py-3 text-sm text-mute">검색 중…</p>}
+          {state === 'error' && <p className="px-3 py-3 text-sm text-bad">품목을 불러오지 못했어요</p>}
+          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-mute">최근 공고에 나온 품목 중에 없어요</p>}
+          {state === 'idle' && results.map((p) => (
+            <button key={p.code} type="button" aria-pressed={chosen.has(p.code)} onClick={() => toggle(p)}
+              className={`flex w-full items-center justify-between border-b border-line px-3 py-2.5 text-left text-sm last:border-0 hover:bg-fill ${chosen.has(p.code) ? 'font-semibold text-brand' : ''}`}>
+              <span>{p.name}</span>
+              <span className="text-xs text-mute">{chosen.has(p.code) ? '선택됨' : p.code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="mt-1.5 text-xs text-mute">최근 나라장터 공고에 나온 품목에서 찾아요. 최대 {max}개.</p>
     </div>
   );
 }

@@ -20,12 +20,17 @@ export default function RecommendPage() {
   const [tab, setTab] = useState<Tab>('eligible');
   const [sort, setSort] = useState<SortKey>('relevance');
   const [showIneligible, setShowIneligible] = useState(false);
+  const [showOther, setShowOther] = useState(false);
   if (!ready) return <Shell wide><Header /></Shell>;
 
-  const by = (s: Status) => (judged ?? []).filter((j) => j.judgment.status === s);
+  // '참여 가능' 탭은 맞춤 공고(참여 가능 + 우리 일과 관련)만, 관련 없는 참여 가능 공고는 아래에 접음
+  const by = (s: Status) => (judged ?? []).filter((j) => j.judgment.status === s && (s !== 'eligible' || j.rel !== 'none'));
+  const other = (judged ?? []).filter((j) => j.judgment.status === 'eligible' && j.rel === 'none');
+  const unknown = !profile.products?.length;
   const sorter = (a: Judged, b: Judged) => (sort === 'relevance' ? (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance : a.notice.d - b.notice.d);
   const rows = by(tab).sort(sorter);
   const ineligible = by('ineligible').sort(sorter);
+  const otherRows = other.sort(sorter);
 
   return (
     <Shell wide>
@@ -64,6 +69,25 @@ export default function RecommendPage() {
           </NoticesState>
         </div>
 
+        {tab === 'eligible' && unknown && (
+          <Link href="/mypage?edit=company" className="mx-5 mt-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70 lg:mx-0">
+            <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b>을 넣으면 우리 회사 일과 맞는 공고만 골라 드려요</span>
+            <ChevronDown className="h-5 w-5 -rotate-90 text-mute" />
+          </Link>
+        )}
+
+        {/* 참여는 가능하지만 우리 일과 관련 없는 공고 — 기본 접음 */}
+        {tab === 'eligible' && otherRows.length > 0 && (
+          <div className="mt-6 px-5 lg:px-0">
+            <button type="button" aria-expanded={showOther} onClick={() => setShowOther(!showOther)}
+              className="flex w-full items-center justify-center gap-1 py-3 text-[14px] font-medium text-mute hover:text-sub">
+              다른 참여 가능 공고 {otherRows.length.toLocaleString()}건 {showOther ? '숨기기' : '보기'}
+              <ChevronDown className={`h-4 w-4 transition ${showOther ? 'rotate-180' : ''}`} />
+            </button>
+            {showOther && <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2 lg:gap-3">{otherRows.slice(0, 60).map((j) => <RecommendCard key={j.notice.id} item={j} />)}</div>}
+          </div>
+        )}
+
         {/* 참여 불가 공고 — 기본 숨김 */}
         <div className="mt-6 px-5 lg:px-0">
           <button type="button" aria-expanded={showIneligible} onClick={() => setShowIneligible(!showIneligible)}
@@ -78,10 +102,14 @@ export default function RecommendPage() {
   );
 }
 
-function RecommendCard({ item: { notice, judgment, similar, fit } }: { item: Judged }) {
+function RecommendCard({ item: { notice, judgment, similar, fit, product } }: { item: Judged }) {
   return (
     <NoticeCard notice={notice} judgment={judgment} fit={fit}
-      note={similar?.best && (
+      note={product && product.sim >= 0.5 ? (
+        <p className="mt-2 line-clamp-1 text-[13px] text-sub">
+          <span className="font-semibold text-brand">품목</span> 주요 품목 &lsquo;{product.mine.name}&rsquo;{product.sim >= 0.8 ? '과 같은 품목이에요' : '과 비슷한 품목이에요'}
+        </p>
+      ) : similar?.best && (
         <p className="mt-2 line-clamp-1 text-[13px] text-sub">
           <span className="font-semibold text-brand">이력</span> {similar.best.won ? '낙찰했던' : '참여했던'} &lsquo;{similar.best.title}&rsquo;와 비슷해요
         </p>

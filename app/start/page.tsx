@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowRight, BadgeCheck, Compass, Loader2 } from 'lucide-react';
-import { IndustryPicker, LocationPicker } from '@/components/inputs';
+import { IndustryPicker, LocationPicker, ProductPicker } from '@/components/inputs';
 import { BTN_PRIMARY } from '@/components/ui';
-import type { Industry } from '@/lib/data';
+import type { Industry, Product } from '@/lib/data';
+import { suggestProducts } from '@/lib/match';
 import { maskBizNo } from '@/lib/format';
 import { useStore } from '@/lib/store';
 
@@ -14,14 +15,17 @@ interface Lookup {
   registered: boolean;
   location?: string | null;
   industries?: Industry[];
+  products?: Product[];
 }
 
-type Mode = 'bizno' | 'confirm' | 'manual';
+type Mode = 'bizno' | 'confirm' | 'manual' | 'products';
 
 /** S1. 간편 시작 (F1-1, v2.1) — 사업자번호(선택) → 나라장터 등록 업체는 자동, 아니면 업종·소재지 직접 입력 */
 export default function StartPage() {
   const router = useRouter();
-  const { loaded, profile, updateProfile } = useStore();
+  const { loaded, profile, updateProfile, notices } = useStore();
+  const [pending, setPending] = useState<Parameters<typeof updateProfile>[0] | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [mode, setMode] = useState<Mode>('bizno');
   const [bizno, setBizno] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,8 +65,15 @@ export default function StartPage() {
     }
   };
 
+  // 업종·소재지 다음에 주요 품목 단계 (나라장터 공급물품이 있으면 미리 채움)
   const go = (patch: Parameters<typeof updateProfile>[0]) => {
-    updateProfile(patch);
+    setPending(patch);
+    setProducts(found?.products?.map((p) => ({ ...p, source: 'nara' as const })) ?? profile.products ?? []);
+    setError(null);
+    setMode('products');
+  };
+  const finish = (withProducts: boolean) => {
+    updateProfile({ ...pending, products: withProducts && products.length ? products : (pending?.products ?? profile.products ?? null) });
     router.push('/recommend');
   };
 
@@ -153,7 +164,7 @@ export default function StartPage() {
             <LocationPicker value={location} onChange={setLocation} />
             <p className="mt-1.5 text-xs text-mute">시군구까지 고르면 지역제한 공고를 더 정확히 판정합니다.</p>
           </div>
-          <div className="sticky bottom-0 -mx-5 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-50/0 px-5 pb-6 pt-3">
+          <div className="sticky bottom-0 -mx-5 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-5 pb-6 pt-3">
             <button type="button" disabled={!manualReady || !industries.length}
               onClick={() => go({ industries, location, bizno: bizno.replace(/\D/g, '') || null })}
               className={BTN_PRIMARY}>
@@ -165,6 +176,25 @@ export default function StartPage() {
             </button>
             <button type="button" onClick={() => { setError(null); setMode('bizno'); }} className="w-full py-1 text-xs text-mute">사업자등록번호로 조회하기</button>
           </div>
+        </section>
+      )}
+
+      {mode === 'products' && (
+        <section className="fade-up space-y-5">
+          <div className="rounded-box bg-white p-5">
+            <h2 className="text-[17px] font-bold">주로 어떤 품목을 다루세요?</h2>
+            <p className="mt-1 text-[14px] text-mute">
+              {found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.' : '품목을 고르면 우리 회사 일과 맞는 공고만 골라 드려요.'}
+            </p>
+            <div className="mt-4">
+              <ProductPicker value={products} onChange={setProducts}
+                suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, products)} />
+            </div>
+          </div>
+          <button type="button" onClick={() => finish(true)} disabled={!products.length} className={BTN_PRIMARY}>
+            이 품목으로 공고 보기<ArrowRight className="h-5 w-5" />
+          </button>
+          <button type="button" onClick={() => finish(false)} className="w-full py-2 text-[15px] font-medium text-mute">나중에 할게요</button>
         </section>
       )}
 

@@ -16,13 +16,13 @@ export default function HomePage() {
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
-  const eligible = (judged ?? []).filter((j) => j.judgment.status === 'eligible').sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance);
+  const eligible = (judged ?? []).filter((j) => j.matched || (j.judgment.status === 'eligible' && j.rel === 'unknown')).sort((a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance);
   const newCount = (judged ?? []).filter((j) => j.notice.isNew).length;
   const savedSoon = (notices ?? []).filter((n) => saved.includes(n.id) && n.d >= 0 && n.d <= 3).length;
   const need = topNeed(judged);
 
   const stats = [
-    { href: '/recommend', label: '참여 가능', value: judged ? eligible.length : null, tone: 'text-brand' },
+    { href: '/recommend', label: '맞춤 공고', value: judged ? eligible.length : null, tone: 'text-brand' },
     { href: '/bids?sort=latest', label: '오늘 새 공고', value: judged ? newCount : null, tone: 'text-ink' },
     { href: '/mypage#saved', label: '저장·마감 임박', value: savedSoon, tone: savedSoon ? 'text-bad' : 'text-ink' },
   ];
@@ -34,7 +34,7 @@ export default function HomePage() {
         <section className="pt-3 lg:pt-6">
           <p className="text-[14px] text-mute">{fmtDate(now)} ({weekdayKo(now)})</p>
           <h1 className="mt-1 text-[24px] font-bold leading-snug tracking-tight lg:text-[28px]">
-            오늘 참여할 수 있는 공고가<br className="lg:hidden" /> <span className="text-brand">{judged ? `${eligible.length}건` : '…'}</span> 있어요
+            {judged ? <>공고 {judged.length.toLocaleString()}건 중<br className="lg:hidden" /> 우리 회사 맞춤 공고는 <span className="text-brand">{eligible.length}건</span>이에요</> : '맞춤 공고를 고르는 중이에요'}
           </h1>
           <Link href="/mypage?edit=company" className="mt-1.5 inline-flex items-center text-[15px] text-sub">
             {profileSummary(profile)} 기준<ChevronRight className="h-4 w-4 text-mute" />

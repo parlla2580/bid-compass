@@ -21,6 +21,14 @@ export interface LicenseLimit {
   allowed: string[];
 }
 
+/** 품목 — 나라장터 세부품명번호(물품 10자리) 또는 공공조달분류번호(용역 8자리) */
+export interface Product {
+  code: string;
+  name: string;
+  /** nara: 나라장터 공급물품에서 자동, user: 직접 선택 */
+  source?: 'nara' | 'user';
+}
+
 export interface Notice {
   id: number;
   bidNo: string;
@@ -47,6 +55,8 @@ export interface Notice {
   regionBasis: string | null;
   licenseLimits: LicenseLimit[] | null;
   productName: string | null;
+  /** 공고 품목 (물품: 구매대상 세부품명, 용역: 공공조달분류) */
+  products: Product[];
   url: string | null;
   postedAt: Date;
   /** 오늘 게시 */
@@ -68,6 +78,8 @@ export interface Profile {
   types: BidType[];
   preferredOrgs: string[];
   priceRange: [number, number] | null;
+  /** 주요 품목 — null: 미입력 */
+  products: Product[] | null;
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -81,6 +93,7 @@ export const EMPTY_PROFILE: Profile = {
   types: ['물품', '용역', '공사'],
   preferredOrgs: [],
   priceRange: null,
+  products: null,
 };
 
 export const SIZES: CompanySize[] = ['중소기업', '중견기업', '대기업'];
@@ -108,10 +121,24 @@ export interface NoticeRow {
   product_name: string | null;
   url: string | null;
   posted_at: string;
+  /** 공고 원본에서 꺼낸 품목 필드 */
+  p_code?: string | null;
+  p_list?: string | null;
+  s_code?: string | null;
+  s_name?: string | null;
 }
 
 export const NOTICE_COLUMNS =
-  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at';
+  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm';
+
+/** '[1^1016170701^꽃꽂이],[2^…]' + 세부품명번호 + 공공조달분류 → 품목 목록 */
+function noticeProducts(r: NoticeRow): Product[] {
+  const out = new Map<string, Product>();
+  for (const m of (r.p_list ?? '').matchAll(/\^(\d{8,10})\^([^\],]+)/g)) out.set(m[1], { code: m[1], name: m[2].trim() });
+  if (r.p_code && /^\d{8,10}$/.test(r.p_code) && !out.has(r.p_code)) out.set(r.p_code, { code: r.p_code, name: r.product_name ?? r.p_code });
+  if (r.s_code && /^\d{8,10}$/.test(r.s_code) && !out.has(r.s_code)) out.set(r.s_code, { code: r.s_code, name: r.s_name ?? r.s_code });
+  return [...out.values()];
+}
 
 const DAY = 86400e3;
 const kstDay = (d: Date) => Math.floor((d.getTime() + 9 * 3600e3) / DAY);
@@ -140,6 +167,7 @@ export function toNotice(r: NoticeRow, now = new Date()): Notice {
     regionBasis: r.region_basis,
     licenseLimits: r.license_limits?.length ? r.license_limits : null,
     productName: r.product_name,
+    products: noticeProducts(r),
     url: r.url,
     postedAt,
     isNew: kstDay(postedAt) === kstDay(now),
