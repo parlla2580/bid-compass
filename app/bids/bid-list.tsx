@@ -63,6 +63,9 @@ type Filters = Record<string, string | null>;
 const EMPTY: Filters = { status: null, type: null, region: null, price: null, deadline: null, contract: null };
 const PAGE = 30;
 
+/** 분석의 기관 기준과 같게 — 수요기관이 있으면 수요기관 */
+const orgOfNotice = (n: Notice) => n.demandOrg ?? n.org;
+
 export default function BidList() {
   const params = useSearchParams();
   const router = useRouter();
@@ -84,6 +87,8 @@ export default function BidList() {
   const [mute, setMute] = useState<Notice | null>(null);
   // 참여·낙찰 이력과 비슷한 공고만 (입찰 분석에서 넘어오면 켜짐)
   const [histOnly, setHistOnly] = useState(params.get('hist') === '1');
+  // 기관 한정 (입찰 분석 '어디서 잘하나'에서 넘어오면 켜짐)
+  const [orgOnly, setOrgOnly] = useState<string | null>(params.get('org'));
 
   // 검색·필터 (맞춤·전체 공통)
   const query = q.trim().toLowerCase();
@@ -92,9 +97,9 @@ export default function BidList() {
       const v = filters[g.key];
       const opt = v ? g.options.find(([label]) => label === v) : null;
       return !opt || opt[1](j.notice, j.judgment.status);
-    }) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
+    }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
 
-  const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS]); // eslint-disable-line react-hooks/exhaustive-deps
+  const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5);
   const matchedAll = all.filter((j) => j.matched);
   const histCount = matchedAll.filter(isHist).length;
@@ -176,6 +181,13 @@ export default function BidList() {
 
       <div className="px-5 pb-28 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-5 lg:px-0 lg:pb-0">
         <main className="min-w-0">
+          {orgOnly && (
+            <div className="mb-3 flex items-center gap-2 rounded-box bg-brand-soft px-4 py-3 text-[14px]">
+              <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{orgOnly}</b> 공고만 보고 있어요</span>
+              <button type="button" onClick={() => { setOrgOnly(null); router.replace(tab === 'match' ? '/bids' : `/bids?tab=${tab}`, { scroll: false }); }}
+                className="shrink-0 rounded-full bg-white px-3 py-1 text-[13px] font-medium text-sub">전체 보기 ×</button>
+            </div>
+          )}
           {tab === 'match' && histCount > 0 && (
             <div className="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto">
               {([[false, `맞춤 공고 전체 ${matchedAll.length.toLocaleString()}`], [true, `참여·낙찰 이력과 비슷한 공고 ${histCount.toLocaleString()}`]] as const).map(([v, label]) => (

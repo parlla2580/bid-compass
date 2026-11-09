@@ -30,6 +30,19 @@ export default function AnalysisPage() {
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
   const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5)), [matched]);
   const [tab, setTab] = useState<'me' | 'market'>('me');
+  // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
+  const openOf = useMemo(() => {
+    const m = new Map<string, { all: number; matched: number }>();
+    for (const j of judged ?? []) {
+      if (j.notice.d < 0) continue;
+      for (const k of new Set([j.notice.demandOrg ?? j.notice.org, j.notice.org])) {
+        const v = m.get(k) ?? { all: 0, matched: 0 };
+        v.all++; if (j.matched) v.matched++;
+        m.set(k, v);
+      }
+    }
+    return m;
+  }, [judged]);
 
   let body: React.ReactNode;
   if (!loaded) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
@@ -106,7 +119,7 @@ export default function AnalysisPage() {
             <HistoryCard />
 
             <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-              <BreakdownCard byType={r.by_type ?? {}} orgs={r.top_orgs ?? []} />
+              <BreakdownCard byType={r.by_type ?? {}} orgs={r.top_orgs ?? []} open={openOf} />
 
               {/* F7-2 아깝게 놓친 공고 — 1순위와 차이를 막대로 */}
               <Card title="아깝게 놓친 공고" aside={<span className="text-[13px] text-mute">1순위와 차이</span>}>
@@ -170,7 +183,7 @@ function Empty({ title, text, children }: { title: string; text: string; childre
 }
 
 /** 어디서 잘하나 — [유형 | 기관] 전환. 유형은 3칸 숫자, 기관은 낙찰률 순 막대 + 우리 평균선 */
-function BreakdownCard({ byType, orgs }: { byType: Record<string, { total: number; won: number }>; orgs: { org: string; total: number; won: number }[] }) {
+function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total: number; won: number }>; orgs: { org: string; total: number; won: number }[]; open: Map<string, { all: number; matched: number }> }) {
   const [view, setView] = useState<'type' | 'org'>('type');
   const [sort, setSort] = useState<'total' | 'rate'>('total');
   const types = (['물품', '용역', '공사'] as const).map((t) => ({ label: t, ...(byType[t] ?? { total: 0, won: 0 }) }));
@@ -211,7 +224,7 @@ function BreakdownCard({ byType, orgs }: { byType: Record<string, { total: numbe
               ))}
             </span>
           </div>
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {rows.map((o) => {
               const r = rate(o);
               return (
@@ -224,6 +237,16 @@ function BreakdownCard({ byType, orgs }: { byType: Record<string, { total: numbe
                     <div className={`absolute inset-y-0 left-0 rounded-full ${r > avg ? 'bg-brand' : 'bg-[#C9CED6]'}`} style={{ width: `${(r / maxRate) * 100}%` }} />
                     <i className="absolute -inset-y-1 w-0.5 bg-ink" style={{ left: `${(avg / maxRate) * 100}%` }} />
                   </div>
+                  {(() => {
+                    const op = open.get(o.org);
+                    if (!op?.all) return <p className="mt-1.5 text-[13px] text-mute">지금 열린 공고 없음</p>;
+                    const href = `/bids?${op.matched ? '' : 'tab=all&'}org=${encodeURIComponent(o.org)}`;
+                    return (
+                      <Link href={href} className="mt-1.5 inline-flex items-center gap-0.5 text-[13px] font-semibold text-brand">
+                        이 기관 공고, 지금 {op.all}건 열려 있어요{op.matched ? ` (맞춤 ${op.matched}건)` : ''}<ChevronRight className="h-4 w-4" />
+                      </Link>
+                    );
+                  })()}
                 </li>
               );
             })}
