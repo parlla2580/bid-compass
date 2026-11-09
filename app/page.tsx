@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
 import { NoticeRow, RowList } from '@/components/notice-row';
-import { CTA_PRIMARY, profileSummary } from '@/components/ui';
+import { profileSummary } from '@/components/ui';
 import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
 import { useJudged, useStore } from '@/lib/store';
@@ -51,7 +51,19 @@ export default function HomePage() {
           ))}
         </section>
 
-        <Link href="/bids" className={`${CTA_PRIMARY} mt-4 lg:max-w-[360px]`}>맞춤 공고 보기</Link>
+        {/* 오늘 가장 잘 맞는 공고 3건 — 전체 목록은 공고 탭에서 */}
+        {matched.length > 0 && (
+          <section className="mt-8">
+            <h2 className="mb-3 text-[18px] font-bold">오늘 가장 잘 맞는 공고</h2>
+            <RowList>
+              {[...matched].sort((x, y) => (y.fit?.score ?? -1) - (x.fit?.score ?? -1) || y.relevance - x.relevance).slice(0, 3)
+                .map((j) => <NoticeRow key={j.notice.id} item={j} lead="score" />)}
+              <Link href="/bids" className="flex items-center justify-center gap-1 py-3.5 text-[15px] font-semibold text-brand hover:bg-fill/70">
+                맞춤 공고 {matched.length.toLocaleString()}건 모두 보기<ChevronRight className="h-4 w-4" />
+              </Link>
+            </RowList>
+          </section>
+        )}
 
         {need && (
           <Link href="/mypage?edit=company" className="mt-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">

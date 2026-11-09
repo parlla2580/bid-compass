@@ -27,9 +27,9 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   const body = (
     <>
       {lead !== 'none' && (
-        <span className="flex w-10 shrink-0 justify-center pt-0.5">
+        <span className="flex w-11 shrink-0 justify-center">
           {lead === 'score'
-            ? <span className={`text-[17px] font-bold tabular-nums ${item.fit ? 'text-brand' : 'text-line'}`}>{item.fit?.score ?? '–'}</span>
+            ? <ScoreRing score={item.fit?.score ?? null} />
             : item.judgment && <span className={`mt-2 h-2 w-2 rounded-full ${STATUS_STYLE[item.judgment.status].dot}`} aria-label={item.judgment.status} />}
         </span>
       )}
@@ -55,4 +55,18 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
 /** 한 장 안에 구분선으로 나눈 목록 */
 export function RowList({ children }: { children: React.ReactNode }) {
   return <div className="divide-y divide-line overflow-hidden rounded-box bg-white">{children}</div>;
+}
+
+/** 맞춤 점수 — 순번처럼 보이지 않도록 원형 게이지 + % */
+function ScoreRing({ score }: { score: number | null }) {
+  const r = 17, c = 2 * Math.PI * r;
+  return (
+    <span className="relative flex h-10 w-10 items-center justify-center" title="우리 회사와 맞는 정도" aria-label={score === null ? '맞춤 점수 없음' : `맞춤 ${score}%`}>
+      <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="#E8EAED" strokeWidth="3" />
+        {score !== null && <circle cx="20" cy="20" r={r} fill="none" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />}
+      </svg>
+      <span className="text-[12px] font-bold tabular-nums text-brand">{score ?? '–'}<span className="text-[9px]">%</span></span>
+    </span>
+  );
 }
