@@ -21,8 +21,11 @@ const DRY = process.argv.includes('--dry') || !SB_KEY;
 const BID = 'https://apis.data.go.kr/1230000/ad/BidPublicInfoService02';
 const CNT = 'https://apis.data.go.kr/1230000/ao/CntrctInfoService';
 const SCS = 'https://apis.data.go.kr/1230000/as/ScsbidInfoService';
-// 개찰순위 상세 조회는 공고마다 1회 — 개발계정 한도(약 1,000회/일) 안에서 실행당 상한
-const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 60);
+// 개찰순위 상세 조회는 공고번호마다 1회 — 낙찰정보서비스 운영계정 전환(2026-11-09) 후 상한 상향
+// 실행 8회/일 × 1,500 = 최대 12,000회/일 (운영계정 하루 최대 10만 건 안)
+const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 1500);
+const DETAIL_PARALLEL = 4;
+const DETAIL_TIME_LIMIT = 100 * 60e3; // 실행 시간 제한(150분) 안에서 여유 있게 멈춤
 const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
 const ROWS = 999;
 const TYPES = [
@@ -296,33 +299,62 @@ async function collectOpenings(from, to) {
 
 /** 개찰완료 공고의 투찰업체 순위 (공고마다 1회, 상한 DETAIL_CAP) */
 async function collectBidDetails(sb) {
-  const { data: pending, error } = await sb.from('openings')
-    .select('id,bid_no,bid_ord,clsfc_no,rbid_no,participants')
-    .eq('details_fetched', false).eq('status', '개찰완료')
+  const started = Date.now();
+  // 회원 회사가 낙찰한 개찰을 먼저 (입찰 분석에 바로 반영되도록)
+  const { data: members } = await sb.from('company_profiles').select('bizno').not('bizno', 'is', null);
+  const memberNos = [...new Set((members ?? []).map((m) => Number(String(m.bizno).replace(/\D/g, ''))).filter(Boolean))];
+  const pick = (q) => q.eq('details_fetched', false).or('status.eq.개찰완료,status.is.null');
+  const first = memberNos.length
+    ? (await pick(sb.from('openings').select('id,bid_no,bid_ord,clsfc_no,rbid_no')).in('winner_bizno', memberNos).limit(DETAIL_CAP)).data ?? []
+    : [];
+  const { data: rest, error } = await pick(sb.from('openings').select('id,bid_no,bid_ord,clsfc_no,rbid_no'))
     .order('opened_at', { ascending: false }).limit(DETAIL_CAP);
   if (error) throw new Error(`개찰 대기 목록 조회 실패: ${error.message}`);
-  let rowsSaved = 0, done = 0;
-  for (const o of pending ?? []) {
-    const items = await fetchAll(`${SCS}/getOpengResultListInfoOpengCompt`, { bidNtceNo: o.bid_no });
-    const mine = items.filter((it) => (it.bidNtceOrd ?? '000') === o.bid_ord && (it.bidClsfcNo ?? '') === o.clsfc_no && (it.rbidNo ?? '') === o.rbid_no);
-    const results = new Map(), companies = new Map();
-    for (const it of mine) {
-      const bizno = num(String(it.prcbdrBizno ?? '').replace(/\D/g, ''));
-      if (!bizno) continue;
-      const memo = (it.rmrk ?? '').trim();
-      results.set(bizno, {
-        opening_id: o.id, bizno, rank: num(it.opengRank), amount: won(it.bidprcAmt), rate: num(it.bidprcrt),
-        note: !memo || memo === '정상' ? null : /하한/.test(memo) ? 1 : 2,
-      });
-      if (it.prcbdrNm) companies.set(bizno, { bizno, name: it.prcbdrNm, updated_at: new Date().toISOString() });
-    }
-    if (results.size) await upsert(sb, 'bid_results', [...results.values()], 'opening_id,bizno');
-    if (companies.size) await upsert(sb, 'bid_companies', [...companies.values()], 'bizno');
-    const { error: e2 } = await sb.from('openings').update({ details_fetched: true }).eq('id', o.id);
-    if (e2) throw new Error(`개찰 상세 표시 실패: ${e2.message}`);
-    rowsSaved += results.size; done++;
+
+  // 같은 공고번호(차수·분류·재입찰이 다른 개찰)는 한 번 조회로 함께 채움
+  const groups = new Map();
+  for (const o of [...first, ...(rest ?? [])]) {
+    const g = groups.get(o.bid_no) ?? new Map();
+    g.set(o.id, o);
+    groups.set(o.bid_no, g);
   }
-  console.log(`  투찰 순위: 공고 ${done}건, 투찰 기록 ${rowsSaved}행 (실행당 상한 ${DETAIL_CAP}건)`);
+  const queue = [...groups.entries()].slice(0, DETAIL_CAP);
+  let rowsSaved = 0, done = 0, calls = 0;
+
+  async function work(bidNo, opens) {
+    const items = await fetchAll(`${SCS}/getOpengResultListInfoOpengCompt`, { bidNtceNo: bidNo });
+    calls++;
+    for (const o of opens.values()) {
+      const mine = items.filter((it) => (it.bidNtceOrd ?? '000') === o.bid_ord && (it.bidClsfcNo ?? '') === o.clsfc_no && (it.rbidNo ?? '') === o.rbid_no);
+      const results = new Map(), companies = new Map();
+      for (const it of mine) {
+        const bizno = num(String(it.prcbdrBizno ?? '').replace(/\D/g, ''));
+        if (!bizno) continue;
+        const memo = (it.rmrk ?? '').trim();
+        results.set(bizno, {
+          opening_id: o.id, bizno, rank: num(it.opengRank), amount: won(it.bidprcAmt), rate: num(it.bidprcrt),
+          note: !memo || memo === '정상' ? null : /하한/.test(memo) ? 1 : 2,
+        });
+        if (it.prcbdrNm) companies.set(bizno, { bizno, name: it.prcbdrNm, updated_at: new Date().toISOString() });
+      }
+      if (results.size) await upsert(sb, 'bid_results', [...results.values()], 'opening_id,bizno');
+      if (companies.size) await upsert(sb, 'bid_companies', [...companies.values()], 'bizno');
+      const { error: e2 } = await sb.from('openings').update({ details_fetched: true }).eq('id', o.id);
+      if (e2) throw new Error(`개찰 상세 표시 실패: ${e2.message}`);
+      rowsSaved += results.size; done++;
+    }
+  }
+
+  let i = 0;
+  const errors = [];
+  await Promise.all(Array.from({ length: DETAIL_PARALLEL }, async () => {
+    while (i < queue.length && Date.now() - started < DETAIL_TIME_LIMIT) {
+      const [bidNo, opens] = queue[i++];
+      try { await work(bidNo, opens); } catch (e) { errors.push(e.message); if (errors.length > 20) return; }
+    }
+  }));
+  console.log(`  투찰 순위: 공고번호 ${calls}개 조회, 개찰 ${done}건, 투찰 기록 ${rowsSaved}행 (상한 ${DETAIL_CAP}, 회원 우선 ${first.length}건)`);
+  if (errors.length) throw new Error(`투찰 순위 일부 실패 ${errors.length}건: ${errors[0]}`);
   return rowsSaved;
 }
 
