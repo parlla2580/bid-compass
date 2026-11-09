@@ -83,7 +83,7 @@ export default function MyPage() {
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-mute">업종과 소재지가 참여 가능 판정에 쓰입니다.</p>
+        <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
       </section>
 
       {/* 매칭 선호도 */}
@@ -196,7 +196,8 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
       if (!res.ok) throw new Error(data.error);
       if (!data.registered) return toast('나라장터에 등록된 정보가 없습니다');
       setForm({
-        ...form, naraRegistered: true, corpName: data.corpName ?? form.corpName,
+        // 업체명은 대표자명 확인(가입) 때만 저장 — 조회 결과로 채우면 회사 확인 없이 입찰 분석이 열림
+        ...form, naraRegistered: true,
         location: data.location ?? form.location,
         industries: data.industries?.length ? data.industries : form.industries,
         products: data.products?.length
@@ -212,7 +213,10 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
   };
 
   return (
-    <Sheet title="기업 정보 수정" open onClose={onClose} footer={<button type="button" onClick={() => onSave(form)} className={BTN_PRIMARY}>저장</button>}>
+    <Sheet title="기업 정보 수정" open onClose={onClose} footer={
+      // 사업자번호를 바꾸면 이전 회사 확인(업체명)은 무효
+      <button type="button" onClick={() => onSave(form.bizno === profile.bizno ? form : { ...form, corpName: null })} className={BTN_PRIMARY}>저장</button>
+    }>
       <div className="space-y-6">
         <div>
           <label htmlFor="f-bizno" className="mb-1.5 block text-sm font-semibold text-sub">사업자등록번호 <span className="font-normal text-mute">(선택)</span></label>
