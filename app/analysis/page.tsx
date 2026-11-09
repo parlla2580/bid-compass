@@ -12,7 +12,6 @@ import { MarketSection } from './market';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 
-const pct = (a: number, b: number) => (b ? `${((a / b) * 100).toFixed(1)}%` : '–');
 
 /** F7 입찰 분석 — 성적표(F7-1), 아깝게 놓친 공고(F7-2), 하한선 미달(F7-3), 기관·유형별 */
 export default function AnalysisPage() {
@@ -107,12 +106,7 @@ export default function AnalysisPage() {
             <HistoryCard />
 
             <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-              <Card title="유형·기관별 성적" aside={<Legend />}>
-                <WinBars rows={[
-                  ...Object.entries(r.by_type ?? {}).map(([k, v]) => ({ label: k, total: v.total, won: v.won, strong: true })),
-                  ...(r.top_orgs ?? []).map((o) => ({ label: o.org, total: o.total, won: o.won, strong: false })),
-                ]} />
-              </Card>
+              <BreakdownCard byType={r.by_type ?? {}} orgs={r.top_orgs ?? []} />
 
               {/* F7-2 아깝게 놓친 공고 — 1순위와 차이를 막대로 */}
               <Card title="아깝게 놓친 공고" aside={<span className="text-[13px] text-mute">1순위와 차이</span>}>
@@ -175,24 +169,69 @@ function Empty({ title, text, children }: { title: string; text: string; childre
   );
 }
 
-/** 투찰(회색) 위에 낙찰(파랑)을 겹친 막대 + 낙찰률 */
-function WinBars({ rows }: { rows: { label: string; total: number; won: number; strong: boolean }[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.total));
+/** 어디서 잘하나 — [유형 | 기관] 전환. 유형은 3칸 숫자, 기관은 낙찰률 순 막대 + 우리 평균선 */
+function BreakdownCard({ byType, orgs }: { byType: Record<string, { total: number; won: number }>; orgs: { org: string; total: number; won: number }[] }) {
+  const [view, setView] = useState<'type' | 'org'>('type');
+  const [sort, setSort] = useState<'total' | 'rate'>('total');
+  const types = (['물품', '용역', '공사'] as const).map((t) => ({ label: t, ...(byType[t] ?? { total: 0, won: 0 }) }));
+  const sumT = types.reduce((a, t) => a + t.total, 0), sumW = types.reduce((a, t) => a + t.won, 0);
+  const avg = sumT ? sumW / sumT : 0;
+  const rate = (o: { won: number; total: number }) => (o.total ? o.won / o.total : 0);
+  const rows = [...orgs].sort((a, b) => (sort === 'rate' ? rate(b) - rate(a) || b.total - a.total : b.total - a.total));
+  const maxRate = Math.max(avg, ...rows.map(rate), 0.01);
+  const seg = (on: boolean) => `rounded-[10px] px-3 py-1.5 text-[14px] font-semibold transition ${on ? 'bg-white text-ink shadow-sm' : 'text-mute'}`;
   return (
-    <ul className="space-y-3">
-      {rows.map((r, i) => (
-        <li key={`${r.label}-${i}`}>
-          <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px]">
-            <span className={`min-w-0 truncate ${r.strong ? 'font-semibold' : 'text-sub'}`}>{r.label}</span>
-            <span className="shrink-0 tabular-nums text-mute">{r.won}/{r.total}건 · <b className="font-semibold text-ink">{pct(r.won, r.total)}</b></span>
+    <Card title="어디서 잘하나" aside={
+      <div className="flex gap-1 rounded-btn bg-line/60 p-1" role="tablist">
+        <button type="button" role="tab" aria-selected={view === 'type'} onClick={() => setView('type')} className={seg(view === 'type')}>유형</button>
+        <button type="button" role="tab" aria-selected={view === 'org'} onClick={() => setView('org')} className={seg(view === 'org')}>기관</button>
+      </div>
+    }>
+      {view === 'type' ? (
+        <div className="grid grid-cols-3 gap-2">
+          {types.map((t) => {
+            const r = rate(t), best = t.total > 0 && types.every((x) => x.total === 0 || rate(x) <= r);
+            return (
+              <div key={t.label} className={`rounded-2xl p-3 text-center ${t.total ? 'bg-fill' : 'bg-fill/50'}`}>
+                <p className="text-[14px] font-semibold text-sub">{t.label}</p>
+                <p className={`mt-1 text-[22px] font-bold tabular-nums ${!t.total ? 'text-mute' : best ? 'text-brand' : 'text-ink'}`}>{t.total ? `${Math.round(r * 100)}%` : '–'}</p>
+                <p className="mt-0.5 text-[12px] tabular-nums text-mute">{t.total ? `${t.won}/${t.total}건` : '투찰 없음'}</p>
+                <div className="mx-auto mt-2 h-1.5 w-full rounded-full bg-white"><div className="h-1.5 rounded-full bg-brand" style={{ width: `${r * 100}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
+      ) : rows.length ? (
+        <>
+          <div className="mb-3 flex items-center justify-between text-[13px] text-mute">
+            <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-0.5 bg-ink" />우리 평균 {Math.round(avg * 100)}%</span>
+            <span className="flex gap-2">
+              {(['total', 'rate'] as const).map((k) => (
+                <button key={k} type="button" onClick={() => setSort(k)} className={sort === k ? 'font-semibold text-ink' : ''}>{k === 'total' ? '투찰 많은 순' : '낙찰률 순'}</button>
+              ))}
+            </span>
           </div>
-          <div className="relative h-2.5 rounded-full bg-fill">
-            <div className="absolute inset-y-0 left-0 rounded-full bg-line" style={{ width: `${(r.total / max) * 100}%` }} />
-            <div className="absolute inset-y-0 left-0 rounded-full bg-brand" style={{ width: `${(r.won / max) * 100}%` }} />
-          </div>
-        </li>
-      ))}
-    </ul>
+          <ul className="space-y-3">
+            {rows.map((o) => {
+              const r = rate(o);
+              return (
+                <li key={o.org}>
+                  <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px]">
+                    <span className="min-w-0 truncate">{o.org}</span>
+                    <span className="shrink-0 tabular-nums text-mute">{o.won}/{o.total}건 · <b className={`font-semibold ${r > avg ? 'text-brand' : 'text-ink'}`}>{Math.round(r * 100)}%</b></span>
+                  </div>
+                  <div className="relative h-2.5 rounded-full bg-fill">
+                    <div className={`absolute inset-y-0 left-0 rounded-full ${r > avg ? 'bg-brand' : 'bg-[#C9CED6]'}`} style={{ width: `${(r / maxRate) * 100}%` }} />
+                    <i className="absolute -inset-y-1 w-0.5 bg-ink" style={{ left: `${(avg / maxRate) * 100}%` }} />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-[12px] text-mute">파란 막대는 우리 평균보다 낙찰률이 높은 기관이에요. 투찰이 적은 기관은 우연일 수 있어요.</p>
+        </>
+      ) : <p className="py-6 text-center text-[14px] text-mute">아직 기관별로 볼 만큼 투찰이 없어요</p>}
+    </Card>
   );
 }
 
