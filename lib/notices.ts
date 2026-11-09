@@ -24,7 +24,28 @@ export async function fetchOpenNotices(): Promise<Notice[]> {
     rows.push(...((data ?? []) as NoticeRow[]));
     if (!data || data.length < PAGE) break;
   }
-  return rows.map((r) => toNotice(r, now));
+  return latestOnly(rows.map((r) => toNotice(r, now)));
+}
+
+/**
+ * 같은 공고번호는 마지막 차수만 남김 (변경공고가 나오면 이전 차수는 낡은 정보)
+ * 마지막 차수가 취소공고면 그 공고는 통째로 뺌
+ */
+export function latestOnly(list: Notice[]): Notice[] {
+  const last = new Map<string, Notice>();
+  for (const n of list) {
+    const cur = last.get(n.bidNo);
+    if (!cur || n.bidOrd > cur.bidOrd) last.set(n.bidNo, n);
+  }
+  const keep = new Set([...last.values()].filter((n) => !/취소/.test(n.kind ?? '')).map((n) => n.id));
+  return list.filter((n) => keep.has(n.id));
+}
+
+/** 같은 공고번호의 마지막 차수 — 상세 화면에서 취소·변경 여부 안내용 */
+export async function fetchLatestOrder(bidNo: string): Promise<{ id: number; bidOrd: string; kind: string | null } | null> {
+  const { data } = await getSupabase().from('notices').select('id,bid_ord,kind:raw->>ntceKindNm')
+    .eq('bid_no', bidNo).order('bid_ord', { ascending: false }).limit(1).maybeSingle();
+  return data ? { id: data.id, bidOrd: data.bid_ord, kind: data.kind ?? null } : null;
 }
 
 export async function fetchNotice(id: number): Promise<Notice | null> {

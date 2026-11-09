@@ -57,6 +57,8 @@ export interface Notice {
   productName: string | null;
   /** 공고 품목 (물품: 구매대상 세부품명, 용역: 공공조달분류) */
   products: Product[];
+  /** 공고종류 — 등록공고 / 변경공고 / 재공고 / 취소공고 */
+  kind: string | null;
   url: string | null;
   postedAt: Date;
   /** 오늘 게시 */
@@ -135,10 +137,11 @@ export interface NoticeRow {
   p_list?: string | null;
   s_code?: string | null;
   s_name?: string | null;
+  kind?: string | null;
 }
 
 export const NOTICE_COLUMNS =
-  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm';
+  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm,kind:raw->>ntceKindNm';
 
 /** '[1^1016170701^꽃꽂이],[2^…]' + 세부품명번호 + 공공조달분류 → 품목 목록 */
 function noticeProducts(r: NoticeRow): Product[] {
@@ -177,6 +180,7 @@ export function toNotice(r: NoticeRow, now = new Date()): Notice {
     licenseLimits: r.license_limits?.length ? r.license_limits : null,
     productName: r.product_name,
     products: noticeProducts(r),
+    kind: r.kind ?? null,
     url: r.url,
     postedAt,
     isNew: kstDay(postedAt) === kstDay(now),

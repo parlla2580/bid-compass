@@ -12,7 +12,7 @@ import { Term } from '@/components/term';
 import type { Industry, Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
-import { fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
+import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
 import { fetchNoticeExtra, fetchPastStats, type NoticeExtra, type PastStats } from '@/lib/briefing';
 import { prepareHistory, similarity } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
@@ -80,6 +80,7 @@ function Detail({ n }: { n: Notice }) {
   return (
     <main className="px-5 pb-32 lg:px-0 lg:pb-0">
       <Hero n={n} />
+      <OrderNotice n={n} />
 
       {gated && <SignupGate onSignup={() => setSignup(true)} />}
       <div aria-hidden={gated || undefined}
@@ -129,6 +130,22 @@ function Detail({ n }: { n: Notice }) {
         reason={gated ? '가입하면 이 공고의 판정 근거, 경쟁·낙찰률, 지난 계약 업체와 금액을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
         onDone={() => { setSignup(false); if (!gated) save(); }} />
     </main>
+  );
+}
+
+/** 취소·변경된 공고 안내 — 같은 공고번호의 마지막 차수를 확인 */
+function OrderNotice({ n }: { n: Notice }) {
+  const [latest, setLatest] = useState<{ id: number; bidOrd: string; kind: string | null } | null>(null);
+  useEffect(() => { fetchLatestOrder(n.bidNo).then(setLatest).catch(() => setLatest(null)); }, [n.bidNo]);
+  const cancelled = /취소/.test(n.kind ?? '') || (!!latest && /취소/.test(latest.kind ?? ''));
+  const newer = latest && latest.id !== n.id && !/취소/.test(latest.kind ?? '');
+  if (!cancelled && !newer) return null;
+  return (
+    <div className="mt-4 rounded-box bg-white px-5 py-4 text-[15px]">
+      {cancelled
+        ? <p><b className="font-semibold text-bad">취소된 공고예요.</b> <span className="text-sub">나라장터에서 취소공고가 올라왔어요. 입찰에 참여할 수 없어요.</span></p>
+        : <p className="text-sub"><b className="font-semibold text-ink">변경된 공고가 있어요.</b> <Link href={`/bids/${latest!.id}`} className="font-semibold text-brand">최신 공고 보기 →</Link></p>}
+    </div>
   );
 }
 
