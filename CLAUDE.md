@@ -13,7 +13,7 @@
 - 그 밖의 설정 화면도 가능한 한 바로 열리는 주소를 준다.
 
 ## 프로젝트 정보
-- 기획서: 노션 「입찰나침반 서비스 기획서 v2.2」 (최신 확정 사항은 12장)
+- 기획서: 노션 「입찰나침반 서비스 기획서 v2.3」 (v2.2는 보관본)
 - 배포: https://bid-compass-gamma.vercel.app (main 브랜치 자동 배포)
 - Supabase 프로젝트: ipchal_1 (`tpuhqzxhrwuugojsnfpj`)
 - 수집: GitHub Actions `.github/workflows/collect.yml` — 3시간마다, 결과는 `collect_runs` 테이블
