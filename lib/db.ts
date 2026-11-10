@@ -75,9 +75,17 @@ export async function loadMember(userId: string): Promise<{ profile: Profile | n
 }
 
 export async function saveProfile(userId: string, p: Profile) {
-  const { error } = await getSupabase()
-    .from('company_profiles')
-    .upsert({ ...toRow(userId, p), updated_at: new Date().toISOString() });
+  const row = { ...toRow(userId, p), updated_at: new Date().toISOString() };
+  const sb = getSupabase();
+  const { error } = await sb.from('company_profiles').upsert(row);
+  // 새 열이 아직 DB에 없으면(마이그레이션 실행 전) 그 열만 빼고 다시 저장 — 나머지 정보는 지킴
+  const missing = error && /Could not find the '(\w+)' column/.exec(error.message)?.[1];
+  if (missing && missing in row) {
+    const { [missing as keyof typeof row]: _skip, ...rest } = row; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const retry = await sb.from('company_profiles').upsert(rest);
+    if (retry.error) throw retry.error;
+    return;
+  }
   if (error) throw error;
 }
 
