@@ -11,6 +11,7 @@ import { fetchMyBidList, fetchMyReport, type BidReport, type MyBidItem, type Nea
 import { MarketSection } from './market';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
+import { GATE } from '@/lib/fit';
 
 
 /** F7 입찰 분석 — 성적표(F7-1), 아깝게 놓친 공고(F7-2), 하한선 미달(F7-3), 기관·유형별 */
@@ -28,7 +29,7 @@ export default function AnalysisPage() {
 
   // 맞춤 공고 중 '이력' 근거가 있는 공고 — 맞춤 공고 수의 부분집합이 되도록 같은 기준 사용
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
-  const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= 0.5)), [matched]);
+  const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= GATE.hist)), [matched]);
   const [tab, setTab] = useState<'me' | 'market'>('me');
   // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
   const openOf = useMemo(() => {

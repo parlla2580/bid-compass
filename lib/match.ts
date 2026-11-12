@@ -2,6 +2,7 @@ import { keywordHit, type Notice, type Product, type Profile } from './data';
 import type { Judgment } from './judge';
 import type { Similarity } from './analysis';
 import { words } from './notices';
+import { specificity, titleDf, type Stats } from './stats';
 
 /* =========================================================
  * 맞춤 공고 — 관련성 ('우리 일인가')
@@ -29,7 +30,7 @@ function prefixSim(a: string, b: string): number {
   return 0;
 }
 
-export function productMatch(n: Notice, mine: Product[] | null): ProductMatch | null {
+export function productMatch(n: Notice, mine: Product[] | null, stats: Stats | null = null): ProductMatch | null {
   if (!mine?.length) return null;
   let best: ProductMatch | null = null;
   const title = words(`${n.title} ${n.products.map((p) => p.name).join(' ')}`);
@@ -39,14 +40,16 @@ export function productMatch(n: Notice, mine: Product[] | null): ProductMatch | 
       if (sim > (best?.sim ?? 0)) best = { sim, mine: m, theirs: t };
     }
     // 품명 핵심어가 공고명·품명에 들어 있으면 보조 인정
-    if ((best?.sim ?? 0) < 0.6 && [...words(m.name)].some((w) => w.length >= 2 && title.has(w))) {
+    // 단, 'AI'·'소프트웨어'처럼 흔한 낱말은 제외 (공고명 특이도 0.6 이상인 낱말만)
+    if ((best?.sim ?? 0) < 0.6 && [...words(m.name)].some((w) => w.length >= 2 && title.has(w) && (!stats || specificity(stats, titleDf(stats, w)) >= 0.6))) {
       best = { sim: 0.6, mine: m, theirs: n.products[0] ?? { code: '', name: n.title } };
     }
   }
   return best && best.sim > 0 ? best : null;
 }
 
-export type RelevanceReason = 'product' | 'keyword' | 'license' | 'history' | 'unknown' | 'none' | 'excluded';
+/** weak: 관련 근거는 있지만 흔한 품목·업종뿐이라 약함 → '다른 참여 가능'으로 접음 (맞춤 점수 v4 관문) */
+export type RelevanceReason = 'product' | 'keyword' | 'license' | 'history' | 'unknown' | 'none' | 'excluded' | 'weak';
 
 /**
  * 관련성 판단
@@ -73,12 +76,12 @@ export function relevanceOf(n: Notice, p: Profile, j: Judgment, pm: ProductMatch
     const hit = n.licenseLimits.some((l) => (l.code && active.has(l.code)) || l.allowed.some((a) => active.has(/\/(\w+)$/.exec(a)?.[1] ?? '')));
     if (hit) return 'license';
   }
-  if ((similar?.score ?? 0) >= 1.5) return 'history';
+  if ((similar?.score ?? 0) >= 0.35) return 'history';
   if (!p.products?.length && !similar) return 'unknown';
   return 'none';
 }
 
-export const isRelevant = (r: RelevanceReason) => r !== 'none' && r !== 'excluded';
+export const isRelevant = (r: RelevanceReason) => r !== 'none' && r !== 'excluded' && r !== 'weak';
 
 /** 추천 품목 칩 — 회사 업종명의 핵심어가 들어간 공고 품목 중 자주 나온 것 */
 export function suggestProducts(notices: Notice[] | null, industries: { name: string }[] | null, have: Product[] = []): Product[] {

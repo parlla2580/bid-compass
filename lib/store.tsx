@@ -7,6 +7,7 @@ import { judge, relevance, type Judgment } from './judge';
 import { fetchCompetition, fetchOpenNotices, type Competition } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { fitScore, type Fit } from './fit';
+import { buildStats, type Stats } from './stats';
 import { isRelevant, productMatch, relevanceOf, type ProductMatch, type RelevanceReason } from './match';
 import { getSupabase, supabaseEnabled } from './supabase';
 
@@ -42,6 +43,8 @@ interface Store {
   history: HistoryItem[];
   /** 기관·유형별 경쟁 강도 (013 전이면 null) */
   competition: Competition | null;
+  /** 공고 말뭉치 통계 (맞춤 점수 v4) */
+  stats: Stats | null;
   /** 마감 전 공고 (Supabase) — null: 불러오는 중 */
   notices: Notice[] | null;
   noticesError: string | null;
@@ -80,6 +83,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [noticesError, setNoticesError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [competition, setCompetition] = useState<Competition | null>(null);
+  // 공고 말뭉치 통계 — 흔한 품목·업종·낱말일수록 배점을 낮추는 데 씀 (맞춤 점수 v4)
+  const stats = useMemo(() => (notices?.length ? buildStats(notices) : null), [notices]);
   useEffect(() => { if (supabaseEnabled) fetchCompetition().then(setCompetition).catch(() => setCompetition(null)); }, []);
   // 비동기 작업에서 최신 값을 쓰기 위한 참조
   const profileRef = useRef(profile);
@@ -248,10 +253,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       noticesError,
       history,
       competition,
+      stats,
       syncError,
       clearSyncError: () => setSyncError(null),
     }),
-    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, competition, syncError],
+    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, competition, stats, syncError],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -281,23 +287,25 @@ export interface Judged {
 
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
 export function useJudged(): Judged[] | null {
-  const { profile, notices, history, competition } = useStore();
+  const { profile, notices, history, competition, stats } = useStore();
   const hist = useMemo(() => prepareHistory(history), [history]);
   return useMemo(
     () =>
       notices?.map((notice) => {
         const judgment = judge(notice, profile);
-        const similar = hist.length ? similarity(notice, hist) : null;
+        const similar = hist.length ? similarity(notice, hist, stats) : null;
         // 이력과 닮은 공고를 위로 (유사도는 순서에만 쓰고 판정에는 쓰지 않음)
-        const boost = similar ? Math.min(40, similar.score * 10) : 0;
-        const product = productMatch(notice, profile.products);
-        const fit = fitScore(notice, profile, judgment, similar, history, product, competition);
-        const rel = relevanceOf(notice, profile, judgment, product, similar);
+        const boost = similar ? Math.min(40, similar.score * 40) : 0;
+        const product = productMatch(notice, profile.products, stats);
+        const fit = fitScore(notice, profile, judgment, similar, history, product, competition, stats);
+        let rel = relevanceOf(notice, profile, judgment, product, similar);
+        // 맞춤 점수 v4 관문 — 흔한 품목·업종만 맞는 공고는 '다른 참여 가능'으로 (꼭 볼 단어는 예외)
+        if (fit && !fit.gate && isRelevant(rel) && rel !== 'keyword') rel = 'weak';
         return {
           notice, judgment, relevance: relevance(notice, profile, judgment) + boost + (product ? product.sim * 40 : 0),
           similar, fit, product, rel, matched: judgment.status === 'eligible' && isRelevant(rel),
         };
       }) ?? null,
-    [profile, notices, hist, history, competition],
+    [profile, notices, hist, history, competition, stats],
   );
 }

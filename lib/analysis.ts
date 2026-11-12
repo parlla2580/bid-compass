@@ -1,5 +1,6 @@
 import type { Notice } from './data';
 import { words } from './notices';
+import { idf, type Stats } from './stats';
 import { getSupabase } from './supabase';
 
 /* =========================================================
@@ -59,11 +60,14 @@ export async function fetchMyHistory(): Promise<HistoryItem[]> {
   return (data ?? []) as HistoryItem[];
 }
 
-/* ---------- F7-4 이력 기반 유사도 ----------
- * 공고명 핵심어 겹침 + 같은 기관 + 같은 사업유형 + 비슷한 금액대.
- * 낙찰한 이력은 1.5배, 최근 1년은 1.5배 가중 (최근일수록 정확하다는 기획 원칙)
+/* ---------- F7-4 이력 기반 유사도 (v2, 2026-11-12) ----------
+ * 공고명 낱말의 TF-IDF 코사인 유사도 — 드문 낱말이 겹칠수록 높게 (입찰 일반어 제외, 정보량 낮은 낱말은 경사로 감쇠)
+ *   + 같은 기관이면 남은 거리의 30%를 더 가깝게, 다른 사업유형이면 ×0.8, 비슷한 금액대(±2배)면 남은 거리의 10%
+ *   + 낙찰 이력 ×1.3, 최근 1년 ×1.2 (상한 1)
+ * 가장 비슷한 3건을 '하나라도 진짜 비슷할 확률'로 합침: H = 1 − Π(1 − s_k)  (0~1)
  */
 export interface Similarity {
+  /** 0~1 */
   score: number;
   /** 가장 비슷한 과거 공고 */
   best: HistoryItem | null;
@@ -74,25 +78,40 @@ export function prepareHistory(items: HistoryItem[]) {
   return items.map((h) => ({
     h,
     w: words(h.title),
-    weight: (h.won ? 1.5 : 1) * (now - new Date(h.opened_at).getTime() < 365 * 86400e3 ? 1.5 : 1),
+    weight: (h.won ? 1.3 : 1) * (now - new Date(h.opened_at).getTime() < 365 * 86400e3 ? 1.2 : 1),
   }));
 }
 
-export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>): Similarity {
+/** 어느 분야 공고에나 나오는 입찰 일반어 — 이력 유사도에서 제외 */
+const GENERIC = /^(\d{4}(학년도|년도|년)?|\d+차|\d+단계|구축|시스템|고도화|플랫폼|통합|운영|유지관리|유지보수|개발|설치|선정|재공고|업체|기반|관련|위한|및|등|용|제작|개선|지원|관리|서비스|사업|구매|입찰공고|안내|수의계약|단가계약|협상에의한계약|연간|신규|추가)$/;
+
+export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>, stats: Stats | null = null): Similarity {
   if (!hist.length) return { score: 0, best: null };
   const target = words(`${n.title} ${n.productName ?? ''}`);
-  let best: HistoryItem | null = null, bestScore = 0;
+  // 낱말 가중치 = idf² × 정보량 경사(idf 3.5 이하 0 → 5.5 이상 1). 입찰 일반어는 0
+  const weightOf = (w: string) => {
+    if (GENERIC.test(w)) return 0;
+    const v = idf(stats, w);
+    return stats ? v * v * Math.max(0, Math.min(1, (v - 3.5) / 2)) : 1;
+  };
+  const norm = (ws: Set<string>) => Math.sqrt([...ws].reduce((x, w) => x + weightOf(w), 0));
+  const tNorm = norm(target);
+  if (!tNorm) return { score: 0, best: null };
+  const top: { s: number; h: HistoryItem }[] = [];
   for (const { h, w, weight } of hist) {
-    let s = 0;
-    for (const x of w) if (target.has(x)) s += 1;
-    if (s === 0) continue;
-    if (h.org && (h.org === n.org || h.demand_org === n.demandOrg)) s += 1;
-    if (h.bid_type === n.type) s += 0.5;
-    if (h.amount && n.estPrice && Math.abs(Math.log10(h.amount / n.estPrice)) < 0.3) s += 0.5;
-    s *= weight;
-    if (s > bestScore) { bestScore = s; best = h; }
+    let dot = 0;
+    for (const x of w) if (target.has(x)) dot += weightOf(x);
+    if (!dot) continue;
+    let s = dot / (tNorm * norm(w));
+    if (h.org && (h.org === n.org || (!!n.demandOrg && h.demand_org === n.demandOrg))) s += 0.3 * (1 - s);
+    if (h.bid_type !== n.type) s *= 0.8;
+    if (h.amount && n.estPrice && Math.abs(Math.log10(h.amount / n.estPrice)) < 0.3) s += 0.1 * (1 - s);
+    top.push({ s: Math.min(1, s * weight), h });
   }
-  return { score: bestScore, best };
+  if (!top.length) return { score: 0, best: null };
+  top.sort((a, b) => b.s - a.s);
+  const score = 1 - top.slice(0, 3).reduce((x, t) => x * (1 - t.s), 1);
+  return { score, best: top[0].h };
 }
 
 /* ---------- 우리 시장 (010) ---------- */

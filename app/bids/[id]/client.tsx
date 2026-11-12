@@ -60,13 +60,13 @@ export default function NoticeDetail({ id }: { id: number }) {
 }
 
 function Detail({ n }: { n: Notice }) {
-  const { profile, saved, toggleSaved, account, loaded, history, competition } = useStore();
+  const { profile, saved, toggleSaved, account, loaded, history, competition, stats } = useStore();
   // 가입 전에는 상세를 흐리게 보여주고 가입 안내 (기획 v2.2)
   const gated = loaded && !account;
   const toast = useToast();
   const [signup, setSignup] = useState(false);
   const j = judge(n, profile);
-  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history)) : null, history, productMatch(n, profile.products), competition);
+  const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history), stats) : null, history, productMatch(n, profile.products, stats), competition, stats);
   const closed = n.d < 0;
   const on = saved.includes(n.id);
   const save = () => toast(toggleSaved(n.id) ? '저장했어요' : '저장을 취소했어요');

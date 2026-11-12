@@ -4,27 +4,38 @@ import type { HistoryItem, Similarity } from './analysis';
 import type { ProductMatch } from './match';
 import { words, type Competition } from './notices';
 import { keywordHit } from './data';
+import { licCode, specificity, titleDf, type Stats } from './stats';
 
 /* =========================================================
- * 맞춤 점수 v2 — '우리 회사와 맞는 정도' (판정과 별개, 낙찰 확률 아님)
+ * 맞춤 점수 v4 — '우리 회사와 맞는 정도' (판정과 별개, 낙찰 확률 아님)
  *
- * v1 문제: 요소 값이 1 / 0.5처럼 몇 단계뿐이라 같은 점수(77, 58…)가 무더기로 나오고,
- *          기본값(관심 유형 3개 모두 선택 등)이 점수를 부풀려 차별성이 없었다.
+ * v3 문제: 흔한 품목·업종도 드문 것과 같은 배점 → 솔트룩스형 회사 맞춤 1,871건, 80점대 893건
+ * v4 (2026-11-12): 근거마다 '얼마나 드문가'(특이도, lib/stats)로 배점 차등 + 이력 유사 공고 강하게
  *
- * v3 구조(2026-11-09): 점수 = 15 + 관련도(≤70점) + 조건(더하고 빼기)
- *   v2(곱하기)는 품목 일치만으로 상한(99)에 닿아 상위가 모두 99점이던 문제를 고침
- *   예) 같은 품목만 맞음 ≈77, + 금액대 안 ≈83, + 시도 제한 ≈87, + 경쟁 적음 ≈93, + 거래 기관 99
- *  ① 핵심 관련도 — '우리 일인가'. 아래 중 가장 높은 값 + 여러 근거가 겹치면 가산
- *     - 품목: 품명번호 앞자리 일치(10자리 1.0 / 8 0.85 / 6 0.6 / 4 0.35), 공고 품목 중 맞는 비율로 세분
- *     - 핵심어: 회사 품목·업종 이름의 핵심어가 공고명·품명에 얼마나 들어 있나 (연속값)
- *     - 이력: 과거 참여·낙찰 공고와의 유사도 (연속값)
- *     - 면허: 우리 업종을 요구하는 공고 0.7 (면허만으로는 '우리 일'이라 단정하기 어려움)
- *  ② 보정 — 금액대(로그 거리, 연속), 마감 여유, 지역 범위, 거래 경험 기관, 관심 유형(직접 좁힌 경우만)
+ * 점수 = 20 + 관련도 55 × R + 이력 30 × H + 조건(금액·지역·경쟁·기관·마감·유형)
+ *  R = 가장 강한 근거 + 나머지는 남은 거리의 35%씩 (상관된 근거를 할인한 noisy-OR)
+ *    - 품목  v = 계층 일치(1/0.85/0.6/0.35) × 공고 내 비중 × (0.4 + 0.6 × 특이도)
+ *    - 단어  v = 1 − Π(1 − 0.6 × 특이도_w)  공고명에 나온 회사 핵심어 (품명에만 있으면 절반, 품목 근거와 겹치면 절반)
+ *    - 면허  v = 0.15 + 0.45 × 특이도 × 좁힘(허용 업종이 적을수록)
+ *    - 꼭 볼 단어 0.9
+ *  H = 이력 유사도(TF-IDF, lib/analysis) — 따로 30점까지 더해 가장 강하게
+ * 관문(맞춤 공고): R ≥ 0.7 (품목 없는 회사 0.4) 또는 H ≥ 0.3 또는 꼭 볼 단어 — 못 넘으면 '다른 참여 가능'으로 접음
  * ========================================================= */
 
 export type FitMark = 'good' | 'mid' | 'low';
 export interface FitFactor { key: string; label: string; mark: FitMark; text: string; weight: number; value: number }
-export interface Fit { score: number; factors: FitFactor[] }
+export interface Fit {
+  score: number;
+  factors: FitFactor[];
+  /** 관련도 R(0~1)과 이력 H(0~1) */
+  rel: number;
+  hist: number;
+  /** 맞춤 공고 관문 통과 */
+  gate: boolean;
+}
+
+/** 맞춤 공고 관문 */
+export const GATE = { rel: 0.7, relNoProduct: 0.4, hist: 0.3 };
 
 /** 과거 투찰 금액 중간 80% 범위 */
 function amountBand(hist: HistoryItem[]): [number, number] | null {
@@ -43,87 +54,105 @@ function industryWords(names: string[]): Set<string> {
     .filter((w) => w.length >= 2 && !/^(일반|기타|종합|전문|공급|개발|관련|서비스)$/.test(w))));
 }
 
-/** 핵심어가 공고 글에 들어 있는 정도 — 부분 문자열 포함까지 인정, 많이 맞을수록 높게(0~1) */
-function keywordScore(keys: Set<string>, text: string): { v: number; hit: string[] } {
-  if (!keys.size) return { v: 0, hit: [] };
-  const hit = [...keys].filter((k) => text.includes(k));
-  if (!hit.length) return { v: 0, hit };
-  // 1개 0.45, 2개 0.65, 3개 이상 0.8 + 긴 핵심어(구체적인 말) 가산
-  const base = hit.length >= 3 ? 0.8 : hit.length === 2 ? 0.65 : 0.45;
-  const specific = Math.min(0.15, hit.reduce((s, w) => s + Math.max(0, w.length - 3) * 0.03, 0));
-  return { v: clamp(base + specific), hit };
-}
-
-export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[], pm: ProductMatch | null = null, comp: Competition | null = null): Fit | null {
+export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity | null, hist: HistoryItem[], pm: ProductMatch | null = null, comp: Competition | null = null, stats: Stats | null = null): Fit | null {
   if (j.status === 'ineligible') return null;
   const f: FitFactor[] = [];
   const mark = (v: number): FitMark => (v >= 0.75 ? 'good' : v >= 0.45 ? 'mid' : 'low');
   const push = (key: string, label: string, value: number, text: string, weight = 1) => f.push({ key, label, value, text, weight, mark: mark(value) });
+  const spec = (df: number | undefined) => (stats ? specificity(stats, df ?? 0) : 0.6);
+  const rarity = (sp: number, df?: number) => (!stats || df === undefined ? '' : sp >= 0.75 ? ' · 드문 일치' : sp < 0.4 ? ` · 흔한 품목(공고 ${df.toLocaleString()}건)` : '');
 
-  /* ---------- ① 핵심 관련도 ---------- */
-  const cores: number[] = [];
-  const text = `${n.title} ${n.products.map((x) => x.name).join(' ')}`;
+  /* ---------- ① 관련도 R — 근거별 특이도로 차등 ---------- */
+  const ev: number[] = [];
 
-  // 품목 — 계층 일치 + 공고 품목 중 맞는 비율
+  // 품목 — 계층 일치 × 공고 내 비중 × 특이도
+  let prodV = 0;
   if (p.products?.length && n.products.length) {
-    const level = (a: string, b: string) =>
-      a.slice(0, 10) === b.slice(0, 10) && a.length >= 10 && b.length >= 10 ? 1
-        : a.slice(0, 8) === b.slice(0, 8) ? (a.length === 8 && b.length === 8 ? 1 : 0.85)
-          : a.slice(0, 6) === b.slice(0, 6) ? 0.6 : a.slice(0, 4) === b.slice(0, 4) ? 0.35 : 0;
-    const per = n.products.map((t) => Math.max(...p.products!.map((m) => level(m.code, t.code))));
-    const best = Math.max(...per);
-    const share = per.filter((v) => v >= 0.6).length / per.length; // 여러 품목 공고에서 우리 품목 비중
-    const v = best > 0 ? clamp(best * (0.85 + 0.15 * share)) : 0;
-    if (v > 0) cores.push(v);
-    push('product', '품목', v, pm && v > 0
-      ? `주요 품목 '${pm.mine.name}'${best >= 1 ? '과 같은 품목' : best >= 0.85 ? '과 같은 품명' : '과 비슷한 분류'}${per.length > 1 ? ` (공고 품목 ${per.length}개 중 ${per.filter((x) => x >= 0.6).length}개)` : ''}`
+    const level = (a: string, b: string): [number, number] =>
+      a.length >= 10 && b.length >= 10 && a.slice(0, 10) === b.slice(0, 10) ? [1, 10]
+        : a.slice(0, 8) === b.slice(0, 8) ? [a.length === 8 && b.length === 8 ? 1 : 0.85, 8]
+          : a.slice(0, 6) === b.slice(0, 6) ? [0.6, 6] : a.slice(0, 4) === b.slice(0, 4) ? [0.35, 4] : [0, 0];
+    let best = 0, bestLen = 0, bestCode = '';
+    const per = n.products.map((t) => {
+      let m = 0;
+      for (const mine of p.products!) {
+        const [v, len] = level(mine.code, t.code);
+        if (v > m) m = v;
+        if (v > best) { best = v; bestLen = len; bestCode = t.code; }
+      }
+      return m;
+    });
+    const share = per.filter((v) => v >= 0.6).length / per.length;
+    const df = bestLen ? stats?.prod.get(bestCode.slice(0, bestLen)) : undefined;
+    const sp = spec(df);
+    prodV = best > 0 ? clamp(best * (0.85 + 0.15 * share) * (0.4 + 0.6 * sp)) : 0;
+    if (prodV > 0) ev.push(prodV);
+    push('product', '품목', prodV, pm && prodV > 0
+      ? `주요 품목 '${pm.mine.name}'${best >= 1 ? '과 같은 품목' : best >= 0.85 ? '과 같은 품명' : '과 비슷한 분류'}${per.length > 1 ? ` (공고 품목 ${per.length}개 중 ${per.filter((x) => x >= 0.6).length}개)` : ''}${rarity(sp, df)}`
       : '주요 품목과 다른 품목', 3);
   }
 
-  // 핵심어 — 회사 품목명·업종명
+  // 단어 — 회사 품목명·업종명 핵심어. 낱말마다 특이도로 가중 (흔한 'AI'·'소프트웨어'는 작게)
   const off = new Set((p.muted ?? []).filter((m) => m.kind === 'industry').map((m) => m.code));
   const activeInd = (p.industries ?? []).filter((i) => !off.has(i.code));
-  const keys = new Set([...industryWords(activeInd.map((i) => i.name)), ...(p.products ?? []).flatMap((x) => [...words(x.name)])]);
-  // 공고 제목에 나오면 그 일이 공고의 중심 — 품명에만 있으면(여러 품목 중 하나일 수 있음) 70%만 인정
-  const kwTitle = keywordScore(keys, n.title);
-  const kwAll = keywordScore(keys, text);
-  const kw = kwTitle.v >= kwAll.v * 0.7 ? { ...kwTitle, where: '제목' } : { v: kwAll.v * 0.7, hit: kwAll.hit, where: '품명' };
-  if (kw.v > 0) { cores.push(kw.v); push('keyword', '핵심어', kw.v, `공고 ${kw.where}에 '${kw.hit.slice(0, 3).join("', '")}' 포함`, 2); }
+  // 품목을 넣은 회사는 품목명 낱말만 — 업종명 낱말('연구용역' 등)은 너무 넓음. 품목이 없을 때만 업종명 사용
+  const keys = [...new Set(p.products?.length ? p.products.flatMap((x) => [...words(x.name)]) : [...industryWords(activeInd.map((i) => i.name))])];
+  const names = n.products.map((x) => x.name).join(' ');
+  let kwMiss = 1;
+  const hits: { w: string; sp: number }[] = [];
+  for (const w of keys) {
+    const inTitle = n.title.includes(w);
+    if (!inTitle && !names.includes(w)) continue;
+    const sp = stats ? specificity(stats, titleDf(stats, w)) : 0.6;
+    kwMiss *= 1 - 0.6 * sp * (inTitle ? 1 : 0.5);
+    hits.push({ w, sp });
+  }
+  // 품목 근거와 같은 이야기를 반복하는 경우가 많아, 품목이 맞았으면 절반만
+  const kwV = (1 - kwMiss) * (prodV > 0 ? 0.5 : 1);
+  if (kwV > 0.02) {
+    ev.push(kwV);
+    const top = hits.sort((a, b) => b.sp - a.sp).slice(0, 3);
+    push('keyword', '핵심어', kwV, `공고에 '${top.map((h) => h.w).join("', '")}' 포함${top.every((h) => h.sp < 0.4) ? ' · 흔한 낱말' : ''}`, 2);
+  }
 
   // 꼭 볼 단어 — 사용자가 직접 지정한 단어는 강한 근거
   const plus = keywordHit(n, p.keywords?.plus);
-  if (plus) { cores.push(0.9); push('plus', '꼭 볼 단어', 0.9, `'${plus}'이(가) 들어간 공고`, 3); }
+  if (plus) { ev.push(0.9); push('plus', '꼭 볼 단어', 0.9, `'${plus}'이(가) 들어간 공고`, 3); }
 
-  // 이력
-  if (hist.length) {
-    const v = clamp((similar?.score ?? 0) / 4);
-    if (v > 0) cores.push(v);
-    push('history', '참여 이력', v, similar?.best
-      ? `${similar.best.won ? '낙찰했던' : '참여했던'} '${similar.best.title.slice(0, 18)}${similar.best.title.length > 18 ? '…' : ''}'와 비슷`
-      : '비슷한 참여 이력 없음', 2);
-  }
-
-  // 면허 — 우리(켜 둔) 업종을 요구
+  // 면허 — 우리(켜 둔) 업종을 요구. 흔한 업종(소프트웨어사업자 등)일수록, 허용 업종이 많을수록 약함
   const ind = j.reasons.find((r) => r.rule === 'industry');
   if (n.licenseLimits && ind?.result === 'pass') {
     const codes = new Set(activeInd.map((i) => i.code));
-    const mine = n.licenseLimits.some((l) => (l.code && codes.has(l.code)) || l.allowed.some((a) => codes.has(/\/(\w+)$/.exec(a)?.[1] ?? '')));
-    if (mine) {
-      // 면허만 맞는 건 약한 근거 — 허용 업종이 적을수록(우리 업종만 콕 집은 공고일수록) 높게: 0.45 ~ 0.65
+    const mine = new Set<string>();
+    for (const l of n.licenseLimits) { if (l.code && codes.has(l.code)) mine.add(l.code); l.allowed.forEach((a) => { const c = licCode(a); if (codes.has(c)) mine.add(c); }); }
+    if (mine.size) {
       const options = n.licenseLimits.length + n.licenseLimits.reduce((x, l) => x + l.allowed.length, 0);
-      const v = 0.45 + 0.2 / Math.sqrt(Math.max(1, options));
-      cores.push(v);
-      push('license', '면허', v, options <= 1 ? '우리 업종만 콕 집어 요구하는 공고' : `우리 업종을 포함해 ${options}개 업종을 허용하는 공고`, 2);
+      const df = Math.min(...[...mine].map((c) => stats?.lic.get(c) ?? 0));
+      const sp = spec(stats ? df : undefined);
+      let v = 0.15 + 0.45 * sp * (0.5 + 0.5 / Math.sqrt(Math.max(1, options)));
+      // 우리 지역으로 제한된 공고면 '면허 + 지역'이 함께 좁혀 줌 (공사업처럼 품목이 없는 업종의 핵심 근거)
+      const reg = j.reasons.find((r) => r.rule === 'region');
+      if (n.regionLimit && reg?.result === 'pass') v += (1 - v) * (n.regionLimit.every((r) => r.trim().includes(' ')) ? 0.5 : 0.3);
+      ev.push(v);
+      push('license', '면허', v, `${options <= 1 ? '우리 업종만 콕 집어 요구' : `우리 업종 포함 ${options}개 업종 허용`}${stats && sp < 0.4 ? ` · 흔한 업종(공고 ${df.toLocaleString()}건)` : ''}`, 2);
     }
   }
 
-  if (!cores.length) {
-    // 근거가 하나도 없으면 낮은 기본값 (판단 정보가 없는 회사는 0.35)
-    cores.push(p.products?.length || hist.length ? 0.15 : 0.35);
+  // 결합 — 가장 강한 근거 + 나머지는 남은 거리의 35%씩 (품목·업종·낱말은 같은 사실을 반복하는 경우가 많아 독립으로 보지 않음)
+  const R = ev.sort((a, b) => b - a).reduce((x, v, i) => (i === 0 ? v : x + (1 - x) * 0.35 * v), 0);
+
+  // 이력 — 가장 강한 근거, 따로 더함
+  const H = hist.length ? clamp(similar?.score ?? 0) : 0;
+  if (hist.length) {
+    push('history', '참여 이력', H, similar?.best && H > 0.05
+      ? `${similar.best.won ? '낙찰했던' : '참여했던'} '${similar.best.title.slice(0, 18)}${similar.best.title.length > 18 ? '…' : ''}'와 비슷`
+      : '비슷한 참여 이력 없음', H > 0.05 ? 4 : 0.5);
   }
-  const sorted = cores.sort((a, b) => b - a);
-  // 관련도 점수(최대 70) — 가장 강한 근거 58점 + 다른 근거가 겹치면 최대 12점
-  const relPts = 58 * sorted[0] + 12 * clamp((sorted[1] ?? 0) * 0.6 + (sorted[2] ?? 0) * 0.4);
+
+  // 근거가 하나도 없는 회사(품목·이력 모두 없음)는 판단 정보 부족 → 중간 아래
+  const relPts = 55 * (ev.length ? R : p.products?.length || hist.length ? 0.1 : 0.3) + 30 * H;
+  // 품목·이력이 없는 회사(공사업 등)는 면허가 핵심 근거라 관문을 낮춤
+  const gate = R >= (p.products?.length ? GATE.rel : GATE.relNoProduct) || H >= GATE.hist || !!plus;
 
   /* ---------- ② 조건 점수 (더하고 빼기) ---------- */
   let cond = 0;
@@ -169,7 +198,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   // 관심 유형 — 사용자가 직접 좁힌 경우에만 반영 (기본값 '전체'는 점수에 영향 없음)
   if (p.types.length && p.types.length < 3 && !p.types.includes(n.type)) { cond -= 15; push('type', '사업유형', 0.2, `관심 유형 아님(${n.type})`); }
 
-  // 최종 = 기본 15 + 관련도(≤70) + 조건(대략 -25~+40). 99점은 모든 근거가 겹칠 때만
-  const score = Math.round(clamp(15 + relPts + cond, 5, 99));
-  return { score, factors: f.sort((a, b) => b.weight - a.weight || b.value - a.value) };
+  // 최종 = 기본 20 + 관련도(≤55) + 이력(≤30) + 조건(대략 -25~+40)
+  const score = Math.round(clamp(20 + relPts + cond, 5, 99));
+  return { score, rel: R, hist: H, gate, factors: f.sort((a, b) => b.weight - a.weight || b.value - a.value) };
 }
