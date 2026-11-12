@@ -1,4 +1,4 @@
-import { canonicalRegion, hasSigungu, splitLocation, type LicenseLimit, type Notice, type Profile } from './data';
+import { SIZE_RANK, canonicalRegion, hasSigungu, splitLocation, type CompanySize, type LicenseLimit, type Notice, type Profile } from './data';
 
 /* =========================================================
  * 참여 가능 판정 (기획서 v2.1 5.1)
@@ -9,10 +9,10 @@ import { canonicalRegion, hasSigungu, splitLocation, type LicenseLimit, type Not
 
 export type Status = 'eligible' | 'check' | 'ineligible';
 export type RuleResult = 'pass' | 'check' | 'fail';
-export type RuleId = 'region' | 'industry';
+export type RuleId = 'region' | 'industry' | 'size';
 
 /** '확인 필요'를 풀기 위해 사용자가 입력할 프로필 항목 */
-export type ProfileNeed = 'location' | 'sigungu' | 'industries';
+export type ProfileNeed = 'location' | 'sigungu' | 'industries' | 'size';
 
 export interface Reason {
   rule: RuleId;
@@ -97,10 +97,37 @@ function industryRule(n: Notice, p: Profile): Reason {
   return { rule, result: 'fail', text: `업종 불일치: ${required}${extra} 등록 필요` };
 }
 
-const RULES = [regionRule, industryRule];
+/* ---------- 3. 기업규모 (추정) ----------
+ * 공고 API에 '중소기업 한정' 항목이 없어 법령의 금액 기준으로 추정한다.
+ * 판로지원법 시행령 제2조의2(중소기업자와의 우선조달계약): 물품·용역 추정가격
+ *   1억 원 미만 → 소기업·소상공인 간 제한경쟁 / 고시금액(국가 2.3억 원) 미만 → 중소기업자 간 제한경쟁
+ *   (예외: 참가 가능 업체가 적은 경우 등. 지방계약 기준금액 상향 개정은 2026-11 입법예고 중 → 보수적으로 2.3억 사용)
+ * 그래서 계약방법이 '제한경쟁'인 물품·용역 공고에만 적용하고, 맞지 않아도 '불가'가 아닌 '확인 필요'로 둔다.
+ */
+export const SME_LIMIT = { small: 1e8, sme: 2.3e8 };
+
+/** 이 공고에 추정되는 기업규모 제한 — 없으면 null */
+export function sizeLimitOf(n: Notice): { need: CompanySize; label: string } | null {
+  if ((n.type !== '물품' && n.type !== '용역') || !n.contract.startsWith('제한경쟁') || !(n.estPrice > 0)) return null;
+  if (n.estPrice < SME_LIMIT.small) return { need: '소기업·소상공인', label: '소기업·소상공인' };
+  if (n.estPrice < SME_LIMIT.sme) return { need: '중소기업', label: '중소기업' };
+  return null;
+}
+
+function sizeRule(n: Notice, p: Profile): Reason | null {
+  const lim = sizeLimitOf(n);
+  if (!lim) return null;
+  const rule = 'size';
+  const what = `추정가격 ${n.estPrice < 1e8 ? '1억 원' : '2.3억 원'} 미만 제한경쟁 — ${lim.label}만 참여하는 공고일 가능성이 높아요(추정)`;
+  if (!p.size) return { rule, result: 'pass', text: `${what}. 기업규모를 넣으면 맞춰 드려요`, need: 'size' };
+  if (SIZE_RANK[p.size] <= SIZE_RANK[lim.need]) return { rule, result: 'pass', text: `${lim.label} 제한 추정 공고 — 우리 회사(${p.size}) 해당` };
+  return { rule, result: 'check', text: `${what}. 우리 회사는 ${p.size}라 참여가 어려울 수 있어요. 공고문 참가자격을 확인하세요`, need: 'size' };
+}
+
+const RULES: ((n: Notice, p: Profile) => Reason | null)[] = [regionRule, industryRule, sizeRule];
 
 export function judge(n: Notice, p: Profile): Judgment {
-  const reasons = RULES.map((r) => r(n, p));
+  const reasons = RULES.map((r) => r(n, p)).filter((r): r is Reason => !!r);
   const status: Status = reasons.some((r) => r.result === 'fail')
     ? 'ineligible'
     : reasons.some((r) => r.result === 'check')

@@ -187,6 +187,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
   const { notices } = useStore();
   const [form, setForm] = useState(profile);
   const [busy, setBusy] = useState(false);
+  const [employees, setEmployees] = useState<number | null>(null);
 
   // 사업자번호로 나라장터 정보 다시 불러오기
   const refresh = async () => {
@@ -197,6 +198,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       if (!data.registered) return toast('나라장터에 등록된 정보가 없습니다');
+      setEmployees(typeof data.employees === 'number' ? data.employees : null);
       setForm({
         // 업체명은 대표자명 확인(가입) 때만 저장 — 조회 결과로 채우면 회사 확인 없이 입찰 분석이 열림
         ...form, naraRegistered: true,
@@ -288,6 +290,13 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
         <div>
           <p className="mb-2 text-sm font-semibold text-sub">기업규모</p>
           <ChoiceChips label="기업규모" options={SIZES} value={form.size} onChange={(v) => setForm({ ...form, size: v })} />
+          {employees !== null && (
+            <p className="mt-2 rounded-xl bg-brand-soft px-3 py-2 text-[13px] text-sub">
+              나라장터 등록 종업원 <b className="text-ink">{employees.toLocaleString()}명</b>
+              {employees < 10 ? ' — 소상공인일 가능성이 높아요(매출 기준도 맞아야 해요)' : ''}
+            </p>
+          )}
+          <p className="mt-1.5 text-xs leading-relaxed text-mute">1억 원 미만 물품·용역 공고는 소기업·소상공인만 참여하는 경우가 많아요. 정확한 규모는 중소기업확인서(공공구매종합정보망)로 확인하세요.</p>
         </div>
         <div>
           <label htmlFor="records" className="mb-1.5 block text-sm font-semibold text-sub">수행실적 <span className="font-normal text-mute">(선택)</span></label>

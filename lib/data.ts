@@ -4,7 +4,7 @@
  * ========================================================= */
 
 export type BidType = '물품' | '용역' | '공사';
-export type CompanySize = '중소기업' | '중견기업' | '대기업';
+export type CompanySize = '소기업·소상공인' | '중소기업' | '중견기업' | '대기업';
 
 /** 나라장터 업종 (업종 및 근거법규서비스) */
 export interface Industry {
@@ -124,7 +124,9 @@ export const EMPTY_PROFILE: Profile = {
   keywords: {},
 };
 
-export const SIZES: CompanySize[] = ['중소기업', '중견기업', '대기업'];
+export const SIZES: CompanySize[] = ['소기업·소상공인', '중소기업', '중견기업', '대기업'];
+/** 작을수록 0 — 제한 판정용 */
+export const SIZE_RANK: Record<CompanySize, number> = { '소기업·소상공인': 0, 중소기업: 1, 중견기업: 2, 대기업: 3 };
 
 /* ---------- 공고 행 → 화면용 ---------- */
 export interface NoticeRow {

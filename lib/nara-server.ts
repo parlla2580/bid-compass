@@ -32,7 +32,7 @@ async function call<T>(op: string, params: Record<string, string>): Promise<T[]>
   return [];
 }
 
-interface CorpRow { corpNm?: string; rgnNm?: string; ceoNm?: string }
+interface CorpRow { corpNm?: string; rgnNm?: string; ceoNm?: string; emplyeNum?: string }
 interface IndRow { indstrytyCd?: string; indstrytyNm?: string; rprsntIndstrytyYn?: string }
 
 /** 조달업체 공급물품 (세부품명번호 10자리) */
@@ -43,6 +43,8 @@ export interface NaraCompany {
   ceo: string | null;
   location: string | null;
   industries: Industry[];
+  /** 나라장터 등록 종업원수 (업체가 입력한 값, 기업규모 참고용) */
+  employees: number | null;
   products: SupplyProduct[];
 }
 
@@ -72,7 +74,8 @@ export async function lookupCompany(bizno: string): Promise<NaraCompany | null> 
       .map((i) => [i.indstrytyCd!, { code: i.indstrytyCd!, name: i.indstrytyNm! }]),
   ).values()];
   const products = [...new Map(prds.map(toProduct).filter((x): x is SupplyProduct => !!x).map((x) => [x.code, x])).values()];
-  return { corpName: corp.corpNm ?? null, ceo: corp.ceoNm ?? null, location: corp.rgnNm?.trim() || null, industries, products };
+  const emp = Number(corp.emplyeNum);
+  return { corpName: corp.corpNm ?? null, ceo: corp.ceoNm ?? null, location: corp.rgnNm?.trim() || null, industries, products, employees: Number.isFinite(emp) && emp > 0 ? emp : null };
 }
 
 /**

@@ -5,6 +5,7 @@ export const NEED_LABEL: Record<ProfileNeed, string> = {
   location: '소재지',
   sigungu: '시군구',
   industries: '업종',
+  size: '기업규모',
 };
 
 /** 프로필 보완 배너용 — 입력하면 판정되는 '확인 필요' 공고가 가장 많은 항목 */

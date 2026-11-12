@@ -179,6 +179,10 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     push('region', '지역', 1, narrow ? '우리 시군구 업체로 제한 (경쟁 범위 매우 좁음)' : '우리 시도 업체로 제한 (경쟁 범위 좁음)');
   }
 
+  // 기업규모 — 소기업·소상공인(또는 중소기업)끼리만 겨루는 공고로 추정되고 우리가 해당하면 경쟁 범위가 좁음
+  const sz = j.reasons.find((r) => r.rule === 'size');
+  if (sz?.result === 'pass' && p.size) { cond += 4; push('size', '기업규모', 0.9, sz.text); }
+
   // 경쟁 강도 — 이 기관의 같은 유형 공고에 보통 몇 곳이 들어오나 (최근 1년, 3건 이상일 때만, 참고)
   const org = n.demandOrg ?? n.org;
   const c = comp?.byOrg.get(`${org}|${n.type}`) ?? comp?.byOrg.get(`${n.org}|${n.type}`);

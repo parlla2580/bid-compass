@@ -80,6 +80,12 @@ export async function saveProfile(userId: string, p: Profile) {
   const { error } = await sb.from('company_profiles').upsert(row);
   // 새 열이 아직 DB에 없으면(마이그레이션 실행 전) 그 열만 빼고 다시 저장 — 나머지 정보는 지킴
   const missing = error && /Could not find the '(\w+)' column/.exec(error.message)?.[1];
+  // 015 실행 전 — DB가 '소기업·소상공인'을 아직 모르면 가장 가까운 '중소기업'으로 저장 (화면 값은 그대로)
+  if (error?.code === '23514' && row.company_size === '소기업·소상공인') {
+    const retry = await sb.from('company_profiles').upsert({ ...row, company_size: '중소기업' as const });
+    if (retry.error) throw retry.error;
+    return;
+  }
   if (missing && missing in row) {
     const { [missing as keyof typeof row]: _skip, ...rest } = row; // eslint-disable-line @typescript-eslint/no-unused-vars
     const retry = await sb.from('company_profiles').upsert(rest);

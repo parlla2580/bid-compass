@@ -10,7 +10,7 @@ import { CTA_PRIMARY, CTA_SOFT } from '@/components/ui';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
-import { looksUnitPrice, type Industry, type Notice } from '@/lib/data';
+import { SIZES, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
@@ -205,7 +205,7 @@ function Judgment({ status, reasons, fit }: { status: Status; reasons: Reason[];
               <ReasonIcon r={r} />
               <span className={r.result === 'pass' ? 'text-sub' : 'font-medium text-ink'}>{r.text}</span>
             </div>
-            {r.result === 'check' && r.need && <InlineInput need={r.need} />}
+            {r.need && (r.result === 'check' || r.need === 'size') && <InlineInput need={r.need} />}
           </li>
         ))}
       </ul>
@@ -319,6 +319,16 @@ function InlineInput({ need }: { need: ProfileNeed }) {
     return (
       <div className={box}>
         <LocationPicker value={profile.location} onChange={(v) => { updateProfile({ location: v }); if (v?.includes(' ')) toast('소재지로 다시 판정했어요'); }} />
+      </div>
+    );
+  }
+  if (need === 'size') {
+    return (
+      <div className={`${box} flex flex-wrap gap-1.5`}>
+        {SIZES.map((v) => (
+          <button key={v} type="button" aria-pressed={profile.size === v} onClick={() => { updateProfile({ size: v }); toast('기업규모로 다시 판정했어요'); }}
+            className={`rounded-full border px-3 py-1.5 text-[14px] font-medium ${profile.size === v ? 'border-ink bg-ink text-white' : 'border-line bg-white text-sub'}`}>{v}</button>
+        ))}
       </div>
     );
   }

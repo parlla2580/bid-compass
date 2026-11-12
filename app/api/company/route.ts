@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const c = await lookupCompany(bizno);
     if (!c) return NextResponse.json({ registered: false });
-    return NextResponse.json({ registered: true, corpName: c.corpName, location: c.location, industries: c.industries, products: c.products });
+    return NextResponse.json({ registered: true, corpName: c.corpName, location: c.location, industries: c.industries, products: c.products, employees: c.employees });
   } catch (e) {
     return NextResponse.json({ error: `나라장터 조회에 실패했습니다: ${(e as Error).message}` }, { status: 502 });
   }
