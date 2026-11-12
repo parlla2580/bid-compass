@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Download } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
@@ -75,11 +75,14 @@ export default function AnalysisPage() {
     body = (
       <div className="space-y-3 lg:space-y-4">
         {/* 탭: 우리 회사 성적 / 우리 시장 */}
-        <div className="flex rounded-btn bg-line/60 p-1 lg:inline-flex" role="tablist">
-          {([['me', '입찰 성과'], ['market', '시장 분석']] as const).map(([t, label]) => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-              className={`flex-1 rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
+            {([['me', '입찰 성과'], ['market', '시장 분석']] as const).map(([t, label]) => (
+              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+                className={`flex-1 rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
+            ))}
+          </div>
+          <ExportButton corpName={profile.corpName ?? null} />
         </div>
 
         {tab === 'market' ? <MarketSection /> : (
@@ -255,6 +258,31 @@ function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total:
         </>
       ) : <p className="py-6 text-center text-[14px] text-mute">아직 기관별로 볼 만큼 투찰이 없어요</p>}
     </Card>
+  );
+}
+
+/** 엑셀로 받기 — 누를 때만 작성기를 불러옴 */
+function ExportButton({ corpName }: { corpName: string | null }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const [{ buildAnalysisWorkbook }, { downloadXlsx }] = await Promise.all([import('@/lib/export'), import('@/lib/xlsx')]);
+      const { name, sheets } = await buildAnalysisWorkbook(corpName);
+      downloadXlsx(name, sheets);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '내려받지 못했어요');
+    } finally { setBusy(false); }
+  };
+  return (
+    <div className="relative shrink-0">
+      <button type="button" onClick={run} disabled={busy} aria-label="엑셀로 받기"
+        className="flex h-[44px] items-center gap-1.5 rounded-btn bg-white px-3.5 text-[14px] font-semibold text-sub disabled:opacity-60">
+        <Download className="h-[18px] w-[18px]" />{busy ? '만드는 중' : '엑셀'}
+      </button>
+      {err && <p className="absolute right-0 top-full z-10 mt-1 w-56 rounded-xl bg-ink px-3 py-2 text-[13px] text-white">{err}</p>}
+    </div>
   );
 }
 
