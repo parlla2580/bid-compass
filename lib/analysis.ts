@@ -35,6 +35,8 @@ export interface BidReport {
   detailed?: number;
   /** 투찰 순위를 받은 개찰 중 낙찰 수 (012) */
   won_detailed?: number;
+  /** 낙찰자 결정 전 건수 (017) */
+  pending?: number;
 }
 
 export async function fetchMyReport(years = 3): Promise<BidReport> {
@@ -136,7 +138,24 @@ export async function fetchMyMarket(years = 3): Promise<MyMarket | null> {
 export interface MyBidItem {
   id: number; title: string; org: string | null; type: string; opened_at: string; participants: number | null;
   rank: number | null; rate: number | null; amount: number | null; note: number | null; won: boolean; winner: string | null;
+  /** 최종낙찰자 결정 여부 (017). 없으면 화면에서 추정 */
+  decided?: boolean;
 }
+
+export type BidOutcome = 'won' | 'below' | 'pending' | 'lost' | 'unknown';
+
+/** 투찰 결과 분류 — 낙찰 / 하한 미달 / 결정 전(적격심사·PQ 중) / 탈락 / 결과 없음(오래도록 낙찰자 없음: 유찰 등) */
+export function bidOutcome(i: MyBidItem, now = Date.now()): BidOutcome {
+  if (i.won) return 'won';
+  if (i.note === 1) return 'below';
+  const decided = i.decided ?? !!i.winner; // 017 실행 전: 낙찰자 이름이 있으면 결정된 것으로
+  if (decided) return 'lost';
+  return now - new Date(i.opened_at).getTime() > 60 * 86400e3 ? 'unknown' : 'pending';
+}
+
+export const outcomeLabel = (i: MyBidItem, o = bidOutcome(i)) =>
+  o === 'won' ? '낙찰' : o === 'below' ? '하한 미달' : o === 'pending' ? (i.rank ? `${i.rank}위 · 결정 전` : '결정 전')
+    : o === 'unknown' ? '결과 없음' : i.rank ? `${i.rank}위` : '탈락';
 
 export async function fetchMyBidList(): Promise<MyBidItem[] | null> {
   const { data, error } = await getSupabase().rpc('my_bid_list', { p_years: 3, p_limit: 500 });

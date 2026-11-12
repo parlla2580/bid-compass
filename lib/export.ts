@@ -1,4 +1,4 @@
-import { fetchMyMarket, fetchMyReport, type MyBidItem } from './analysis';
+import { fetchMyMarket, fetchMyReport, outcomeLabel, type MyBidItem } from './analysis';
 import { getSupabase } from './supabase';
 import { excelDate, type Sheet } from './xlsx';
 
@@ -35,7 +35,6 @@ export async function buildAnalysisWorkbook(corpName: string | null): Promise<{ 
     ],
   };
 
-  const tag = (i: MyBidItem) => (i.won ? '낙찰' : i.note === 1 ? '하한 미달' : i.rank ? `${i.rank}위` : '탈락');
   const history: Sheet = {
     name: '투찰 이력', note: source,
     columns: [
@@ -43,7 +42,7 @@ export async function buildAnalysisWorkbook(corpName: string | null): Promise<{ 
       { title: '결과', width: 10 }, { title: '순위', width: 7, fmt: 'int' }, { title: '참가업체', width: 10, fmt: 'int' },
       { title: '투찰률(%)', width: 11, fmt: 'pct' }, { title: '투찰금액(원)', width: 16, fmt: 'won' }, { title: '낙찰자', width: 22 },
     ],
-    rows: list.map((i) => [excelDate(i.opened_at), i.title, i.org ?? '', i.type, tag(i), i.rank, i.participants, i.rate, i.amount, i.won ? '우리 회사' : i.winner ?? '']),
+    rows: list.map((i) => [excelDate(i.opened_at), i.title, i.org ?? '', i.type, outcomeLabel(i), i.rank, i.participants, i.rate, i.amount, i.won ? '우리 회사' : i.winner ?? '']),
   };
 
   const breakdown: Sheet = {

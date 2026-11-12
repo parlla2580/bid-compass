@@ -7,7 +7,7 @@ import { ChevronRight, Download } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
-import { fetchMyBidList, fetchMyReport, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
+import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
@@ -94,7 +94,7 @@ export default function AnalysisPage() {
               {r.won_detailed !== undefined && r.detailed ? (
                 <div>
                   <Donut value={r.won_detailed / r.detailed} label="낙찰률" />
-                  <p className="mt-1 text-center text-[12px] text-mute">투찰 순위를 받은 {r.detailed}건 기준</p>
+                  <p className="mt-1 text-center text-[12px] text-mute">투찰 순위를 받은 {r.detailed}건 기준{r.pending ? ` · 결정 전 ${r.pending}건 제외` : ''}</p>
                 </div>
               ) : <Donut value={total ? won / total : 0} label="낙찰률" />}
               <div>
@@ -408,18 +408,24 @@ function More<T>({ items, render }: { items: T[]; render: (x: T) => React.ReactN
 /** 투찰·낙찰한 공고 목록 — 누르면 개찰 결과 요약 */
 function HistoryCard() {
   const [items, setItems] = useState<MyBidItem[] | null | undefined>(undefined);
-  const [f, setF] = useState<'all' | 'won' | 'lost' | 'below'>('all');
+  const [f, setF] = useState<'all' | 'won' | 'pending' | 'lost' | 'below'>('all');
   const [n, setN] = useState(10);
   useEffect(() => { fetchMyBidList().then(setItems).catch(() => setItems(null)); }, []);
   if (items === undefined) return <div className="h-40 animate-pulse rounded-box bg-white" />;
   if (!items) return null; // 011 실행 전
-  const pick = { all: items, won: items.filter((i) => i.won), lost: items.filter((i) => !i.won && i.note !== 1), below: items.filter((i) => i.note === 1) };
+  const by = (o: BidOutcome) => items.filter((i) => bidOutcome(i) === o);
+  const pick = { all: items, won: by('won'), pending: by('pending'), lost: by('lost'), below: by('below') };
   const rows = pick[f];
-  const tag = (i: MyBidItem) => i.won ? { t: '낙찰', c: 'bg-brand text-white' } : i.note === 1 ? { t: '하한 미달', c: 'bg-bad/10 text-bad' } : { t: i.rank ? `${i.rank}위` : '탈락', c: 'bg-fill text-sub' };
+  const tag = (i: MyBidItem) => {
+    const o = bidOutcome(i);
+    const c = o === 'won' ? 'bg-brand text-white' : o === 'below' ? 'bg-bad/10 text-bad' : o === 'pending' ? 'bg-brand-soft text-brand' : 'bg-fill text-sub';
+    // 결정 전은 두 줄: '1위' + '결정 전'
+    return o === 'pending' && i.rank ? { t: `${i.rank}위`, s: '결정 전', c } : { t: outcomeLabel(i, o), s: null, c };
+  };
   return (
     <Card title="투찰한 공고" aside={<span className="text-[13px] text-mute">{items.length}건</span>}>
       <div className="no-scrollbar -mt-1 mb-2 flex gap-1.5 overflow-x-auto">
-        {([['all', '전체'], ['won', '낙찰'], ['lost', '탈락'], ['below', '하한 미달']] as const).map(([k, label]) => (
+        {([['all', '전체'], ['won', '낙찰'], ['pending', '결정 전'], ['lost', '탈락'], ['below', '하한 미달']] as const).filter(([k]) => k !== 'pending' || pick.pending.length > 0).map(([k, label]) => (
           <button key={k} type="button" onClick={() => { setF(k); setN(10); }} aria-pressed={f === k}
             className={`shrink-0 rounded-full border px-3 py-1 text-[13px] font-medium ${f === k ? 'border-ink bg-ink text-white' : 'border-line bg-white text-sub'}`}>
             {label} {pick[k].length}
@@ -433,7 +439,7 @@ function HistoryCard() {
             return (
               <li key={i.id}>
                 <Link href={`/analysis/${i.id}`} className="flex items-center gap-3 py-3 hover:bg-fill/60">
-                  <span className={`w-[68px] shrink-0 rounded-full py-1 text-center text-[12px] font-semibold ${t.c}`}>{t.t}</span>
+                  <span className={`w-[68px] shrink-0 py-1 text-center text-[12px] font-semibold leading-tight ${t.s ? 'rounded-xl' : 'rounded-full'} ${t.c}`}>{t.t}{t.s && <span className="block text-[11px] font-medium">{t.s}</span>}</span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-1 block text-[15px] font-medium">{i.title}</span>
                     <span className="mt-0.5 block truncate text-[12px] text-mute">{i.org ?? ''} · {fmtDate(new Date(i.opened_at))}{i.participants ? ` · ${i.participants}곳 참가` : ''}{!i.won && i.winner ? ` · 낙찰 ${i.winner}` : ''}</span>
