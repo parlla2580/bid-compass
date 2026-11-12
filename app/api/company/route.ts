@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { lookupCompany, validBizno } from '@/lib/nara-server';
+import { checkLimits, clientIp } from '@/lib/server-guard';
 
 /*
  * 사업자등록번호 → 업종·소재지 (가입 전 간편 시작용)
@@ -9,6 +10,13 @@ import { lookupCompany, validBizno } from '@/lib/nara-server';
 export async function GET(req: NextRequest) {
   const bizno = (req.nextUrl.searchParams.get('bizno') ?? '').replace(/\D/g, '');
   if (!validBizno(bizno)) return NextResponse.json({ error: '사업자등록번호 10자리를 입력해 주세요' }, { status: 400 });
+  // 호출 제한 — 나라장터 API 하루 한도 보호, 대량 조회 방지
+  const ip = clientIp(req.headers);
+  const limited = await checkLimits([
+    { name: 'lookup-ip-10m', key: ip, windowSec: 600, max: 20 },
+    { name: 'lookup-ip-day', key: ip, windowSec: 86400, max: 120 },
+  ]);
+  if (limited) return NextResponse.json({ error: limited }, { status: 429 });
   try {
     const c = await lookupCompany(bizno);
     if (!c) return NextResponse.json({ registered: false });

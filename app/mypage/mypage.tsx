@@ -15,6 +15,7 @@ import { judge } from '@/lib/judge';
 import { suggestProducts } from '@/lib/match';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
+import { verifyCompany } from '@/lib/verify-client';
 
 const TYPES: BidType[] = ['물품', '용역', '공사'];
 type SheetKey = 'company' | 'prefs' | null;
@@ -86,6 +87,7 @@ export default function MyPage() {
           ))}
         </dl>
         <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
+        {account && profile.bizno && !profile.corpName && <VerifyBox bizno={profile.bizno} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} />}
       </section>
 
       {/* 매칭 선호도 */}
@@ -179,6 +181,38 @@ export default function MyPage() {
       <SignupSheet open={signup} onClose={() => setSignup(false)} reason="가입하면 저장한 공고와 기업 정보를 다른 기기에서도 볼 수 있어요."
         onDone={() => { setSignup(false); toast('가입했습니다. 입력한 정보를 서버에 저장했습니다'); }} />
     </main>
+  );
+}
+
+/** 회사 확인하기 — 대표자명을 나라장터와 대조, 서버가 확인을 기록해야 입찰 분석이 열림 */
+function VerifyBox({ bizno, onVerified }: { bizno: string; onVerified: (corpName: string) => void }) {
+  const toast = useToast();
+  const [ceo, setCeo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const v = await verifyCompany(bizno.replace(/\D/g, ''), ceo);
+      if (v.status === 'mismatch') return toast('대표자명이 나라장터에 등록된 정보와 달라요');
+      if (v.status === 'unregistered') return toast('나라장터에 등록되지 않은 번호라 확인할 수 없어요');
+      if (v.corpName) onVerified(v.corpName);
+      toast(v.stored ? '회사를 확인했어요. 입찰 분석을 볼 수 있어요' : '회사를 확인했어요');
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-4 rounded-2xl bg-brand-soft p-4">
+      <p className="text-[14px] font-semibold">회사 확인하기</p>
+      <p className="mt-0.5 text-[13px] text-sub">대표자명을 나라장터 정보와 맞춰 보면 입찰 분석이 열려요. 대표자명은 저장하지 않아요.</p>
+      <div className="mt-2.5 flex gap-2">
+        <input value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="대표자명" aria-label="대표자명" className={`${INPUT_CLS} flex-1`} />
+        <button type="button" onClick={run} disabled={busy || ceo.trim().length < 2}
+          className="shrink-0 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white disabled:bg-line disabled:text-mute">{busy ? '확인 중' : '확인'}</button>
+      </div>
+    </div>
   );
 }
 

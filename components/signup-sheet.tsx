@@ -5,14 +5,9 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Sheet } from './feedback';
 import { BTN_PRIMARY, INPUT_CLS } from './ui';
-import type { Industry } from '@/lib/data';
 import { maskBizNo } from '@/lib/format';
+import { verifyCompany } from '@/lib/verify-client';
 import { useStore } from '@/lib/store';
-
-type Verify =
-  | { status: 'verified'; corpName: string | null; location: string | null; industries: Industry[] }
-  | { status: 'mismatch' }
-  | { status: 'unregistered' };
 
 /**
  * 회원가입 (v2.2) — 이메일(아이디)·비밀번호·사업자등록번호·대표자명·약관 동의를 한 화면에서
@@ -57,13 +52,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     setBusy(true);
     try {
       // 1) 회사 확인
-      const res = await fetch('/api/company/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bizno: digits, ceo }),
-      });
-      const v = (await res.json()) as Verify & { error?: string };
-      if (!res.ok) throw new Error(v.error ?? '회사 확인에 실패했습니다');
+      const v = await verifyCompany(digits, ceo);
       if (v.status === 'mismatch') throw new Error('대표자명이 나라장터에 등록된 정보와 다릅니다. 사업자등록증의 대표자명을 확인해 주세요');
       if (v.status === 'unregistered' && !unregisteredOk) {
         setUnregisteredOk(true);
@@ -76,6 +65,8 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
 
       // 3) 회사 정보 반영 — 확인된 경우에만 업체명 저장. 업종·소재지는 비어 있을 때만 채움
       if (v.status === 'verified') {
+        // 가입으로 로그인된 상태에서 한 번 더 확인 → 서버가 회사 확인을 기록 (입찰 분석은 이 기록으로만 열림)
+        await verifyCompany(digits, ceo).catch(() => null);
         updateProfile({
           bizno: digits,
           naraRegistered: true,
