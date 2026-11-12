@@ -1,5 +1,6 @@
-import { NOTICE_COLUMNS, toNotice, type Industry, type Notice, type NoticeRow, type Product } from './data';
+import { NOTICE_COLUMNS, NOTICE_COLUMNS_FAST, toNotice, type Industry, type Notice, type NoticeRow, type Product } from './data';
 import { getSupabase } from './supabase';
+import { cacheGet, cacheSet } from './cache';
 
 /* =========================================================
  * Supabase 읽기 — 공고·계약·업종 (공개 데이터, publishable 키로 읽기)
@@ -7,23 +8,53 @@ import { getSupabase } from './supabase';
 
 const PAGE = 1000; // Supabase 기본 최대 행 수
 
-/** 마감 전 공고 전체 — 판정·추천은 화면에서 계산 (판정 엔진 서버 이전 전까지) */
+/* ---------- 공고 읽기 열 — 014(미리 꺼낸 열) 실행 전이면 원본에서 꺼내는 방식으로 자동 전환 ---------- */
+let fastCols: boolean | null = null;
+type Res<T> = { data: T | null; error: { code?: string; message: string } | null; count?: number | null };
+async function withCols<T>(run: (cols: string) => PromiseLike<Res<T>>): Promise<Res<T>> {
+  if (fastCols !== false) {
+    const r = await run(NOTICE_COLUMNS_FAST);
+    if (!r.error) { fastCols = true; return r; }
+    if (r.error.code !== '42703' && !/does not exist/.test(r.error.message)) return r;
+    fastCols = false; // 014 실행 전
+  }
+  return run(NOTICE_COLUMNS);
+}
+
+const OPEN_KEY = 'open-notices-v1';
+const CACHE_MAX_AGE = 12 * 3600e3;
+
+/** 브라우저에 보관해 둔 마감 전 공고 — 화면을 바로 띄우는 데 씀 (그 사이 마감된 공고는 뺌) */
+export async function cachedOpenNotices(): Promise<Notice[] | null> {
+  const c = await cacheGet<NoticeRow[]>(OPEN_KEY);
+  if (!c || Date.now() - c.at > CACHE_MAX_AGE || !Array.isArray(c.value)) return null;
+  const now = new Date();
+  return latestOnly(c.value.filter((r) => new Date(r.closes_at) >= now).map((r) => toNotice(r, now)));
+}
+
+/** 마감 전 공고 전체 — 014의 open_notices() 한 번 호출. 014 실행 전이면 예전처럼 1천 건씩 차례로 */
 export async function fetchOpenNotices(): Promise<Notice[]> {
   const sb = getSupabase();
   const now = new Date();
-  const rows: NoticeRow[] = [];
-  for (let from = 0; from < 20 * PAGE; from += PAGE) {
-    const { data, error } = await sb
-      .from('notices')
-      .select(NOTICE_COLUMNS)
-      .eq('source', 'api')
-      .gte('closes_at', now.toISOString())
-      .order('closes_at', { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (error) throw error;
-    rows.push(...((data ?? []) as NoticeRow[]));
-    if (!data || data.length < PAGE) break;
+  let rows: NoticeRow[];
+  const rpc = await sb.rpc('open_notices');
+  if (!rpc.error && Array.isArray(rpc.data)) rows = rpc.data as NoticeRow[];
+  else {
+    rows = [];
+    for (let from = 0; from < 20 * PAGE; from += PAGE) {
+      const { data, error } = await withCols<NoticeRow[]>((cols) => sb
+        .from('notices')
+        .select(cols)
+        .eq('source', 'api')
+        .gte('closes_at', now.toISOString())
+        .order('closes_at', { ascending: true })
+        .range(from, from + PAGE - 1) as unknown as PromiseLike<Res<NoticeRow[]>>);
+      if (error) throw error;
+      rows.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
+    }
   }
+  void cacheSet(OPEN_KEY, rows);
   return latestOnly(rows.map((r) => toNotice(r, now)));
 }
 
@@ -43,20 +74,21 @@ export function latestOnly(list: Notice[]): Notice[] {
 
 /** 같은 공고번호의 마지막 차수 — 상세 화면에서 취소·변경 여부 안내용 */
 export async function fetchLatestOrder(bidNo: string): Promise<{ id: number; bidOrd: string; kind: string | null } | null> {
-  const { data } = await getSupabase().from('notices').select('id,bid_ord,kind:raw->>ntceKindNm')
-    .eq('bid_no', bidNo).order('bid_ord', { ascending: false }).limit(1).maybeSingle();
+  const { data } = await withCols<{ id: number; bid_ord: string; kind: string | null }>((cols) => getSupabase().from('notices')
+    .select(cols.includes('kind:raw') ? 'id,bid_ord,kind:raw->>ntceKindNm' : 'id,bid_ord,kind')
+    .eq('bid_no', bidNo).order('bid_ord', { ascending: false }).limit(1).maybeSingle() as unknown as PromiseLike<Res<{ id: number; bid_ord: string; kind: string | null }>>);
   return data ? { id: data.id, bidOrd: data.bid_ord, kind: data.kind ?? null } : null;
 }
 
 export async function fetchNotice(id: number): Promise<Notice | null> {
-  const { data, error } = await getSupabase().from('notices').select(NOTICE_COLUMNS).eq('id', id).maybeSingle<NoticeRow>();
+  const { data, error } = await withCols<NoticeRow>((cols) => getSupabase().from('notices').select(cols).eq('id', id).maybeSingle() as unknown as PromiseLike<Res<NoticeRow>>);
   if (error) throw error;
   return data ? toNotice(data) : null;
 }
 
 export async function fetchNoticesByIds(ids: number[]): Promise<Notice[]> {
   if (!ids.length) return [];
-  const { data, error } = await getSupabase().from('notices').select(NOTICE_COLUMNS).in('id', ids);
+  const { data, error } = await withCols<NoticeRow[]>((cols) => getSupabase().from('notices').select(cols).in('id', ids) as unknown as PromiseLike<Res<NoticeRow[]>>);
   if (error) throw error;
   return ((data ?? []) as NoticeRow[]).map((r) => toNotice(r));
 }

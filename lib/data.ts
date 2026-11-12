@@ -159,6 +159,11 @@ export interface NoticeRow {
   ind_lmt?: string | null;
 }
 
+/** 014 실행 후 — 원본에서 미리 꺼내 둔 열을 그대로 읽음 (빠름) */
+export const NOTICE_COLUMNS_FAST =
+  'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code,p_list,s_code,s_name,kind,prearng,ind_lmt';
+
+/** 014 실행 전 — 원본(raw)에서 매번 꺼냄 (느림, 예비용) */
 export const NOTICE_COLUMNS =
   'id,bid_no,bid_ord,bid_type,title,org,demand_org,contract,award,est_price,base_price,reserve_rate_min,reserve_rate_max,floor_rate,closes_at,region_limit,region_basis,license_limits,product_name,url,posted_at,p_code:raw->>dtilPrdctClsfcNo,p_list:raw->>purchsObjPrdctList,s_code:raw->>pubPrcrmntClsfcNo,s_name:raw->>pubPrcrmntClsfcNm,kind:raw->>ntceKindNm,prearng:raw->>prearngPrceDcsnMthdNm,ind_lmt:raw->>indstrytyLmtYn';
 

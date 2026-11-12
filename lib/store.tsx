@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { EMPTY_PROFILE, type Notice, type Profile } from './data';
 import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, uploadLocal } from './db';
 import { judge, relevance, type Judgment } from './judge';
-import { fetchCompetition, fetchOpenNotices, type Competition } from './notices';
+import { cachedOpenNotices, fetchCompetition, fetchOpenNotices, type Competition } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { fitScore, type Fit } from './fit';
 import { buildStats, type Stats } from './stats';
@@ -139,9 +139,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLoaded(true);
       return;
     }
+    // 브라우저에 보관한 공고를 먼저 보여주고(즉시), 새 공고를 받으면 바꿔 끼움
+    let fresh = false, shown = false;
+    cachedOpenNotices().then((c) => { if (c?.length && !fresh) { shown = true; setNotices(c); } }).catch(() => {});
     fetchOpenNotices()
-      .then(setNotices)
+      .then((list) => { fresh = true; setNotices(list); })
       .catch((e: Error) => {
+        if (shown) return; // 저장본이 떠 있으면 그대로 둠
         setNotices([]);
         setNoticesError(`공고를 불러오지 못했습니다: ${e.message}`);
       });
