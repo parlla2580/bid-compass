@@ -51,9 +51,9 @@ export default function StartPage() {
     try {
       const res = await fetch(`/api/company?bizno=${digits}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? '조회에 실패했습니다');
+      if (!res.ok) throw new Error(data.error ?? '조회하지 못했어요');
       if (!data.registered) {
-        setError('나라장터에 등록된 정보가 없습니다. 업종과 소재지를 직접 입력해 주세요.');
+        setError('나라장터에 등록된 정보가 없어요. 업종과 소재지를 직접 입력해 주세요.');
         setMode('manual');
         return;
       }
@@ -86,8 +86,8 @@ export default function StartPage() {
       setLocation(found.location ?? null);
       setMode('manual');
       setError(!found.industries?.length
-        ? '나라장터에 등록된 업종이 없습니다. 주로 하시는 업종을 선택해 주세요.'
-        : '소재지를 확인하지 못했습니다. 직접 선택해 주세요.');
+        ? '나라장터에 등록된 업종이 없어요. 주로 하시는 업종을 선택해 주세요.'
+        : '소재지를 확인하지 못했어요. 직접 선택해 주세요.');
       return;
     }
     go({ bizno: bizno.replace(/\D/g, ''), industries: found.industries, location: found.location });

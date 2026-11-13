@@ -10,6 +10,7 @@ import { CTA_PRIMARY, CTA_SOFT } from '@/components/ui';
 import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
+import { Tip } from '@/components/tip';
 import { SIZES, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
@@ -89,7 +90,6 @@ function Detail({ n }: { n: Notice }) {
         <div className="space-y-3 lg:space-y-4">
           <Briefing n={n} />
           {!closed && <Judgment reasons={j.reasons} status={j.status} fit={fit} />}
-          <Explain n={n} />
           <Info n={n} />
           <Similar n={n} />
         </div>
@@ -128,7 +128,7 @@ function Detail({ n }: { n: Notice }) {
       </div>}
 
       <SignupSheet open={signup} onClose={() => setSignup(false)}
-        reason={gated ? '가입하면 이 공고의 판정 근거, 경쟁·낙찰률, 지난 계약 업체와 금액을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
+        reason={gated ? '가입하면 판정 근거·경쟁·지난 계약을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
         onDone={() => { setSignup(false); if (!gated) save(); }} />
     </main>
   );
@@ -213,39 +213,44 @@ function Judgment({ status, reasons, fit }: { status: Status; reasons: Reason[];
       <div className="mt-5 border-t border-line pt-4">
         <button type="button" onClick={() => setMore(!more)} aria-expanded={more}
           className="flex w-full items-center justify-between text-[14px] text-sub lg:pointer-events-none">
-          원문에서 직접 확인할 항목 {MANUAL_CHECKS.length}개
+          원문 확인 항목 {MANUAL_CHECKS.length}개
           <ChevronDown className={`h-4 w-4 text-mute transition lg:hidden ${more ? 'rotate-180' : ''}`} />
         </button>
         <ul className={`mt-3 space-y-1.5 text-[14px] text-mute ${more ? '' : 'hidden lg:block'}`}>
           {MANUAL_CHECKS.map((m) => <li key={m}>· {m}</li>)}
-          <li className="pt-1 text-[13px]">판정은 지역·업종 조건만 비교한 결과예요.</li>
         </ul>
       </div>
     </Card>
   );
 }
 
-/** 맞춤 점수 — 우리 회사와 맞는 정도 + 근거 */
+/** 맞춤 점수 — 근거는 강한 것 4개만, 나머지는 펼쳐 보기. 설명은 ⓘ로 */
+const NEGATIVE = new Set(['deadline', 'type']);
 function FitBlock({ fit }: { fit: Fit }) {
-  const mark = { good: 'text-ok', mid: 'text-warn', low: 'text-mute' } as const;
-  const sym = { good: '✓', mid: '△', low: '–' } as const;
+  const [all, setAll] = useState(false);
+  const shown = fit.factors.filter((f) => f.value > 0.05 || NEGATIVE.has(f.key));
+  const list = all ? shown : shown.slice(0, 4);
   return (
     <div className="mt-5 rounded-2xl bg-fill p-4">
-      <div className="flex items-baseline justify-between">
-        <p className="text-[14px] text-sub">우리 회사와 맞는 정도</p>
+      <div className="flex items-center justify-between">
+        <p className="flex items-center gap-1 text-[14px] text-sub">맞춤 점수<Tip title="맞춤 점수">{COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요.</Tip></p>
         <p className="text-[24px] font-bold text-brand">{fit.score}<span className="text-[15px]">%</span></p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-brand" style={{ width: `${fit.score}%` }} /></div>
       <ul className="mt-3 space-y-1.5 text-[14px]">
-        {fit.factors.map((f) => (
-          <li key={f.key} className="flex gap-2">
-            <span className={`w-4 shrink-0 text-center font-bold ${mark[f.mark]}`}>{sym[f.mark]}</span>
-            <span className="w-16 shrink-0 text-mute">{f.label}</span>
-            <span className="text-sub">{f.text}</span>
-          </li>
-        ))}
+        {list.map((f) => {
+          const neg = NEGATIVE.has(f.key) || f.mark === 'low';
+          return (
+            <li key={f.key} className="flex gap-2">
+              <span className={`w-4 shrink-0 text-center font-bold ${neg ? 'text-warn' : 'text-ok'}`}>{neg ? '!' : '✓'}</span>
+              <span className="text-sub">{f.text}</span>
+            </li>
+          );
+        })}
       </ul>
-      <p className="mt-3 text-[12px] text-mute">{COPY.notWinChance}</p>
+      {shown.length > 4 && (
+        <button type="button" onClick={() => setAll(!all)} className="mt-2 text-[13px] font-medium text-mute">{all ? '접기' : `근거 ${shown.length - 4}개 더`}</button>
+      )}
     </div>
   );
 }
@@ -262,26 +267,26 @@ function Briefing({ n }: { n: Notice }) {
     fetchPastStats(n).then(setPast).catch(() => setPast(null));
   }, [n]);
 
-  const lines: { k: string; v: React.ReactNode }[] = [];
+  const lines: { k: React.ReactNode; v: React.ReactNode }[] = [];
   if (past) {
-    const where = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
+    const basis = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
     if (past.medianParticipants) {
-      const range = past.minParticipants !== past.maxParticipants ? `${past.minParticipants!.toLocaleString()}~${past.maxParticipants!.toLocaleString()}개사, ` : '';
-      lines.push({ k: '경쟁', v: <>{where}에는 보통 <b className="font-semibold text-ink">{past.medianParticipants.toLocaleString()}개사</b>가 들어왔어요 <span className="text-mute">({range}{past.count}건 기준)</span></> });
+      const range = past.minParticipants !== past.maxParticipants ? ` 적게는 ${past.minParticipants!.toLocaleString()}곳, 많게는 ${past.maxParticipants!.toLocaleString()}곳이었어요.` : '';
+      lines.push({ k: '경쟁', v: <><b className="font-semibold text-ink">보통 {past.medianParticipants.toLocaleString()}곳</b> <span className="text-mute">· {past.count}건 기준</span> <Tip title="경쟁">{basis}에 들어온 업체 수의 중간값이에요.{range}</Tip></> });
     }
-    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <>낙찰자는 주로 <b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b>에 썼어요 <span className="text-mute">({past.rateCount}건, 참고)</span></> });
+    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <><b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b> <span className="text-mute">· {past.rateCount}건</span> <Tip title="낙찰률">{basis}에서 낙찰자가 쓴 낙찰률의 가운데 절반 범위예요. 참고만 하세요.</Tip></> });
   }
   if (extra?.qualifyBy) {
     const d = daysUntil(extra.qualifyBy);
-    lines.push({ k: '등록 마감', v: <>입찰참가자격 등록 <b className={`font-semibold ${d >= 0 && d <= 2 ? 'text-bad' : 'text-ink'}`}>{dt(extra.qualifyBy)}</b>까지</> });
+    lines.push({ k: <Tip label="참가 등록" title="입찰참가자격 등록 마감">이때까지 나라장터에 참가자격이 등록돼 있어야 투찰할 수 있어요.</Tip>, v: <b className={`font-semibold ${d >= 0 && d <= 2 ? 'text-bad' : 'text-ink'}`}>{dt(extra.qualifyBy)}까지</b> });
   }
   if (extra?.bidBegin) lines.push({ k: '투찰', v: <>{dt(extra.bidBegin)} ~ {fmtDateTime(n.closesAt).slice(5)}</> });
   if (extra?.openAt) lines.push({ k: '개찰', v: dt(extra.openAt) });
   const cond = [
     extra?.reNotice && '재공고',
     extra?.joint && extra.joint.replace(/공동수급/, '공동수급 '),
-    extra?.reserveTotal && extra.reserveDraw ? `복수예가 ${extra.reserveTotal}개 중 ${extra.reserveDraw}개 추첨` : n.prearng && n.prearng !== '복수예가' && n.prearng,
-    looksUnitPrice(n) && '단가 입찰로 보여요(기초금액이 단가 기준, 추정)',
+    extra?.reserveTotal && extra.reserveDraw ? `예비가격 ${extra.reserveTotal}개 중 ${extra.reserveDraw}개 추첨` : n.prearng && n.prearng !== '복수예가' && n.prearng,
+    looksUnitPrice(n) && '단가 입찰(추정)',
   ].filter(Boolean) as string[];
   if (cond.length) lines.push({ k: '조건', v: cond.join(' · ') });
 
@@ -290,13 +295,13 @@ function Briefing({ n }: { n: Notice }) {
       {past === undefined && !extra ? <div className="h-20 animate-pulse rounded-2xl bg-fill" /> : (
         <>
           <ul className="space-y-3">
-            {lines.map((l) => (
-              <li key={l.k} className="flex gap-3 text-[15px] leading-relaxed">
+            {lines.map((l, i) => (
+              <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
                 <span className="w-[72px] shrink-0 text-mute">{l.k}</span><span className="text-sub">{l.v}</span>
               </li>
             ))}
           </ul>
-          {past === null && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요. 쌓이면 보여드려요.</p>}
+          {past === null && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요</p>}
         </>
       )}
     </Card>
@@ -342,29 +347,6 @@ function InlineInput({ need }: { need: ProfileNeed }) {
 }
 
 /* ---------- 공고 해설 ---------- */
-function Explain({ n }: { n: Notice }) {
-  const a = awardInfo(n.award);
-  const law = lawGuess(n);
-  const items = [
-    { k: '누가 참여하나', v: n.contract, d: eligibilitySummary(n), term: CONTRACT_TERMS.includes(n.contract) ? n.contract as TermKey : null },
-    { k: '어떻게 뽑나', v: a.label, d: a.desc, term: a.label === '적격심사' ? '적격심사' as TermKey : null },
-    { k: '적용 법률', v: law ? law.replace(/\(.*\)/, '') : '공고문 확인', d: law ? '발주기관으로 추정했어요' : '발주기관으로 추정할 수 없어요', term: null },
-  ];
-  return (
-    <Card title="한눈에 보는 공고">
-      <dl className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        {items.map((it) => (
-          <div key={it.k}>
-            <dt className="text-[13px] text-mute">{it.k}</dt>
-            <dd className="mt-1 text-[16px] font-semibold">{it.term ? <Term k={it.term}>{it.v}</Term> : it.v}</dd>
-            {it.d && <dd className="mt-0.5 text-[14px] leading-relaxed text-sub">{it.d}</dd>}
-          </div>
-        ))}
-      </dl>
-    </Card>
-  );
-}
-
 /* ---------- 공고 정보: 모바일 1열 / 데스크탑 2열, 모두 표시 ---------- */
 function Info({ n }: { n: Notice }) {
   const rows: [React.ReactNode, React.ReactNode][] = [
@@ -374,8 +356,9 @@ function Info({ n }: { n: Notice }) {
     [<Term key="b" k="기초금액" />, n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전'],
     ['참가자격', eligibilitySummary(n)],
     ...(n.demandOrg && n.demandOrg !== n.org ? [['수요기관', n.demandOrg] as [string, string]] : []),
-    ['계약방식', n.contract],
-    ['낙찰방식', n.award],
+    ['계약방식', CONTRACT_TERMS.includes(n.contract) ? <Term key="c" k={n.contract as TermKey} /> : n.contract],
+    ['낙찰방식', <Tip key="a" label={awardInfo(n.award).label} title={awardInfo(n.award).label}>{awardInfo(n.award).desc ? `${awardInfo(n.award).desc} ` : ''}원래 표기: {n.award}</Tip>],
+    ...(lawGuess(n) ? [['적용 법률', `${lawGuess(n)!.replace(/\(.*\)/, '').replace(' 적용', '')} (추정)`] as [string, string]] : []),
     ...(n.floorRate ? [[<Term key="f" k="낙찰하한율" />, `${n.floorRate}%`] as [React.ReactNode, string]] : []),
     ...(n.productName ? [['세부품명', n.productName] as [string, string]] : []),
     ['공고번호', `${n.bidNo}-${n.bidOrd}`],
@@ -430,12 +413,11 @@ function Similar({ n }: { n: Notice }) {
   const [all, setAll] = useState(false);
   useEffect(() => { fetchSimilarContracts(n).then(setItems).catch(() => setItems([])); }, [n]);
   const corp = (c: SimilarContract) => c.corps.map((x) => x.name).filter(Boolean).join(', ') || '–';
+  if (items && !items.length) return null; // 관련 있는 지난 계약이 없으면 카드 자체를 숨김
 
   return (
-    <Card title="지난번엔 누가 얼마에 계약했나" aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
-      <p className="-mt-2 mb-3 text-[14px] leading-relaxed text-mute">{COPY.pastContracts}</p>
+    <Card title={<span className="flex items-center gap-1">지난 계약<Tip title="지난 계약">{COPY.pastContracts}. 공고명의 핵심 낱말이 겹치는 계약만 보여드려요.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
-      {items && !items.length && <p className="text-[15px] text-mute">아직 찾지 못했어요. 계약 정보가 쌓이면 보여드려요.</p>}
       {items && items.length > 0 && (
         <>
           {/* 모바일 */}

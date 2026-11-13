@@ -109,6 +109,8 @@ export function NoticesState({ notices, error, children }: { notices: Notice[] |
 
 /** '전기공사업 외 2 · 경기도 용인시' */
 export function profileSummary(p: Profile): string {
-  const ind = p.industries?.length ? `${p.industries[0].name}${p.industries.length > 1 ? ` 외 ${p.industries.length - 1}` : ''}` : '업종 미입력';
-  return `${ind} · ${p.location ?? '소재지 미입력'}`;
+  // '토목공사업 외 86'처럼 길어지지 않게 — 업종이 여러 개면 개수만
+  const ind = !p.industries?.length ? '업종 미입력' : p.industries.length === 1 ? p.industries[0].name : `업종 ${p.industries.length}개`;
+  const loc = p.location ? p.location.replace(/(특별자치시|특별자치도|특별시|광역시)/, '').replace(/^(\S+?)도 /, '$1 ') : '소재지 미입력';
+  return `${ind} · ${loc}`;
 }

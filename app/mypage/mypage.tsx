@@ -176,10 +176,10 @@ export default function MyPage() {
         </ul>
       </section>
 
-      {sheet === 'company' && <CompanySheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '기업 정보를 저장했습니다. 판정을 다시 계산했습니다')} />}
-      {sheet === 'prefs' && <PrefsSheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '매칭 선호도를 저장했습니다')} />}
-      <SignupSheet open={signup} onClose={() => setSignup(false)} reason="가입하면 저장한 공고와 기업 정보를 다른 기기에서도 볼 수 있어요."
-        onDone={() => { setSignup(false); toast('가입했습니다. 입력한 정보를 서버에 저장했습니다'); }} />
+      {sheet === 'company' && <CompanySheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '기업 정보를 저장했어요. 판정을 다시 계산했습니다')} />}
+      {sheet === 'prefs' && <PrefsSheet profile={profile} onClose={() => setSheet(null)} onSave={(p) => onSave(p, '선호도를 저장했어요')} />}
+      <SignupSheet open={signup} onClose={() => setSignup(false)} reason="가입하면 다른 기기에서도 이어서 볼 수 있어요."
+        onDone={() => { setSignup(false); toast('가입했어요'); }} />
     </main>
   );
 }
@@ -231,7 +231,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
       const res = await fetch(`/api/company?bizno=${form.bizno}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      if (!data.registered) return toast('나라장터에 등록된 정보가 없습니다');
+      if (!data.registered) return toast('나라장터에 등록된 정보가 없어요');
       setEmployees(typeof data.employees === 'number' ? data.employees : null);
       setForm({
         // 업체명은 대표자명 확인(가입) 때만 저장 — 조회 결과로 채우면 회사 확인 없이 입찰 분석이 열림
@@ -242,9 +242,9 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
           ? [...(form.products ?? []).filter((p) => p.source === 'user'), ...data.products.map((p: Product) => ({ ...p, source: 'nara' as const }))]
           : form.products,
       });
-      toast('나라장터 정보를 불러왔습니다');
+      toast('나라장터 정보를 불러왔어요');
     } catch (e) {
-      toast((e as Error).message || '조회에 실패했습니다');
+      toast((e as Error).message || '조회하지 못했어요');
     } finally {
       setBusy(false);
     }
@@ -327,7 +327,7 @@ function CompanySheet({ profile, onClose, onSave }: { profile: Profile; onClose:
           {employees !== null && (
             <p className="mt-2 rounded-xl bg-brand-soft px-3 py-2 text-[13px] text-sub">
               나라장터 등록 종업원 <b className="text-ink">{employees.toLocaleString()}명</b>
-              {employees < 10 ? ' — 소상공인일 가능성이 높아요(매출 기준도 맞아야 해요)' : ''}
+              {employees < 10 ? ' — 소상공인일 가능성이 높아요' : ''}
             </p>
           )}
           <p className="mt-1.5 text-xs leading-relaxed text-mute">1억 원 미만 물품·용역 공고는 소기업·소상공인만 참여하는 경우가 많아요. 정확한 규모는 중소기업확인서(공공구매종합정보망)로 확인하세요.</p>

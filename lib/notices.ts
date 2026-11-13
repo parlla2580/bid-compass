@@ -117,6 +117,9 @@ export async function fetchNoticesByIds(ids: number[]): Promise<Notice[]> {
   return ((data ?? []) as NoticeRow[]).map((r) => toNotice(r));
 }
 
+/** 어느 분야 공고에나 나오는 입찰 일반어 — 유사도 비교에서 제외 */
+export const GENERIC = /^(\d{4}(학년도|년도|년)?|\d+차|\d+단계|\d+구역|구축|시스템|고도화|플랫폼|통합|운영|유지관리|유지보수|개발|설치|선정|재공고|업체|기반|관련|위한|및|등|용|제작|개선|지원|관리|서비스|구매|입찰공고|안내|수의계약|단가계약|연간단가|연간|단가|협상에의한계약|신규|추가|공사|용역|물품|사업|계약|위탁|대행|임차|교체|보수|정비|점검)$/;
+
 /* ---------- 유사 계약 이력 (같은 기관 · 비슷한 계약명) ---------- */
 export interface SimilarContract {
   id: string;
@@ -156,7 +159,8 @@ export async function fetchSimilarContracts(n: Notice): Promise<SimilarContract[
     return true;
   });
   return unique
-    .map((c) => ({ c, score: [...words(c.title)].filter((w) => target.has(w)).length }))
+    // 일반어('연간단가'·'유지보수' 등)만 겹치면 관련 없는 계약 — 핵심 낱말이 하나 이상 겹쳐야 보여줌
+    .map((c) => ({ c, score: [...words(c.title)].filter((w) => target.has(w) && !GENERIC.test(w)).length }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 3)

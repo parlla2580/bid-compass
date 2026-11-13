@@ -1,5 +1,5 @@
 import type { Notice } from './data';
-import { words } from './notices';
+import { GENERIC, words } from './notices';
 import { idf, type Stats } from './stats';
 import { getSupabase } from './supabase';
 
@@ -66,7 +66,7 @@ export async function fetchMyHistory(): Promise<HistoryItem[]> {
  * 공고명 낱말의 TF-IDF 코사인 유사도 — 드문 낱말이 겹칠수록 높게 (입찰 일반어 제외, 정보량 낮은 낱말은 경사로 감쇠)
  *   + 같은 기관이면 남은 거리의 30%를 더 가깝게, 다른 사업유형이면 ×0.8, 비슷한 금액대(±2배)면 남은 거리의 10%
  *   + 낙찰 이력 ×1.3, 최근 1년 ×1.2 (상한 1)
- * 가장 비슷한 3건을 '하나라도 진짜 비슷할 확률'로 합침: H = 1 − Π(1 − s_k)  (0~1)
+ * H = 가장 비슷한 1건 + 둘째 건은 남은 거리의 25% (0~1). 같은 기관 가산은 내용 유사도 0.15 이상일 때만
  */
 export interface Similarity {
   /** 0~1 */
@@ -83,9 +83,6 @@ export function prepareHistory(items: HistoryItem[]) {
     weight: (h.won ? 1.3 : 1) * (now - new Date(h.opened_at).getTime() < 365 * 86400e3 ? 1.2 : 1),
   }));
 }
-
-/** 어느 분야 공고에나 나오는 입찰 일반어 — 이력 유사도에서 제외 */
-const GENERIC = /^(\d{4}(학년도|년도|년)?|\d+차|\d+단계|구축|시스템|고도화|플랫폼|통합|운영|유지관리|유지보수|개발|설치|선정|재공고|업체|기반|관련|위한|및|등|용|제작|개선|지원|관리|서비스|사업|구매|입찰공고|안내|수의계약|단가계약|협상에의한계약|연간|신규|추가)$/;
 
 export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>, stats: Stats | null = null): Similarity {
   if (!hist.length) return { score: 0, best: null };
@@ -105,14 +102,16 @@ export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>, s
     for (const x of w) if (target.has(x)) dot += weightOf(x);
     if (!dot) continue;
     let s = dot / (tNorm * norm(w));
-    if (h.org && (h.org === n.org || (!!n.demandOrg && h.demand_org === n.demandOrg))) s += 0.3 * (1 - s);
+    // 같은 기관 가산은 내용도 어느 정도 겹칠 때만 (기관만 같고 내용이 다른 공고가 높게 나오던 문제)
+    if (s >= 0.15 && h.org && (h.org === n.org || (!!n.demandOrg && h.demand_org === n.demandOrg))) s += 0.3 * (1 - s);
     if (h.bid_type !== n.type) s *= 0.8;
     if (h.amount && n.estPrice && Math.abs(Math.log10(h.amount / n.estPrice)) < 0.3) s += 0.1 * (1 - s);
     top.push({ s: Math.min(1, s * weight), h });
   }
   if (!top.length) return { score: 0, best: null };
   top.sort((a, b) => b.s - a.s);
-  const score = 1 - top.slice(0, 3).reduce((x, t) => x * (1 - t.s), 1);
+  // 가장 비슷한 1건 + 둘째는 남은 거리의 25%만 (이력이 많은 회사에서 점수가 부풀던 문제)
+  const score = top[0].s + (1 - top[0].s) * 0.25 * (top[1]?.s ?? 0);
   return { score, best: top[0].h };
 }
 

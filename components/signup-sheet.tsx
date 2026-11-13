@@ -12,7 +12,7 @@ import { useStore } from '@/lib/store';
 /**
  * 회원가입 (v2.2) — 이메일(아이디)·비밀번호·사업자등록번호·대표자명·약관 동의를 한 화면에서
  * 사업자번호+대표자명은 나라장터 업체정보와 대조해 회사를 확인합니다 (대표자명은 저장하지 않음).
- * 가입 전 입력한 업종·소재지·저장 공고는 서버로 옮깁니다.
+ * 입력한 정보는 계정으로 옮겨져요.
  */
 export function SignupSheet({ open, onClose, onDone, reason }: {
   open: boolean;
@@ -112,7 +112,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
           <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => { setBizno(maskBizNo(e.target.value)); setUnregisteredOk(false); }} placeholder="000-00-00000" className={INPUT_CLS} />)}
         {field('su-ceo', '대표자명',
           <input id="su-ceo" autoComplete="off" value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="사업자등록증의 대표자 성명" className={INPUT_CLS} />,
-          '나라장터 등록 정보와 대조해 회사를 확인합니다. 대표자명은 저장하지 않습니다.')}
+          '나라장터 등록 정보와 대조해 회사를 확인합니다. 대표자명은 저장하지 않아요.')}
 
         <div className="space-y-2 rounded-btn bg-fill p-4 text-[14px]">
           <label className="flex items-center gap-2 font-semibold">

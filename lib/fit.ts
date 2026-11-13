@@ -36,6 +36,8 @@ export interface Fit {
 
 /** 맞춤 공고 관문 */
 export const GATE = { rel: 0.7, relNoProduct: 0.4, hist: 0.3 };
+/** '이력과 비슷한 공고' 묶음 기준 — 맞춤 관문(0.3)보다 높게 (관문과 같으면 맞춤 공고 거의 전부가 들어감) */
+export const HIST_STRONG = 0.6;
 
 /** 과거 투찰 금액 중간 80% 범위 */
 function amountBand(hist: HistoryItem[]): [number, number] | null {
@@ -134,7 +136,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
       const reg = j.reasons.find((r) => r.rule === 'region');
       if (n.regionLimit && reg?.result === 'pass') v += (1 - v) * (n.regionLimit.every((r) => r.trim().includes(' ')) ? 0.5 : 0.3);
       ev.push(v);
-      push('license', '면허', v, `${options <= 1 ? '우리 업종만 콕 집어 요구' : `우리 업종 포함 ${options}개 업종 허용`}${stats && sp < 0.4 ? ` · 흔한 업종(공고 ${df.toLocaleString()}건)` : ''}`, 2);
+      push('license', '면허', v, `${options <= 1 ? '우리 업종만 요구' : `우리 업종 포함 ${options}개 업종 허용`}${stats && sp < 0.4 ? ` · 흔한 업종(공고 ${df.toLocaleString()}건)` : ''}`, 2);
     }
   }
 
@@ -163,11 +165,11 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     const [lo, hi] = range;
     const dist = n.estPrice < lo ? Math.log10(lo / n.estPrice) : n.estPrice > hi ? Math.log10(n.estPrice / hi) : 0;
     cond += dist === 0 ? 10 : Math.max(-10, 6 - dist * 20);
-    push('price', '금액대', dist === 0 ? 1 : clamp(1 - dist * 0.5), `${amountBand(hist) ? '평소 투찰' : '선호'} 금액대 ${short(lo)}~${short(hi)}원 ${dist === 0 ? '안' : '밖'}`);
+    push('price', '금액대', dist === 0 ? 1 : clamp(1 - dist * 0.5), `${amountBand(hist) ? '평소 투찰' : '선호'} 금액대(${short(lo)}~${short(hi)}원) ${dist === 0 ? '안' : '밖'}`);
   } else cond += 4;
 
   // 마감 여유 — 오늘·내일 마감은 준비가 빠듯
-  if (n.d >= 0 && n.d <= 1) { cond -= 10; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감이라 준비가 빠듯해요' : '내일 마감이라 준비가 빠듯해요'); }
+  if (n.d >= 0 && n.d <= 1) { cond -= 10; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감 — 준비가 빠듯해요' : '내일 마감 — 준비가 빠듯해요'); }
   else if (n.d === 2) cond -= 4;
   else if (n.d > 30) cond -= 2;
 
@@ -176,7 +178,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   if (n.regionLimit && reg?.result === 'pass') {
     const narrow = n.regionLimit.every((r) => r.trim().includes(' ')); // 시군구 단위 제한
     cond += narrow ? 8 : 4;
-    push('region', '지역', 1, narrow ? '우리 시군구 업체로 제한 (경쟁 범위 매우 좁음)' : '우리 시도 업체로 제한 (경쟁 범위 좁음)');
+    push('region', '지역', 1, narrow ? '우리 시군구 업체만 참여' : '우리 시도 업체만 참여');
   }
 
   // 기업규모 — 소기업·소상공인(또는 중소기업)끼리만 겨루는 공고로 추정되고 우리가 해당하면 경쟁 범위가 좁음
@@ -197,7 +199,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   // 기관 — 선호하거나 참여해 본 기관
   const orgHit = p.preferredOrgs.some((o) => n.org.includes(o) || n.demandOrg?.includes(o))
     || hist.some((h) => h.org === n.org || (!!n.demandOrg && h.demand_org === n.demandOrg));
-  if (orgHit) { cond += 6; push('org', '기관', 1, '선호하거나 참여해 본 기관'); }
+  if (orgHit) { cond += 6; push('org', '기관', 1, '참여해 봤거나 선호하는 기관'); }
 
   // 관심 유형 — 사용자가 직접 좁힌 경우에만 반영 (기본값 '전체'는 점수에 영향 없음)
   if (p.types.length && p.types.length < 3 && !p.types.includes(n.type)) { cond -= 15; push('type', '사업유형', 0.2, `관심 유형 아님(${n.type})`); }

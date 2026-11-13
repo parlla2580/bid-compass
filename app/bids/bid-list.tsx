@@ -13,7 +13,7 @@ import { fmtDateTime, fmtWon } from '@/lib/format';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
-import { GATE } from '@/lib/fit';
+import { HIST_STRONG } from '@/lib/fit';
 
 /*
  * 공고 (v3.1) — 공고는 이 화면 한 곳에서만
@@ -101,7 +101,7 @@ export default function BidList() {
     }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
 
   const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly]); // eslint-disable-line react-hooks/exhaustive-deps
-  const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= GATE.hist);
+  const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG);
   const matchedAll = all.filter((j) => j.matched);
   const histCount = matchedAll.filter(isHist).length;
   const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
@@ -191,7 +191,7 @@ export default function BidList() {
           )}
           {tab === 'match' && histCount > 0 && (
             <div className="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto">
-              {([[false, `맞춤 공고 전체 ${matchedAll.length.toLocaleString()}`], [true, `참여·낙찰 이력과 비슷한 공고 ${histCount.toLocaleString()}`]] as const).map(([v, label]) => (
+              {([[false, `맞춤 공고 전체 ${matchedAll.length.toLocaleString()}`], [true, `이력과 비슷한 공고 ${histCount.toLocaleString()}`]] as const).map(([v, label]) => (
                 <button key={String(v)} type="button" aria-pressed={histOnly === v} onClick={() => setHistOnly(v)}
                   className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(histOnly === v)}`}>{label}</button>
               ))}

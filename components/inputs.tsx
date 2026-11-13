@@ -104,8 +104,8 @@ export function IndustryPicker({ value, onChange, max = 10 }: {
       {q.trim() && (
         <div className="mt-2 max-h-56 overflow-y-auto rounded-btn border border-line bg-white">
           {state === 'loading' && <p className="px-3 py-3 text-sm text-mute">검색 중…</p>}
-          {state === 'error' && <p className="px-3 py-3 text-sm text-bad">업종 목록을 불러오지 못했습니다</p>}
-          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-mute">검색 결과가 없습니다</p>}
+          {state === 'error' && <p className="px-3 py-3 text-sm text-bad">업종 목록을 불러오지 못했어요</p>}
+          {state === 'idle' && !results.length && <p className="px-3 py-3 text-sm text-mute">검색 결과가 없어요</p>}
           {state === 'idle' && results.map((i) => (
             <button key={i.code} type="button" aria-pressed={chosen.has(i.code)} onClick={() => toggle(i)}
               className={`flex w-full items-center justify-between border-b border-line px-3 py-2.5 text-left text-sm last:border-0 hover:bg-fill ${chosen.has(i.code) ? 'font-semibold text-primary' : ''}`}>
