@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
 import { NoticeRow, RowList } from '@/components/notice-row';
-import { FirstRankCards } from '@/components/first-rank-card';
+import { UrgentStrip } from '@/components/urgent-strip';
 import { profileSummary } from '@/components/ui';
 import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
@@ -43,8 +43,8 @@ export default function HomePage() {
           </Link>
         </section>
 
-        {/* 1순위 심사 중 — 서류 기한이 가장 급한 일이라 맨 위에 (기획 16장 A1) */}
-        <FirstRankCards />
+        {/* 기한 2일 이하 '해야 할 일'만 한 줄 — 전체는 알림함(🔔) (기획 16장 A1) */}
+        <UrgentStrip />
 
         <section aria-label="요약" className="mt-5 grid grid-cols-3 gap-2 lg:gap-3">
           {stats.map((s) => (

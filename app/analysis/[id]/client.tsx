@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/layout';
+import { BidTracker } from '@/components/first-rank-card';
 import { fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { fetchOpeningDetail, type OpeningBidder, type OpeningDetail } from '@/lib/analysis';
 import { useStore } from '@/lib/store';
@@ -45,6 +46,9 @@ export default function OpeningView({ id }: { id: number }) {
         <h1 className="mt-1.5 text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{o.title}</h1>
         <p className={`mt-2 text-[18px] font-bold ${verdict.c}`}>{verdict.t}{me?.rate ? <span className="ml-2 text-[15px] font-medium text-sub">내 투찰률 {me.rate}%{me.amount ? ` · ${fmtWon(me.amount)}` : ''}</span> : null}</p>
       </section>
+
+      {/* 입찰 진행 추적 — 1순위였거나 낙찰한 건 (기획 16장 A1) */}
+      <BidTracker openingId={o.id} bidNo={o.bid_no} openedAt={o.opened_at} rank={me?.rank ?? null} won={o.winner_is_me} decided={!pending} />
 
       {/* 핵심 숫자 */}
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">

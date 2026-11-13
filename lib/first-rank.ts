@@ -33,6 +33,13 @@ export function kindOf(award: string | null): FirstRankKind | 'nego' {
   return 'other';
 }
 
+/** 공고번호 → 공고의 낙찰방법·원문 주소 (마지막 차수) */
+export async function fetchNoticeMeta(bidNo: string): Promise<{ award: string | null; noticeId: number | null; url: string | null }> {
+  const { data } = await getSupabase().from('notices').select('id,award,url')
+    .eq('bid_no', bidNo).order('bid_ord', { ascending: false }).limit(1).maybeSingle();
+  return { award: data?.award ?? null, noticeId: data?.id ?? null, url: data?.url ?? null };
+}
+
 export async function fetchFirstRanks(): Promise<FirstRank[]> {
   const list = await fetchMyBidList();
   if (!list) return [];
@@ -45,12 +52,7 @@ export async function fetchFirstRanks(): Promise<FirstRank[]> {
     // 개찰 1건 → 공고번호 → 공고의 낙찰방법·원문 주소
     const d = await fetchOpeningDetail(item.id).catch(() => null);
     const o = d?.opening;
-    let award: string | null = null, noticeId: number | null = null, url: string | null = null;
-    if (o?.bid_no) {
-      const { data } = await getSupabase().from('notices').select('id,award,url')
-        .eq('bid_no', o.bid_no).order('bid_ord', { ascending: false }).limit(1).maybeSingle();
-      award = data?.award ?? null; noticeId = data?.id ?? null; url = data?.url ?? null;
-    }
+    const { award, noticeId, url } = o?.bid_no ? await fetchNoticeMeta(o.bid_no) : { award: null, noticeId: null, url: null };
     const k = kindOf(award);
     if (k === 'nego') continue;
     out.push({

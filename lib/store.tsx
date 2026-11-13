@@ -289,8 +289,22 @@ export interface Judged {
   matched: boolean;
 }
 
+/** 판정 결과를 앱 전체가 한 번만 계산해 나눠 씀 (화면마다 다시 계산하지 않게) */
+const JudgedContext = createContext<Judged[] | null | undefined>(undefined);
+
+export function JudgedProvider({ children }: { children: ReactNode }) {
+  const judged = useComputeJudged();
+  return <JudgedContext.Provider value={judged}>{children}</JudgedContext.Provider>;
+}
+
 /** 마감 전 공고 전체를 현재 프로필로 판정 — 공고를 불러오는 중이면 null */
 export function useJudged(): Judged[] | null {
+  const v = useContext(JudgedContext);
+  if (v === undefined) throw new Error('JudgedProvider가 필요합니다');
+  return v;
+}
+
+function useComputeJudged(): Judged[] | null {
   const { profile, notices, history, competition, stats } = useStore();
   const hist = useMemo(() => prepareHistory(history), [history]);
   return useMemo(

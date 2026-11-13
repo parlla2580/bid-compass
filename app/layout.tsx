@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './globals.css';
 import { SyncErrorToast, ToastProvider } from '@/components/feedback';
-import { StoreProvider } from '@/lib/store';
+import { JudgedProvider, StoreProvider } from '@/lib/store';
+import { InboxProvider } from '@/lib/inbox';
 
 export const metadata: Metadata = {
   title: { default: '입찰나침반', template: '%s · 입찰나침반' },
@@ -21,10 +22,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body className="bg-canvas font-sans text-ink">
         <StoreProvider>
-          <ToastProvider>
-            {children}
-            <SyncErrorToast />
-          </ToastProvider>
+          <JudgedProvider>
+            <InboxProvider>
+              <ToastProvider>
+                {children}
+                <SyncErrorToast />
+              </ToastProvider>
+            </InboxProvider>
+          </JudgedProvider>
         </StoreProvider>
       </body>
     </html>

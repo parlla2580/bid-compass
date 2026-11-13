@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Calculator, CircleUserRound, Compass, FileText, House } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bell, Calculator, CircleUserRound, Compass, FileText, House } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
+import { useInbox } from '@/lib/inbox';
 
 /*
  * 화면 틀 (v3 투트랙)
@@ -62,6 +63,7 @@ function SideMenu() {
             </Link>
           );
         })}
+        <BellLink desk />
       </nav>
       <Link href="/mypage" className={`mt-auto ${item(path.startsWith('/mypage'))}`}>
         <CircleUserRound className="h-5 w-5 shrink-0" />
@@ -71,6 +73,28 @@ function SideMenu() {
         </span>
       </Link>
     </aside>
+  );
+}
+
+/** 알림함 종 — 안 읽은 알림 수 */
+function BellLink({ desk = false }: { desk?: boolean }) {
+  const { unread } = useInbox();
+  const path = usePathname();
+  const badge = unread > 0 && (
+    <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none text-white">{unread > 9 ? '9+' : unread}</span>
+  );
+  if (desk) {
+    const on = path.startsWith('/inbox');
+    return (
+      <Link href="/inbox" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition ${on ? 'bg-fill text-ink' : 'text-mute hover:bg-fill hover:text-sub'}`}>
+        <span className="relative"><Bell className="h-5 w-5" strokeWidth={on ? 2.3 : 2} />{badge}</span>알림
+      </Link>
+    );
+  }
+  return (
+    <Link href="/inbox" aria-label={unread ? `알림 ${unread}건` : '알림'} className="relative flex h-10 w-10 items-center justify-center rounded-full text-sub active:bg-fill">
+      <Bell className="h-[22px] w-[22px]" />{badge}
+    </Link>
   );
 }
 
@@ -90,7 +114,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-canvas/90 px-5 backdrop-blur lg:hidden">
       <Logo />
-      <ProfileLink />
+      <div className="flex items-center"><BellLink /><ProfileLink /></div>
     </header>
   );
 }
@@ -106,7 +130,7 @@ export function BackHeader({ title, fallback = '/bids' }: { title: string; fallb
         <ArrowLeft className="h-[22px] w-[22px]" />
       </button>
       <span className="truncate text-[17px] font-semibold">{title}</span>
-      <div className="ml-auto lg:hidden"><ProfileLink /></div>
+      <div className="ml-auto flex items-center lg:hidden"><BellLink /><ProfileLink /></div>
     </header>
   );
 }
