@@ -121,7 +121,8 @@ function sizeRule(n: Notice, p: Profile): Reason | null {
   const what = `추정가격 ${n.estPrice < 1e8 ? '1억 원' : '2.3억 원'} 미만 제한경쟁 — ${lim.label}만 참여하는 공고일 가능성이 높아요(추정)`;
   if (!p.size) return { rule, result: 'pass', text: `${what}. 기업규모를 넣으면 맞춰 드려요`, need: 'size' };
   if (SIZE_RANK[p.size] <= SIZE_RANK[lim.need]) return { rule, result: 'pass', text: `${lim.label} 제한 추정 공고 — 우리 회사(${p.size}) 해당` };
-  return { rule, result: 'check', text: `${what}. 우리 회사는 ${p.size}라 참여가 어려울 수 있어요. 공고문 참가자격을 확인하세요`, need: 'size' };
+  // 이미 입력한 규모와 안 맞는 경우 — 입력 요청(need)이 아니라 공고문 확인 안내 (홈 '입력하면 판정' 배너에 세지 않음)
+  return { rule, result: 'check', text: `${what}. 우리 회사는 ${p.size}라 참여가 어려울 수 있어요. 공고문 참가자격을 확인하세요` };
 }
 
 const RULES: ((n: Notice, p: Profile) => Reason | null)[] = [regionRule, industryRule, sizeRule];
