@@ -420,7 +420,7 @@ function HistoryCard() {
     const o = bidOutcome(i);
     const c = o === 'won' ? 'bg-brand text-white' : o === 'below' ? 'bg-bad/10 text-bad' : o === 'pending' ? 'bg-brand-soft text-brand' : 'bg-fill text-sub';
     // 결정 전은 두 줄: '1위' + '결정 전'
-    return o === 'pending' && i.rank ? { t: `${i.rank}위`, s: '결정 전', c } : { t: outcomeLabel(i, o), s: null, c };
+    return o === 'pending' && i.rank ? { t: `${i.rank}위`, s: i.rank === 1 ? '심사 중' : '결정 전', c } : { t: outcomeLabel(i, o), s: null, c };
   };
   return (
     <Card title="투찰한 공고" aside={<span className="text-[13px] text-mute">{items.length}건</span>}>

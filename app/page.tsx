@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Header, Shell, useRequireStart } from '@/components/layout';
 import { NoticeRow, RowList } from '@/components/notice-row';
+import { FirstRankCards } from '@/components/first-rank-card';
 import { profileSummary } from '@/components/ui';
 import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
@@ -41,6 +42,9 @@ export default function HomePage() {
             {profileSummary(profile)} 기준<ChevronRight className="h-4 w-4 text-mute" />
           </Link>
         </section>
+
+        {/* 1순위 심사 중 — 서류 기한이 가장 급한 일이라 맨 위에 (기획 16장 A1) */}
+        <FirstRankCards />
 
         <section aria-label="요약" className="mt-5 grid grid-cols-3 gap-2 lg:gap-3">
           {stats.map((s) => (

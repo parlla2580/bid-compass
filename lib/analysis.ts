@@ -154,7 +154,7 @@ export function bidOutcome(i: MyBidItem, now = Date.now()): BidOutcome {
 }
 
 export const outcomeLabel = (i: MyBidItem, o = bidOutcome(i)) =>
-  o === 'won' ? '낙찰' : o === 'below' ? '하한 미달' : o === 'pending' ? (i.rank ? `${i.rank}위 · 결정 전` : '결정 전')
+  o === 'won' ? '낙찰' : o === 'below' ? '하한 미달' : o === 'pending' ? (i.rank === 1 ? '1위 · 심사 중' : i.rank ? `${i.rank}위 · 결정 전` : '결정 전')
     : o === 'unknown' ? '결과 없음' : i.rank ? `${i.rank}위` : '탈락';
 
 export async function fetchMyBidList(): Promise<MyBidItem[] | null> {
