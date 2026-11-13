@@ -10,6 +10,12 @@ on:
         description: '수집 구간(시간) — 평소 6, 지난주 공고를 한 번에 받으려면 168'
         required: false
         default: '6'
+      mode:
+        description: 'full = 평소 수집 / snapshot = 수집 없이 공고 목록 스냅샷만 다시 만들기(1분 안)'
+        required: false
+        default: 'full'
+        type: choice
+        options: [full, snapshot]
   push:
     branches: [main]
     paths:
@@ -57,4 +63,5 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           SUPABASE_URL: https://tpuhqzxhrwuugojsnfpj.supabase.co
           COLLECT_HOURS: ${{ github.event.inputs.hours || '6' }}
+          COLLECT_MODE: ${{ github.event.inputs.mode || 'full' }}
         run: node scripts/collect.mjs

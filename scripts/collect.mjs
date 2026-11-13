@@ -11,11 +11,14 @@
 // 실행 결과는 Supabase collect_runs 테이블에 기록됩니다.
 // =========================================================
 import { createClient } from '@supabase/supabase-js';
+import { gzipSync } from 'node:zlib';
 
 const KEY = process.env.NARA_API_KEY;
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SECRET_KEY;
 const HOURS = Number(process.env.COLLECT_HOURS || 6);
+// snapshot: 수집 없이 공고 목록 스냅샷만 다시 만듦 (수동 실행용)
+const MODE = process.env.COLLECT_MODE || 'full';
 const DRY = process.argv.includes('--dry') || !SB_KEY;
 
 const BID = 'https://apis.data.go.kr/1230000/ad/BidPublicInfoService02';
@@ -384,12 +387,31 @@ async function upsert(sb, table, rows, onConflict) {
   }
 }
 
+/* ---------- 공고 목록 스냅샷 (018) ----------
+ * 마감 전 공고 전체(open_notices, 014)를 압축해 공개 저장소에 올림 → 화면은 CDN에서 파일 하나로 받음
+ * 실패해도 수집은 계속 (화면은 DB 함수로 자동 전환)
+ */
+async function writeSnapshot(sb) {
+  const { data, error } = await sb.rpc('open_notices');
+  if (error) throw new Error(`open_notices: ${error.message}`);
+  const body = gzipSync(Buffer.from(JSON.stringify({ at: new Date().toISOString(), rows: data })));
+  const { error: e2 } = await sb.storage.from('public-data')
+    .upload('open-notices.json.gz', body, { contentType: 'application/gzip', upsert: true, cacheControl: '300' });
+  if (e2) throw new Error(`저장소 올리기 (018 실행 여부 확인): ${e2.message}`);
+  return `${data.length}건, ${(body.length / 1024 / 1024).toFixed(1)}MB`;
+}
+
 async function main() {
   const to = new Date();
   const from = new Date(to.getTime() - HOURS * 3600e3);
   console.log(`수집 구간 (한국시간): ${ymdhm(from)} ~ ${ymdhm(to)}${DRY ? '  [저장 안 함]' : ''}`);
 
   const sb = DRY ? null : createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+  if (MODE === 'snapshot') {
+    if (!sb) throw new Error('스냅샷은 SUPABASE_SECRET_KEY가 있어야 만들 수 있습니다');
+    console.log(`공고 목록 스냅샷: ${await writeSnapshot(sb)}`);
+    return;
+  }
   let runId = null;
   if (sb) {
     const { data, error } = await sb.from('collect_runs')
@@ -437,6 +459,11 @@ async function main() {
     } catch (e) {
       result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
     }
+  }
+
+  // 공고 목록 스냅샷 — 공고 저장 직후에 만들어, 오래 걸리는 투찰 순위 수집을 기다리지 않게
+  if (sb) {
+    try { result.snapshot = await writeSnapshot(sb); console.log(`공고 목록 스냅샷: ${result.snapshot}`); } catch (e) { result.errors.push(`스냅샷: ${e.message}`); }
   }
 
   // 투찰업체 순위 — 구간과 상관없이 아직 받지 않은 개찰완료 공고를 최근 것부터

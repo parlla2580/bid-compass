@@ -32,13 +32,37 @@ export async function cachedOpenNotices(): Promise<Notice[] | null> {
   return latestOnly(c.value.filter((r) => new Date(r.closes_at) >= now).map((r) => toNotice(r, now)));
 }
 
-/** 마감 전 공고 전체 — 014의 open_notices() 한 번 호출. 014 실행 전이면 예전처럼 1천 건씩 차례로 */
+/* ---------- 공고 목록 스냅샷 (018) — 수집기가 3시간마다 올리는 압축 파일을 CDN에서 받음 ---------- */
+const SNAPSHOT_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-data/open-notices.json.gz`;
+const SNAPSHOT_MAX_AGE = 6 * 3600e3; // 수집이 두 번 이상 밀리면 DB에서 직접
+
+async function fetchSnapshot(): Promise<NoticeRow[] | null> {
+  if (typeof DecompressionStream === 'undefined' || !process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
+  try {
+    const res = await fetch(SNAPSHOT_URL, { cache: 'no-cache', signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    // 저장소가 압축을 이미 풀어 보냈을 수도 있어 앞 2바이트(gzip 표시)로 판단
+    const text = buf[0] === 0x1f && buf[1] === 0x8b
+      ? await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+      : new TextDecoder().decode(buf);
+    const snap = JSON.parse(text) as { at?: string; rows?: NoticeRow[] };
+    if (!snap.at || !Array.isArray(snap.rows) || Date.now() - new Date(snap.at).getTime() > SNAPSHOT_MAX_AGE) return null;
+    return snap.rows;
+  } catch {
+    return null;
+  }
+}
+
+/** 마감 전 공고 전체 — ① CDN 스냅샷 ② 014의 open_notices() ③ 예전처럼 1천 건씩 차례로 */
 export async function fetchOpenNotices(): Promise<Notice[]> {
   const sb = getSupabase();
   const now = new Date();
   let rows: NoticeRow[];
-  const rpc = await sb.rpc('open_notices');
-  if (!rpc.error && Array.isArray(rpc.data)) rows = rpc.data as NoticeRow[];
+  const snap = await fetchSnapshot();
+  const rpc = snap ? null : await sb.rpc('open_notices');
+  if (snap) rows = snap.filter((r) => new Date(r.closes_at) >= now); // 스냅샷 이후 마감된 공고는 뺌
+  else if (rpc && !rpc.error && Array.isArray(rpc.data)) rows = rpc.data as NoticeRow[];
   else {
     rows = [];
     for (let from = 0; from < 20 * PAGE; from += PAGE) {
