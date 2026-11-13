@@ -19,9 +19,16 @@ async function call<T>(op: string, params: Record<string, string>): Promise<T[]>
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const res = await fetch(`${BASE}/${op}?${qs}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) });
-      const json = await res.json();
-      const body: ApiBody<T> | undefined = json.response?.body;
-      if (json.response?.header?.resultCode !== '00' || !body) throw new Error(json.response?.header?.resultMsg ?? '조회 오류');
+      const text = await res.text();
+      let json: { response?: { header?: { resultCode?: string; resultMsg?: string }; body?: ApiBody<T> } } | null = null;
+      try { json = JSON.parse(text); } catch { /* 공공데이터포털 게이트웨이 오류는 XML로 옴 */ }
+      const body = json?.response?.body;
+      if (json?.response?.header?.resultCode !== '00' || !body) {
+        // 원인 코드만 꺼내 보여줌 (인증키 등 비밀값은 응답에 없음)
+        const code = /<returnAuthMsg>([^<]+)/.exec(text)?.[1] ?? /<errMsg>([^<]+)/.exec(text)?.[1]
+          ?? json?.response?.header?.resultMsg ?? `HTTP ${res.status} ${text.replace(/\s+/g, ' ').slice(0, 80)}`;
+        throw new Error(`조회 오류(${op.replace(/^getPrcrmntCorp|02$/g, '')}): ${code}`);
+      }
       const items = body.items ?? [];
       return Array.isArray(items) ? items : items.item ? ([] as T[]).concat(items.item) : [];
     } catch (e) {
