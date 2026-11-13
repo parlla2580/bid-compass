@@ -191,7 +191,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           <span>
             <span className="font-medium">공고 세부기준표 값과 대조했어요</span>
             <span className="mt-0.5 block text-[13px] text-mute">
-              {fromNotice ? '공고 데이터에서 불러온 값이에요. 세부기준표와 한 번 더 대조해 주세요.' : '지금 값은 예시값이에요. 공고마다 달라요.'}
+              {fromNotice ? '공고에서 불러온 값이에요. 세부기준표와 대조해 주세요.' : '지금 값은 예시값이에요. 공고마다 달라요.'}
             </span>
           </span>
         </label>
