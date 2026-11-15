@@ -237,7 +237,7 @@ async function collectContracts(from, to) {
         // 나라장터 계약번호 — 같은 계약이 통합계약번호만 다르게 재등록되는 경우가 있어 이 값으로 한 건만 저장
         contract_no: /ctrtNo=([^&]+)/.exec(detailUrl ?? '')?.[1] ?? it.untyCntrctNo,
         bid_type: t.name,
-        title: it.cntrctNm || '(계약명 없음)',
+        title: it.cntrctNm || it.cnstwkNm || '(계약명 없음)', // 공사 계약은 이름이 cnstwkNm(공사명)에 있음
         org: it.cntrctInsttNm || null,
         org_code: it.cntrctInsttCd || null,
         org_kind: it.cntrctInsttJrsdctnDivNm || null,
