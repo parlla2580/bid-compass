@@ -5,6 +5,7 @@ import { bidOutcome, fetchMyBidList, type MyBidItem } from './analysis';
 import { fetchFirstRanks, type FirstRank } from './first-rank';
 import { useJudged, useStore } from './store';
 import { getSupabase, supabaseEnabled } from './supabase';
+import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
 
 /*
  * 알림함 (기획 16장 A1)
@@ -14,7 +15,7 @@ import { getSupabase, supabaseEnabled } from './supabase';
  */
 
 export type InboxKind = 'action' | 'news';
-export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org';
+export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org' | 'soon';
 
 export interface InboxItem {
   key: string;
@@ -68,7 +69,7 @@ interface InboxValue {
 const InboxContext = createContext<InboxValue | null>(null);
 
 export function InboxProvider({ children }: { children: ReactNode }) {
-  const { account, profile, saved, notices } = useStore();
+  const { account, profile, saved, notices, stats } = useStore();
   const judged = useJudged();
   const verified = !!account && !!profile.corpName;
   const [firstRanks, setFirstRanks] = useState<FirstRank[]>([]);
@@ -77,6 +78,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const [server, setServer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [orgs, setOrgs] = useState<SavedOrg[]>([]);
+  // 곧 나올 공고(사전규격, 022) — 화면이 먼저 뜨도록 조금 늦게 받음
+  const [pre, setPre] = useState<Prespec[] | null>(null);
+  useEffect(() => {
+    if (!account || !profile.products?.length) { setPre(null); return; }
+    const t = setTimeout(() => { fetchPrespecs().then(setPre).catch(() => setPre(null)); }, 2500);
+    return () => clearTimeout(t);
+  }, [account, profile.products]);
   const [orgServer, setOrgServer] = useState(false);
 
   // 저장한 기관 — 서버(021) 우선, 없으면 이 기기
@@ -184,11 +192,21 @@ export function InboxProvider({ children }: { children: ReactNode }) {
         out.push({ key: `orgnew:${n.id}`, kind: 'news', icon: 'org', title: '저장한 기관이 새 공고를 냈어요', sub: `${hit} · ${n.title}`, href: `/bids/${n.id}`, due: null, at: n.postedAt });
       }
     }
-    // 6) 오늘 새 맞춤 공고
+    // 6) 곧 나올 맞춤 공고 — 최근 24시간에 새로 공개된 사전규격 중 우리 일과 맞는 것
+    if (pre) {
+      const fresh = matchPrespecs(pre, profile, stats).filter((m) => m.p.receivedAt && now - m.p.receivedAt.getTime() <= 86400e3 && m.p.status !== 'noticed')
+        .sort((a, b) => (b.p.budget ?? 0) - (a.p.budget ?? 0));
+      if (fresh.length) {
+        const top = fresh[0].p;
+        out.push({ key: `soon:${kstDay()}`, kind: 'news', icon: 'soon', title: `곧 나올 맞춤 공고 ${fresh.length}건`,
+          sub: `${top.title}${fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : ''} · 공고 전에 규격서를 볼 수 있어요`, href: '/bids?tab=soon', due: null, at: top.receivedAt! });
+      }
+    }
+    // 7) 오늘 새 맞춤 공고
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '맞춤 점수 높은 순으로 볼 수 있어요', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, bids, judged, orgs]);
+  }, [account, firstRanks, notices, saved, bids, judged, orgs, pre, profile, stats]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)

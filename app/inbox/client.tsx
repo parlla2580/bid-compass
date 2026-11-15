@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { BellOff, Building2, ChevronRight, Clock, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
+import { BellOff, Building2, ChevronRight, Clock, FileSearch, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
 import { useInbox, type InboxIcon, type InboxItem } from '@/lib/inbox';
 import { useStore } from '@/lib/store';
 
@@ -18,6 +18,7 @@ const ICON: Record<InboxIcon, { I: typeof Trophy; c: string }> = {
   result: { I: Result, c: 'bg-fill text-sub' },
   new: { I: FileText, c: 'bg-fill text-sub' },
   org: { I: Building2, c: 'bg-warn/10 text-warn' },
+  soon: { I: FileSearch, c: 'bg-brand-soft text-brand' },
 };
 
 const dday = (due: Date) => {
@@ -60,7 +61,7 @@ export default function InboxView() {
       </section>
 
       <p className="px-1 text-[12px] leading-relaxed text-mute">
-        1순위 서류 기한은 개찰일 기준 추정이에요. 저장한 기관의 계약은 끝나기 60일 전부터 알려드려요. 실제 기한은 나라장터 통보일부터 세요. 이메일 알림은 준비 중이에요.
+        1순위 서류 기한은 개찰일 기준 추정이에요. 저장한 기관의 계약은 끝나기 60일 전부터, 곧 나올 맞춤 공고(사전규격)는 새로 공개된 날 알려드려요. 실제 기한은 나라장터 통보일부터 세요. 이메일 알림은 준비 중이에요.
       </p>
     </main>
   );
