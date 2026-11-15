@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { BellOff, ChevronRight, Clock, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
+import { BellOff, Building2, ChevronRight, Clock, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
 import { useInbox, type InboxIcon, type InboxItem } from '@/lib/inbox';
 import { useStore } from '@/lib/store';
 
@@ -17,6 +17,7 @@ const ICON: Record<InboxIcon, { I: typeof Trophy; c: string }> = {
   win: { I: PartyPopper, c: 'bg-brand-soft text-brand' },
   result: { I: Result, c: 'bg-fill text-sub' },
   new: { I: FileText, c: 'bg-fill text-sub' },
+  org: { I: Building2, c: 'bg-warn/10 text-warn' },
 };
 
 const dday = (due: Date) => {
@@ -26,7 +27,7 @@ const dday = (due: Date) => {
 
 export default function InboxView() {
   const { account } = useStore();
-  const { actions, news, state, markRead, loading } = useInbox();
+  const { actions, news, state, markRead, setDone, loading } = useInbox();
 
   // 알림함을 열면 지금 보이는 알림을 읽음으로 (종의 숫자만 사라짐)
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function InboxView() {
         <h2 className="mb-2 px-1 text-[17px] font-bold">해야 할 일 {actions.length > 0 && <span className="text-brand">{actions.length}</span>}</h2>
         {actions.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-box bg-white">
-            {actions.map((i) => <Row key={i.key} i={i} unread={!state(i.key).read_at} />)}
+            {actions.map((i) => <Row key={i.key} i={i} unread={!state(i.key).read_at} onDone={i.doneLabel ? () => setDone(i.key, true) : undefined} />)}
           </ul>
         ) : <Empty text={loading ? '확인하는 중이에요' : '지금 급한 일은 없어요'} />}
       </section>
@@ -59,17 +60,17 @@ export default function InboxView() {
       </section>
 
       <p className="px-1 text-[12px] leading-relaxed text-mute">
-        1순위 서류 기한은 개찰일 기준 추정이에요. 실제 기한은 나라장터 통보일부터 세요. 이메일 알림은 준비 중이에요.
+        1순위 서류 기한은 개찰일 기준 추정이에요. 저장한 기관의 계약은 끝나기 60일 전부터 알려드려요. 실제 기한은 나라장터 통보일부터 세요. 이메일 알림은 준비 중이에요.
       </p>
     </main>
   );
 }
 
-function Row({ i, unread }: { i: InboxItem; unread: boolean }) {
+function Row({ i, unread, onDone }: { i: InboxItem; unread: boolean; onDone?: () => void }) {
   const { I, c } = ICON[i.icon];
   return (
-    <li>
-      <Link href={i.href} className="flex items-center gap-3 px-4 py-3.5 hover:bg-fill/60">
+    <li className="flex items-center">
+      <Link href={i.href} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 hover:bg-fill/60">
         <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${c}`}>
           <I className="h-5 w-5" />
           {unread && <i className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-bad" aria-label="새 알림" />}
@@ -79,8 +80,9 @@ function Row({ i, unread }: { i: InboxItem; unread: boolean }) {
           <span className="block truncate text-[13px] text-mute">{i.sub}</span>
         </span>
         {i.due && <span className={`shrink-0 text-[14px] font-bold tabular-nums ${Math.ceil((i.due.getTime() - Date.now()) / 86400e3) <= 2 ? 'text-bad' : 'text-brand'}`}>{dday(i.due)}</span>}
-        <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
+        {!onDone && <ChevronRight className="h-4 w-4 shrink-0 text-mute" />}
       </Link>
+      {onDone && <button type="button" onClick={onDone} className="mr-3 h-9 shrink-0 rounded-btn bg-fill px-3 text-[13px] font-semibold text-sub">{i.doneLabel}</button>}
     </li>
   );
 }

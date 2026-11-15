@@ -14,7 +14,7 @@ import { getSupabase, supabaseEnabled } from './supabase';
  */
 
 export type InboxKind = 'action' | 'news';
-export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new';
+export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org';
 
 export interface InboxItem {
   key: string;
@@ -27,7 +27,15 @@ export interface InboxItem {
   due: Date | null;
   /** 정렬용 시각 */
   at: Date;
+  /** 바로 끝낼 수 있는 해야 할 일의 버튼 이름 (예: 확인했어요) */
+  doneLabel?: string;
 }
+
+/** 저장한 기관 (021) — watch: 저장할 때 본 진행 중 계약 */
+export interface SavedOrg { org: string; kind: string | null; watch: { id: string; title: string; end: string }[] }
+const ORG_LOCAL = 'bc3:orgs';
+/** 계약 끝나기 이만큼 전부터 알림 */
+export const ORG_END_DAYS = 60;
 
 export interface ItemState { read_at: string | null; done_at: string | null; checks: string[] }
 
@@ -45,6 +53,11 @@ interface InboxValue {
   news: InboxItem[];
   unread: number;
   firstRanks: FirstRank[];
+  savedOrgs: SavedOrg[];
+  isSavedOrg: (org: string) => boolean;
+  /** 저장/해제. watch를 주면 저장(또는 갱신) */
+  saveOrg: (o: SavedOrg) => void;
+  unsaveOrg: (org: string) => void;
   state: (key: string) => ItemState;
   markRead: (keys: string[]) => void;
   setDone: (key: string, done: boolean) => void;
@@ -63,6 +76,36 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const [st, setSt] = useState<Record<string, ItemState>>({});
   const [server, setServer] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [orgs, setOrgs] = useState<SavedOrg[]>([]);
+  const [orgServer, setOrgServer] = useState(false);
+
+  // 저장한 기관 — 서버(021) 우선, 없으면 이 기기
+  useEffect(() => {
+    const local = () => { try { return JSON.parse(localStorage.getItem(ORG_LOCAL) ?? '[]') as SavedOrg[]; } catch { return []; } };
+    if (!account || !supabaseEnabled) { setOrgServer(false); setOrgs(account ? local() : []); return; }
+    getSupabase().from('saved_orgs').select('org,kind,watch').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (error) { setOrgServer(false); setOrgs(local()); return; }
+      setOrgServer(true);
+      setOrgs((data ?? []).map((r) => ({ org: r.org, kind: r.kind, watch: Array.isArray(r.watch) ? r.watch : [] })));
+    });
+  }, [account]);
+
+  const writeOrgs = useCallback((f: (cur: SavedOrg[]) => SavedOrg[]) => {
+    setOrgs((cur) => {
+      const next = f(cur);
+      if (!orgServer) { try { localStorage.setItem(ORG_LOCAL, JSON.stringify(next)); } catch { /* 저장소를 못 써도 동작 */ } }
+      return next;
+    });
+  }, [orgServer]);
+  const saveOrg = useCallback((o: SavedOrg) => {
+    // 이미 저장된 기관은 자리 유지(목록 갱신), 새 기관은 맨 앞
+    writeOrgs((cur) => cur.some((x) => x.org === o.org) ? cur.map((x) => (x.org === o.org ? o : x)) : [o, ...cur]);
+    if (orgServer && account) void getSupabase().from('saved_orgs').upsert({ user_id: account.id, org: o.org, kind: o.kind, watch: o.watch, updated_at: new Date().toISOString() });
+  }, [writeOrgs, orgServer, account]);
+  const unsaveOrg = useCallback((org: string) => {
+    writeOrgs((cur) => cur.filter((x) => x.org !== org));
+    if (orgServer && account) void getSupabase().from('saved_orgs').delete().eq('user_id', account.id).eq('org', org);
+  }, [writeOrgs, orgServer, account]);
 
   // 회원 입찰 이력 → 1순위·결과
   useEffect(() => {
@@ -120,11 +163,32 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       if (o === 'won') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'win', title: '낙찰됐어요 🎉', sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
       else if (o === 'lost' && b.rank && b.rank <= 3) out.push({ key: `result:${b.id}`, kind: 'news', icon: 'result', title: `결과가 나왔어요 · ${b.rank}위`, sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
     }
-    // 4) 오늘 새 맞춤 공고
+    // 4) 저장한 기관 — 진행 중 계약이 곧 끝남 (해야 할 일, [확인했어요]로 끝냄)
+    const now = Date.now();
+    for (const o of orgs) {
+      for (const w of o.watch) {
+        const end = new Date(`${w.end}T23:59:59+09:00`);
+        const left = (end.getTime() - now) / 86400e3;
+        if (left < 0 || left > ORG_END_DAYS) continue;
+        out.push({ key: `orgend:${o.org}:${w.id}`, kind: 'action', icon: 'org', title: '저장한 기관의 계약이 곧 끝나요', sub: `${o.org} · ${w.title}`,
+          href: `/analysis?tab=sales&org=${encodeURIComponent(o.org)}`, due: end, at: new Date(end.getTime() - ORG_END_DAYS * 86400e3), doneLabel: '확인했어요' });
+      }
+    }
+    // 5) 저장한 기관이 새 공고를 냄 (최근 7일 게시, 마감 전)
+    if (orgs.length) {
+      const names = new Set(orgs.map((o) => o.org));
+      for (const n of notices ?? []) {
+        if (n.d < 0 || now - n.postedAt.getTime() > 7 * 86400e3) continue;
+        const hit = [n.demandOrg, n.org].find((x) => x && names.has(x));
+        if (!hit) continue;
+        out.push({ key: `orgnew:${n.id}`, kind: 'news', icon: 'org', title: '저장한 기관이 새 공고를 냈어요', sub: `${hit} · ${n.title}`, href: `/bids/${n.id}`, due: null, at: n.postedAt });
+      }
+    }
+    // 6) 오늘 새 맞춤 공고
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '맞춤 점수 높은 순으로 볼 수 있어요', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, bids, judged]);
+  }, [account, firstRanks, notices, saved, bids, judged, orgs]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)
@@ -133,11 +197,12 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     const unread = [...actions, ...news].filter((i) => !state(i.key).read_at).length;
     return {
       items, actions, news, unread, firstRanks, state, loading,
+      savedOrgs: orgs, isSavedOrg: (org) => orgs.some((o) => o.org === org), saveOrg, unsaveOrg,
       markRead: (keys) => keys.forEach((k) => { const s = state(k); if (!s.read_at) persist(k, { ...s, read_at: new Date().toISOString() }); }),
       setDone: (k, done) => { const s = state(k); persist(k, { ...s, read_at: s.read_at ?? new Date().toISOString(), done_at: done ? new Date().toISOString() : null }); },
       toggleCheck: (k, c) => { const s = state(k); const set = new Set(s.checks); if (set.has(c)) set.delete(c); else set.add(c); persist(k, { ...s, checks: [...set] }); },
     };
-  }, [items, state, persist, firstRanks, loading]);
+  }, [items, state, persist, firstRanks, loading, orgs, saveOrg, unsaveOrg]);
 
   return <InboxContext.Provider value={value}>{children}</InboxContext.Provider>;
 }

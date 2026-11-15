@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { Bookmark, ChevronDown, ExternalLink } from 'lucide-react';
 import { Card } from '@/components/layout';
 import { Tip } from '@/components/tip';
 import { BTN_PRIMARY } from '@/components/ui';
@@ -10,6 +10,7 @@ import { fmtShort, fmtNum } from '@/lib/format';
 import { splitLocation } from '@/lib/data';
 import { KIND_GROUPS, daysTo, fetchSalesContracts, groupByOrg, productCodes, type SalesContract, type SalesOrg } from '@/lib/sales';
 import { useStore } from '@/lib/store';
+import { useInbox, ORG_END_DAYS, type SavedOrg } from '@/lib/inbox';
 
 /*
  * 입찰 분석 — 「영업 기회」 (기획 17.1 A)
@@ -22,10 +23,18 @@ type Sort = 'count' | 'end' | 'recent';
 const SOON = 90; // 이 안에 계약이 끝나면 강조
 const PAGE = 15;
 
+/** 기관의 진행 중 계약(끝나는 날 있음) → 알림용 목록 */
+const watchOf = (o: SalesOrg): SavedOrg['watch'] => o.contracts
+  .filter((c) => c.endDate && daysTo(c.endDate) >= 0)
+  .sort((a, b) => a.endDate!.localeCompare(b.endDate!)).slice(0, 10)
+  .map((c) => ({ id: c.id, title: c.title, end: c.endDate! }));
+
 const sidoShort = (s: string) => s.replace(/(특별자치도|특별자치시|특별시|광역시|도)$/, '');
 
-export function SalesSection() {
+export function SalesSection({ focus }: { focus?: string | null }) {
   const { profile } = useStore();
+  const { savedOrgs, isSavedOrg, saveOrg, unsaveOrg } = useInbox();
+  const [onlySaved, setOnlySaved] = useState(false);
   const codes = useMemo(() => productCodes(profile.products, profile.muted), [profile.products, profile.muted]);
   const [list, setList] = useState<SalesContract[] | null | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
@@ -35,7 +44,7 @@ export function SalesSection() {
   const [small, setSmall] = useState(false);
   const [kind, setKind] = useState<string | null>(null);
   const [shown, setShown] = useState(PAGE);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(focus ?? null);
 
   useEffect(() => {
     if (!codes.size) { setList(null); return; }
@@ -52,15 +61,37 @@ export function SalesSection() {
       (scope === 'all' || (scope === 'sui' ? c.method === '수의계약' : c.noNotice))
       && (!small || c.amount <= 2e7)
       && (!mine || !short || c.buyer.startsWith(short))
-      && (!g || g.test(c.buyerKind)));
+      && (!g || g.test(c.buyerKind))
+      && (!onlySaved || isSavedOrg(c.buyer)));
     const rows = groupByOrg(f);
     const end = (o: SalesOrg) => (o.nextEnd ? Date.parse(o.nextEnd) : Infinity);
     return rows.sort((a, b) => sort === 'end' ? end(a) - end(b) || b.count - a.count
       : sort === 'recent' ? String(b.last ?? '').localeCompare(String(a.last ?? ''))
       : b.count - a.count || b.amount - a.amount);
-  }, [list, scope, small, mine, kind, sort, sido]);
+  }, [list, scope, small, mine, kind, sort, sido, onlySaved, isSavedOrg]);
 
-  useEffect(() => { setShown(PAGE); setOpen(null); }, [scope, small, mine, kind, sort]);
+  useEffect(() => { setShown(PAGE); setOpen(null); }, [scope, small, mine, kind, sort, onlySaved]);
+
+  // 알림에서 들어오면 그 기관을 맨 위로 펼쳐 보여줌
+  useEffect(() => {
+    if (!focus || !list) return;
+    document.getElementById(`org-${focus}`)?.scrollIntoView({ block: 'center' });
+  }, [focus, list]);
+
+  // 저장한 기관의 진행 중 계약 목록을 최신으로 (새 계약이 들어오면 알림 대상에 추가)
+  useEffect(() => {
+    if (!list || !savedOrgs.length) return;
+    const all = groupByOrg(list);
+    for (const s of savedOrgs) {
+      const o = all.find((x) => x.name === s.org);
+      if (!o) continue;
+      const w = watchOf(o);
+      if (JSON.stringify(w) !== JSON.stringify(s.watch)) saveOrg({ org: s.org, kind: s.kind, watch: w });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list]);
+
+  const toggleSave = (o: SalesOrg) => isSavedOrg(o.name) ? unsaveOrg(o.name) : saveOrg({ org: o.name, kind: o.kind, watch: watchOf(o) });
 
   const head = (
     <div className="px-1 pt-4">
@@ -117,6 +148,7 @@ export function SalesSection() {
           <Tip title="공고 없이">수의계약 중 나라장터 입찰·견적 공고 없이 맺은 계약이에요. 입찰정보 서비스에는 보이지 않는 구매예요. &apos;수의계약 전체&apos;는 견적 공고를 낸 수의계약까지 포함해요.</Tip>
         </div>
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 lg:mx-0 lg:flex-wrap lg:px-0">
+          {savedOrgs.length > 0 && <button type="button" onClick={() => setOnlySaved((v) => !v)} className={chip(onlySaved)}>저장한 기관 {savedOrgs.length}</button>}
           {sido && <button type="button" onClick={() => setMine((v) => !v)} className={chip(mine)}>우리 지역({sidoShort(sido)})</button>}
           <button type="button" onClick={() => setSmall((v) => !v)} className={chip(small)}>2천만 원 이하</button>
           {KIND_GROUPS.map((k) => (
@@ -134,7 +166,10 @@ export function SalesSection() {
       }>
         {orgs.length ? (
           <ul className="-my-1 divide-y divide-line">
-            {orgs.slice(0, shown).map((o) => <OrgRow key={o.name} o={o} open={open === o.name} onToggle={() => setOpen(open === o.name ? null : o.name)} />)}
+            {(focus ? [...orgs.filter((o) => o.name === focus), ...orgs.filter((o) => o.name !== focus)] : orgs).slice(0, shown).map((o) => (
+              <OrgRow key={o.name} o={o} open={open === o.name} onToggle={() => setOpen(open === o.name ? null : o.name)}
+                saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />
+            ))}
           </ul>
         ) : <p className="py-8 text-center text-[14px] text-mute">조건에 맞는 기관이 없어요</p>}
         {orgs.length > shown && (
@@ -146,6 +181,7 @@ export function SalesSection() {
 
       <p className="px-1 text-[12px] leading-relaxed text-mute">
         나라장터 계약 정보의 품목 코드(물품분류번호·공공조달분류)를 주요 품목 {codes.size}개와 맞췄어요. 품목 코드는 2026년 11월 15일부터 모으기 시작해 아직 기간이 짧아요.
+        저장한 기관은 진행 중 계약이 끝나기 {ORG_END_DAYS}일 전과 새 공고를 낼 때 알림함으로 알려드려요.
         조달청이 대신 계약한 건은 실제로 산 기관(수요기관)으로 묶었고, 조달청 단가계약은 뺐어요. &apos;우리 지역&apos;은 기관 이름으로 추정해요.
       </p>
     </section>
@@ -163,11 +199,12 @@ function Stat({ label, value, unit, text, tone = 'text-ink' }: { label: string; 
   );
 }
 
-function OrgRow({ o, open, onToggle }: { o: SalesOrg; open: boolean; onToggle: () => void }) {
+function OrgRow({ o, open, onToggle, saved, onSave }: { o: SalesOrg; open: boolean; onToggle: () => void; saved: boolean; onSave: () => void }) {
   const left = o.nextEnd ? daysTo(o.nextEnd) : null;
   return (
-    <li className="py-3">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-2 text-left">
+    <li className="py-3" id={`org-${o.name}`}>
+      <div className="flex items-start gap-1">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 items-start gap-2 text-left">
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-[15px] font-semibold">{o.name}</span>
@@ -188,6 +225,11 @@ function OrgRow({ o, open, onToggle }: { o: SalesOrg; open: boolean; onToggle: (
         </span>
         <ChevronDown className={`mt-1 h-5 w-5 shrink-0 text-mute transition ${open ? 'rotate-180' : ''}`} />
       </button>
+      <button type="button" onClick={onSave} aria-pressed={saved} aria-label={saved ? '저장 해제' : '기관 저장'}
+        className={`-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${saved ? 'text-brand' : 'text-mute hover:text-sub'}`}>
+        <Bookmark className={`h-5 w-5 ${saved ? 'fill-current' : ''}`} />
+      </button>
+      </div>
       {open && (
         <ul className="mt-3 space-y-2">
           {o.contracts.slice(0, 10).map((c) => (

@@ -32,6 +32,12 @@ export default function AnalysisPage() {
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
   const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG)), [matched]);
   const [tab, setTab] = useState<'me' | 'market' | 'sales'>('me');
+  // 알림에서 ?tab=sales&org=기관 으로 들어오면 영업 기회의 그 기관으로
+  const [focusOrg, setFocusOrg] = useState<string | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('tab') === 'sales') { setTab('sales'); setFocusOrg(q.get('org')); }
+  }, []);
   // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
   const openOf = useMemo(() => {
     const m = new Map<string, { all: number; matched: number }>();
@@ -48,7 +54,7 @@ export default function AnalysisPage() {
 
   let body: React.ReactNode;
   if (!loaded) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
-  else if (account && tab === 'sales') body = <SalesSection />; // 영업 기회는 회사 확인·투찰 이력 없이도 (주요 품목만 있으면)
+  else if (account && tab === 'sales') body = <SalesSection focus={focusOrg} />; // 영업 기회는 회사 확인·투찰 이력 없이도 (주요 품목만 있으면)
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
