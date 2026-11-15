@@ -9,6 +9,7 @@ import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
+import { SalesSection } from './sales';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
@@ -30,7 +31,7 @@ export default function AnalysisPage() {
   // 맞춤 공고 중 '이력' 근거가 있는 공고 — 맞춤 공고 수의 부분집합이 되도록 같은 기준 사용
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
   const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG)), [matched]);
-  const [tab, setTab] = useState<'me' | 'market'>('me');
+  const [tab, setTab] = useState<'me' | 'market' | 'sales'>('me');
   // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
   const openOf = useMemo(() => {
     const m = new Map<string, { all: number; matched: number }>();
@@ -47,6 +48,7 @@ export default function AnalysisPage() {
 
   let body: React.ReactNode;
   if (!loaded) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
+  else if (account && tab === 'sales') body = <SalesSection />; // 영업 기회는 회사 확인·투찰 이력 없이도 (주요 품목만 있으면)
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
@@ -75,17 +77,6 @@ export default function AnalysisPage() {
     const total = r.total ?? 0, won = r.won ?? 0;
     body = (
       <div className="space-y-3 lg:space-y-4">
-        {/* 탭: 우리 회사 성적 / 우리 시장 */}
-        <div className="flex items-center gap-2">
-          <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
-            {([['me', '입찰 성과'], ['market', '시장 분석']] as const).map(([t, label]) => (
-              <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-                className={`flex-1 rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
-            ))}
-          </div>
-          <ExportButton corpName={profile.corpName ?? null} />
-        </div>
-
         {tab === 'market' ? <MarketSection /> : (
           <>
             {/* 한눈에: 낙찰률 도넛 + 핵심 숫자 */}
@@ -168,7 +159,18 @@ export default function AnalysisPage() {
     <Shell wide>
       <Header />
       <main className="space-y-4 px-5 pb-28 lg:px-0 lg:pb-0">
-        <PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 개찰 결과 기준`} />
+        <PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 ${tab === 'sales' ? '계약' : '개찰 결과'} 기준`} />
+        {account && (
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
+              {([['me', '입찰 성과'], ['market', '시장 분석'], ['sales', '영업 기회']] as const).map(([t, label]) => (
+                <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+                  className={`flex-1 rounded-[10px] px-3 py-2 text-[15px] font-semibold transition lg:px-5 ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
+              ))}
+            </div>
+            {tab !== 'sales' && !!report?.total && <ExportButton corpName={profile.corpName ?? null} />}
+          </div>
+        )}
         {body}
       </main>
       <SignupSheet open={signup} onClose={() => setSignup(false)} reason="회사를 확인하면 입찰 성적표를 바로 보여드려요." onDone={() => setSignup(false)} />
