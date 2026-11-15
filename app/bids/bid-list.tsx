@@ -14,6 +14,7 @@ import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
+import { SoonList, useSoon } from './soon';
 
 /*
  * 공고 (v3.1) — 공고는 이 화면 한 곳에서만
@@ -21,7 +22,7 @@ import { HIST_STRONG } from '@/lib/fit';
  *  목록은 한 줄씩, 데스크탑은 오른쪽에 미리보기
  */
 
-type Tab = 'match' | 'all' | 'saved';
+type Tab = 'match' | 'soon' | 'all' | 'saved';
 type SortKey = 'relevance' | 'deadline' | 'latest' | 'price';
 
 const SORT_LABEL: Record<SortKey, string> = { relevance: '맞춤순', deadline: '마감임박순', latest: '최신순', price: '금액순' };
@@ -72,7 +73,9 @@ export default function BidList() {
   const router = useRouter();
   const judged = useJudged();
   const { notices, noticesError, profile, saved } = useStore();
-  const tab: Tab = params.get('tab') === 'all' ? 'all' : params.get('tab') === 'saved' ? 'saved' : 'match';
+  const tp = params.get('tab');
+  const tab: Tab = tp === 'all' || tp === 'saved' || tp === 'soon' ? tp : 'match';
+  const soon = useSoon();
   const setTab = (t: Tab) => router.replace(t === 'match' ? '/bids' : `/bids?tab=${t}`, { scroll: false });
 
   const GROUPS = useMemo(() => buildGroups(notices ?? []), [notices]);
@@ -130,7 +133,7 @@ export default function BidList() {
       );
     });
 
-  const counts = { match: matchedAll.length, all: all.length, saved: saved.length };
+  const counts = { match: matchedAll.length, soon: soon.matches?.length ?? 0, all: all.length, saved: saved.length };
 
   return (
     <>
@@ -141,14 +144,14 @@ export default function BidList() {
       {/* 탭 + 검색 */}
       <div className="sticky top-14 z-20 bg-canvas/95 px-5 pb-2 pt-3 backdrop-blur lg:static lg:bg-transparent lg:px-0">
         <div className="flex border-b border-line" role="tablist">
-          {([['match', '맞춤 공고'], ['all', '전체'], ['saved', '저장']] as const).map(([t, label]) => (
+          {([['match', '맞춤 공고'], ['soon', '곧 나올'], ['all', '전체'], ['saved', '저장']] as const).filter(([t]) => t !== 'soon' || !soon.error || tab === 'soon').map(([t, label]) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => { setTab(t); setSelected(null); }}
               className={`-mb-px border-b-2 px-3 pb-2.5 pt-1 text-[16px] font-semibold transition ${tab === t ? 'border-ink text-ink' : 'border-transparent text-mute'}`}>
-              {label} <span className="text-[14px] font-medium">{judged || t === 'saved' ? counts[t].toLocaleString() : ''}</span>
+              {label} <span className="text-[14px] font-medium">{judged || t === 'saved' || (t === 'soon' && soon.matches) ? counts[t].toLocaleString() : ''}</span>
             </button>
           ))}
         </div>
-        {tab !== 'saved' && (
+        {tab !== 'saved' && tab !== 'soon' && (
           <div className="mt-3 flex gap-2">
             <label className="relative block flex-1">
               <span className="sr-only">공고 검색</span>
@@ -170,7 +173,7 @@ export default function BidList() {
             </label>
           </div>
         )}
-        {activeFilters.length > 0 && tab !== 'saved' && (
+        {activeFilters.length > 0 && tab !== 'saved' && tab !== 'soon' && (
           <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
             {activeFilters.map((g) => (
               <button key={g.key} type="button" onClick={() => setFilters({ ...filters, [g.key]: null })}
@@ -182,7 +185,7 @@ export default function BidList() {
 
       <div className="px-5 pb-28 pt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-5 lg:px-0 lg:pb-0">
         <main className="min-w-0">
-          {orgOnly && (
+          {orgOnly && tab !== 'soon' && (
             <div className="mb-3 flex items-center gap-2 rounded-box bg-brand-soft px-4 py-3 text-[14px]">
               <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{orgOnly}</b> 공고만 보고 있어요</span>
               <button type="button" onClick={() => { setOrgOnly(null); router.replace(tab === 'match' ? '/bids' : `/bids?tab=${tab}`, { scroll: false }); }}
@@ -204,7 +207,7 @@ export default function BidList() {
             </Link>
           )}
 
-          {tab !== 'saved' ? (
+          {tab === 'soon' ? <SoonList {...soon} /> : tab !== 'saved' ? (
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
                 <p className="text-[13px] text-mute">{tab === 'match' ? '맞춤 점수 높은 순' : `총 ${all.length.toLocaleString()}건`}</p>
@@ -236,7 +239,13 @@ export default function BidList() {
 
         {/* 데스크탑 미리보기 */}
         <aside className="sticky top-6 hidden lg:block">
-          {sel ? <Preview item={sel} onMute={setMute} /> : (
+          {tab === 'soon' ? (
+            <div className="rounded-box bg-white px-6 py-8 text-[14px] leading-relaxed text-sub">
+              <p className="text-[16px] font-bold text-ink">곧 나올 공고란?</p>
+              <p className="mt-2">발주기관이 입찰공고 전에 규격서와 배정예산을 미리 공개한 사업이에요. 공고가 나오기 전에 준비를 시작하고, 의견 마감 전이면 규격에 의견을 낼 수 있어요.</p>
+              <p className="mt-2 text-mute">공고가 나오면 &apos;공고 나왔어요&apos;로 바뀌고 공고 상세로 이어져요.</p>
+            </div>
+          ) : sel ? <Preview item={sel} onMute={setMute} /> : (
             <div className="rounded-box bg-white px-6 py-16 text-center text-[15px] text-mute">공고를 고르면 여기에서 미리 볼 수 있어요</div>
           )}
         </aside>

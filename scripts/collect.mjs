@@ -31,6 +31,8 @@ const DETAIL_PARALLEL = 4;
 // 실행 시간 제한(150분) 안에서 여유 있게 멈춤. 예약 실행은 매시라 40분에서 끊고 다음 실행이 이어 받음
 const DETAIL_TIME_LIMIT = (HOURS > 24 ? 100 : 40) * 60e3;
 const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
+// 사전규격 (022) — 정식 공고 전 규격·배정예산 공개 → '곧 나올 공고'
+const HRC = 'https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService';
 const ROWS = 999;
 const TYPES = [
   { name: '물품', bid: 'Thng', cnt: 'Thng' },
@@ -434,6 +436,51 @@ async function upsert(sb, table, rows, onConflict) {
   }
 }
 
+/* ---------- 사전규격 (022) ----------
+ * 물품·용역·공사 사전규격을 등록일시 구간으로 받음 (외자는 공고도 받지 않아 제외)
+ * 담당자 이름·전화번호(ofclNm·ofclTelNo)는 개인정보라 저장하지 않음
+ */
+const PRE_TYPES = [{ name: '물품', op: 'Thng' }, { name: '용역', op: 'Servc' }, { name: '공사', op: 'Cnstwk' }];
+
+async function collectPrespecs(from, to) {
+  const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
+  const rows = new Map();
+  for (const t of PRE_TYPES) {
+    const items = await fetchAll(`${HRC}/getPublicPrcureThngInfo${t.op}`, period);
+    for (const it of items) {
+      if (!it.bfSpecRgstNo) continue;
+      const products = [...String(it.prdctDtlList ?? '').matchAll(/\[\d*\^([^^\]]+)\^([^\]]*)\]/g)].map((m) => ({ code: m[1].trim(), name: m[2].trim() }));
+      rows.set(it.bfSpecRgstNo, {
+        id: it.bfSpecRgstNo, kind: t.name, biz_div: it.bsnsDivNm || null,
+        title: it.prdctClsfcNoNm || '(사업명 없음)',
+        org: it.orderInsttNm || null, demand_org: it.rlDminsttNm || null,
+        budget: won(it.asignBdgtAmt),
+        received_at: kstIso(it.rcptDt), opinion_close: kstIso(it.opninRgstClseDt),
+        delivery_until: ymdOrNull(it.dlvrTmlmtDt), delivery_days: num(it.dlvrDaynum) || null,
+        sw: it.swBizObjYn ? it.swBizObjYn === 'Y' : null,
+        products,
+        files: [1, 2, 3, 4, 5].map((i) => it[`specDocFileUrl${i}`]).filter(Boolean),
+        notice_nos: String(it.bidNtceNoList ?? '').split(/[\s,]+/).map((x) => x.trim()).filter(Boolean),
+        registered_at: kstIso(it.rgstDt), changed_at: kstIso(it.chgDt),
+        collected_at: new Date().toISOString(),
+      });
+    }
+    console.log(`  사전규격 ${t.name}: ${items.length}건`);
+  }
+  return [...rows.values()];
+}
+
+/** 최근 30일 사전규격 + 연결된 공고 → 공개 저장소 (화면은 CDN에서 파일 하나로) */
+async function writePrespecSnapshot(sb) {
+  const { data, error } = await sb.rpc('recent_prespecs', { p_days: 30 });
+  if (error) throw new Error(`recent_prespecs: ${error.message}`);
+  const body = gzipSync(Buffer.from(JSON.stringify({ at: new Date().toISOString(), rows: data })));
+  const { error: e2 } = await sb.storage.from('public-data')
+    .upload('prespecs.json.gz', body, { contentType: 'application/gzip', upsert: true, cacheControl: '300' });
+  if (e2) throw new Error(`저장소 올리기: ${e2.message}`);
+  return `${data.length}건, ${(body.length / 1024).toFixed(0)}KB`;
+}
+
 /* ---------- 공고 목록 스냅샷 (018) ----------
  * 마감 전 공고 전체(open_notices, 014)를 압축해 공개 저장소에 올림 → 화면은 CDN에서 파일 하나로 받음
  * 실패해도 수집은 계속 (화면은 DB 함수로 자동 전환)
@@ -457,6 +504,7 @@ async function main() {
   if (MODE === 'snapshot') {
     if (!sb) throw new Error('스냅샷은 SUPABASE_SECRET_KEY가 있어야 만들 수 있습니다');
     console.log(`공고 목록 스냅샷: ${await writeSnapshot(sb)}`);
+    try { console.log(`사전규격 스냅샷: ${await writePrespecSnapshot(sb)}`); } catch (e) { console.log(`사전규격 스냅샷 건너뜀: ${e.message}`); }
     return;
   }
   let runId = null;
@@ -528,11 +576,22 @@ async function main() {
     } catch (e) {
       result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
     }
+    // 사전규격 — 022 실행 전이면 경고만
+    try {
+      const pre = await collectPrespecs(a, b);
+      result.prespecs = (result.prespecs ?? 0) + pre.length;
+      if (sb && pre.length) await upsert(sb, 'prespecs', pre, 'id');
+    } catch (e) {
+      if (/prespecs 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  사전규격 저장 건너뜀 — SQL 022 실행 필요');
+      else result.errors.push(`사전규격(${ymdhm(a)}): ${e.message}`);
+    }
   }
 
   // 공고 목록 스냅샷 — 공고 저장 직후에 만들어, 오래 걸리는 투찰 순위 수집을 기다리지 않게
   if (sb) {
     try { result.snapshot = await writeSnapshot(sb); console.log(`공고 목록 스냅샷: ${result.snapshot}`); } catch (e) { result.errors.push(`스냅샷: ${e.message}`); }
+    try { console.log(`사전규격 스냅샷: ${await writePrespecSnapshot(sb)}`); }
+    catch (e) { if (/recent_prespecs/.test(e.message)) console.log('  사전규격 스냅샷 건너뜀 — SQL 022 실행 필요'); else result.errors.push(`사전규격 스냅샷: ${e.message}`); }
   }
 
   // 투찰업체 순위 — 구간과 상관없이 아직 받지 않은 개찰완료 공고를 최근 것부터
@@ -563,7 +622,7 @@ async function main() {
     await sb.from('collect_runs').update({
       finished_at: new Date().toISOString(), status,
       notices_upserted: result.notices, contracts_upserted: result.contracts,
-      api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행`, ...result.errors].join(' / '),
+      api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, 사전규격 ${result.prespecs ?? 0}건`, ...result.errors].join(' / '),
     }).eq('id', runId);
   }
   if (status === 'failed') process.exit(1);
