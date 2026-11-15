@@ -220,7 +220,8 @@ async function applyUpdates(sb, updates) {
 function parseCorps(s) {
   return (s ?? '').match(/\[[^\]]*\]/g)?.map((x) => {
     const f = x.slice(1, -1).split('^');
-    return { role: f[1] || null, kind: f[2] || null, name: f[3] || null, ceo: f[4] || null, share: num(f[6]), bizno: f[9] || null };
+    // 대표자명(f[4])은 화면에 쓰지 않는 개인정보라 저장하지 않음 (020)
+    return { role: f[1] || null, kind: f[2] || null, name: f[3] || null, share: num(f[6]), bizno: f[9] || null };
   }) ?? [];
 }
 
@@ -261,6 +262,40 @@ async function collectContracts(from, to) {
   // 같은 계약번호는 가장 나중에 등록된 것만
   rows.sort((a, b) => String(a.registered_at ?? '').localeCompare(String(b.registered_at ?? '')));
   return [...new Map(rows.map((r) => [r.contract_no, r])).values()];
+}
+
+/* ---------- 계약 세부 (020) — 물품 품목·단가, 공사 업종·현장, 용역 품명·현장 ---------- */
+const LINE_OPS = [
+  { kind: '물품', op: 'getCntrctInfoListThngDetail',
+    map: (it) => ({ seq: [it.prdctClsfcNo, it.prdctIdntNo, it.krnPrdctNm].map((x) => x ?? '').join('|'), code: it.prdctClsfcNo || null,
+      name: it.prdctClsfcNoNm || null, item_name: it.krnPrdctNm || null, unit_price: num(it.qtyUprcAmt), qty: num(it.prdctQty),
+      amount: num(it.prdctAmt), origin: it.orgplceNm || null, contract_date: it.cntrctCnclsDate || null }) },
+  { kind: '공사', op: 'getCntrctInfoListCnstwkServcInfo',
+    map: (it) => ({ seq: String(it.srvceSno ?? [it.indstrytyNm, it.rltnCorpNm].join('|')), industry: it.indstrytyNm || null,
+      site_region: it.cnstrtsiteRgnNm || null, corp_name: it.rltnCorpNm || null, is_rep: it.rprsntYn === 'Y', amount: num(it.cnstwkAmt) }) },
+  { kind: '용역', op: 'getCntrctInfoListGnrlServcServcInfo',
+    map: (it) => ({ seq: String(it.srvceSno ?? [it.prdctClsfcNoNmNdSpec, it.rltnCorpNm].join('|')), name: it.prdctClsfcNoNmNdSpec || null,
+      site_region: it.cnstrtsiteRgnNm || null, corp_name: it.rltnCorpNm || null, is_rep: it.rprsntYn === 'Y', amount: num(it.srvceAmt) }) },
+];
+
+async function collectContractLines(from, to, dateOf) {
+  const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
+  const rows = new Map();
+  for (const l of LINE_OPS) {
+    try {
+      const items = await fetchAll(`${CNT}/${l.op}`, period);
+      for (const it of items) {
+        if (!it.untyCntrctNo) continue;
+        const r = { contract_id: it.untyCntrctNo, kind: l.kind, contract_date: null, ...l.map(it), collected_at: new Date().toISOString() };
+        r.contract_date = r.contract_date ?? dateOf.get(it.untyCntrctNo) ?? null;
+        rows.set(`${r.contract_id}|${r.kind}|${r.seq}`, r);
+      }
+      console.log(`  계약 세부 ${l.kind}: ${items.length}행`);
+    } catch (e) {
+      console.log(`  계약 세부 ${l.kind}: 받지 못함 (${e.message})`);
+    }
+  }
+  return [...rows.values()];
 }
 
 /* ---------- 개찰 결과 (F7 입찰 분석) ---------- */
@@ -447,6 +482,15 @@ async function main() {
     try {
       const contracts = await collectContracts(a, b);
       result.contracts += contracts.length;
+      // 계약 세부 — 020 실행 전이면 경고만 (수집 실패로 치지 않음)
+      try {
+        const lines = await collectContractLines(a, b, new Map(contracts.map((c) => [c.id, c.contract_date])));
+        result.lines = (result.lines ?? 0) + lines.length;
+        if (sb && lines.length) await upsert(sb, 'contract_lines', lines, 'contract_id,kind,seq');
+      } catch (e) {
+        if (/contract_lines 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  계약 세부 저장 건너뜀 — SQL 020 실행 필요');
+        else result.errors.push(`계약 세부(${ymdhm(a)}): ${e.message}`);
+      }
       if (sb) {
         try {
           await upsert(sb, 'contracts', contracts, 'contract_no');
@@ -487,7 +531,7 @@ async function main() {
   }
 
   const status = result.errors.length === 0 ? 'ok' : result.notices + result.contracts === 0 ? 'failed' : 'partial';
-  console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건, 개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회`);
+  console.log(`결과: ${status} — 공고 ${result.notices}건, 계약 ${result.contracts}건(세부 ${result.lines ?? 0}행), 개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회`);
   result.errors.forEach((e) => console.error('  오류:', e));
 
   if (sb && runId) {
