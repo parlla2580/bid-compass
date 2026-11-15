@@ -225,6 +225,9 @@ function parseCorps(s) {
   }) ?? [];
 }
 
+/** '2027-03-31' · '20270331' · '2027/03/31' → 'YYYY-MM-DD' (아니면 null) */
+const ymdOrNull = (v) => { const m = /(\d{4})[-./]?(\d{2})[-./]?(\d{2})/.exec(String(v ?? '')); return m ? `${m[1]}-${m[2]}-${m[3]}` : null; };
+
 async function collectContracts(from, to) {
   const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
   const rows = [];
@@ -249,6 +252,15 @@ async function collectContracts(from, to) {
         total_amount: won(it.totCntrctAmt),
         contract_date: it.cntrctCnclsDate || it.cntrctDate || null,
         notice_no: it.ntceNo || null,
+        // 020 — 공공조달분류·담당부서·수요기관·끝나는 날·공동계약 (담당자 이름·전화는 개인정보라 저장 안 함)
+        class_code: it.pubPrcrmntClsfcNo || null,
+        class_name: it.pubPrcrmntClsfcNm || null,
+        class_mid: it.pubPrcrmntMidClsfcNm || null,
+        dept: it.cntrctInsttChrgDeptNm || null,
+        demand_orgs: it.dminsttList || null,
+        end_date: ymdOrNull(it.ttalCcmpltDate || it.ttalScmpltDate),
+        period_text: it.cntrctPrd || null,
+        joint: it.cmmnCntrctYn ? it.cmmnCntrctYn === 'Y' : null,
         corps,
         corp_biznos: corps.map((c) => c.bizno).filter(Boolean),
         detail_url: detailUrl,
@@ -264,18 +276,12 @@ async function collectContracts(from, to) {
   return [...new Map(rows.map((r) => [r.contract_no, r])).values()];
 }
 
-/* ---------- 계약 세부 (020) — 물품 품목·단가, 공사 업종·현장, 용역 품명·현장 ---------- */
+/* ---------- 계약 세부 (020) — 물품 품목·단가 (공사·용역 세부는 계약마다 호출이 필요해 제외) ---------- */
 const LINE_OPS = [
   { kind: '물품', op: 'getCntrctInfoListThngDetail',
     map: (it) => ({ seq: [it.prdctClsfcNo, it.prdctIdntNo, it.krnPrdctNm].map((x) => x ?? '').join('|'), code: it.prdctClsfcNo || null,
       name: it.prdctClsfcNoNm || null, item_name: it.krnPrdctNm || null, unit_price: num(it.qtyUprcAmt), qty: num(it.prdctQty),
       amount: num(it.prdctAmt), origin: it.orgplceNm || null, contract_date: it.cntrctCnclsDate || null }) },
-  { kind: '공사', op: 'getCntrctInfoListCnstwkServcInfo',
-    map: (it) => ({ seq: String(it.srvceSno ?? [it.indstrytyNm, it.rltnCorpNm].join('|')), industry: it.indstrytyNm || null,
-      site_region: it.cnstrtsiteRgnNm || null, corp_name: it.rltnCorpNm || null, is_rep: it.rprsntYn === 'Y', amount: num(it.cnstwkAmt) }) },
-  { kind: '용역', op: 'getCntrctInfoListGnrlServcServcInfo',
-    map: (it) => ({ seq: String(it.srvceSno ?? [it.prdctClsfcNoNmNdSpec, it.rltnCorpNm].join('|')), name: it.prdctClsfcNoNmNdSpec || null,
-      site_region: it.cnstrtsiteRgnNm || null, corp_name: it.rltnCorpNm || null, is_rep: it.rprsntYn === 'Y', amount: num(it.srvceAmt) }) },
 ];
 
 async function collectContractLines(from, to, dateOf) {
@@ -492,12 +498,23 @@ async function main() {
         else result.errors.push(`계약 세부(${ymdhm(a)}): ${e.message}`);
       }
       if (sb) {
+        // 020 실행 전이면 새 열(분류·담당부서·수요기관·끝나는 날·공동계약)을 빼고 저장
+        const NEW020 = ['class_code', 'class_name', 'class_mid', 'dept', 'demand_orgs', 'end_date', 'period_text', 'joint'];
+        const strip = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !NEW020.includes(k))));
+        let rowsToSave = contracts;
         try {
-          await upsert(sb, 'contracts', contracts, 'contract_no');
+          await upsert(sb, 'contracts', rowsToSave, 'contract_no');
         } catch (e) {
-          // 005 SQL 실행 전(계약번호 칸 없음)에는 예전 방식으로 저장 — 중복은 걸러진 상태
-          if (!/contract_no/.test(e.message)) throw e;
-          await upsert(sb, 'contracts', contracts.map(({ contract_no, ...r }) => r), 'id');
+          if (NEW020.some((k) => e.message.includes(`'${k}'`))) {
+            console.log('  계약 새 항목 저장 건너뜀 — SQL 020 실행 필요');
+            rowsToSave = strip(contracts);
+            try { await upsert(sb, 'contracts', rowsToSave, 'contract_no'); }
+            catch (e2) { if (!/contract_no/.test(e2.message)) throw e2; await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id'); }
+          } else {
+            // 005 SQL 실행 전(계약번호 칸 없음)에는 예전 방식으로 저장 — 중복은 걸러진 상태
+            if (!/contract_no/.test(e.message)) throw e;
+            await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id');
+          }
         }
       }
     } catch (e) {
