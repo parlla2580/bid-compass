@@ -78,9 +78,13 @@ export function fetchPrespecs(): Promise<Prespec[]> {
   memo = (async () => {
     let rows = await snapshot();
     if (!rows) {
-      const { data, error } = await getSupabase().rpc('recent_prespecs', { p_days: 30 });
-      if (error) throw new Error(error.message);
-      rows = (data ?? []) as PrespecRow[];
+      rows = [];
+      for (let i = 0; i < 50; i++) { // 함수 결과도 한 번에 1,000행까지
+        const { data, error } = await getSupabase().rpc('recent_prespecs', { p_days: 30 }).range(i * 1000, i * 1000 + 999);
+        if (error) throw new Error(error.message);
+        rows.push(...((data ?? []) as PrespecRow[]));
+        if (!data || data.length < 1000) break;
+      }
     }
     const now = Date.now();
     return rows.map((r) => toPrespec(r, now));

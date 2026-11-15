@@ -472,8 +472,14 @@ async function collectPrespecs(from, to) {
 
 /** 최근 30일 사전규격 + 연결된 공고 → 공개 저장소 (화면은 CDN에서 파일 하나로) */
 async function writePrespecSnapshot(sb) {
-  const { data, error } = await sb.rpc('recent_prespecs', { p_days: 30 });
-  if (error) throw new Error(`recent_prespecs: ${error.message}`);
+  // 함수 결과도 한 번에 1,000행까지라 나눠 받음
+  const data = [];
+  for (let i = 0; i < 50; i++) {
+    const { data: part, error } = await sb.rpc('recent_prespecs', { p_days: 30 }).range(i * 1000, i * 1000 + 999);
+    if (error) throw new Error(`recent_prespecs: ${error.message}`);
+    data.push(...(part ?? []));
+    if (!part || part.length < 1000) break;
+  }
   const body = gzipSync(Buffer.from(JSON.stringify({ at: new Date().toISOString(), rows: data })));
   const { error: e2 } = await sb.storage.from('public-data')
     .upload('prespecs.json.gz', body, { contentType: 'application/gzip', upsert: true, cacheControl: '300' });
