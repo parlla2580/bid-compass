@@ -169,7 +169,7 @@ export default function AnalysisPage() {
         {account && (
           <div className="flex items-center gap-2">
             <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
-              {([['me', '입찰 성과'], ['market', '시장 분석'], ['sales', '영업 기회']] as const).map(([t, label]) => (
+              {([['me', '입찰 성과'], ['market', '시장 분석'], ['sales', '영업']] as const).map(([t, label]) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`flex-1 rounded-[10px] px-3 py-2 text-[15px] font-semibold transition lg:px-5 ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
               ))}
