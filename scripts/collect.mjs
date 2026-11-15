@@ -5,7 +5,7 @@
 //   NARA_API_KEY          공공데이터포털 일반 인증키
 //   SUPABASE_URL          Supabase 프로젝트 주소
 //   SUPABASE_SECRET_KEY   Supabase 관리자 키 (sb_secret_...) — 없으면 저장하지 않고 결과만 출력
-//   COLLECT_HOURS         수집 구간(시간, 기본 6) — 등록일시 기준
+//   COLLECT_HOURS         수집 구간(시간, 예약 실행 3 · 수동 기본 6) — 등록일시 기준
 //
 // 실행: node scripts/collect.mjs [--dry]
 // 실행 결과는 Supabase collect_runs 테이블에 기록됩니다.
@@ -28,7 +28,8 @@ const SCS = 'https://apis.data.go.kr/1230000/as/ScsbidInfoService';
 // 실행 8회/일 × 1,500 = 최대 12,000회/일 (운영계정 하루 최대 10만 건 안)
 const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 1500);
 const DETAIL_PARALLEL = 4;
-const DETAIL_TIME_LIMIT = 100 * 60e3; // 실행 시간 제한(150분) 안에서 여유 있게 멈춤
+// 실행 시간 제한(150분) 안에서 여유 있게 멈춤. 예약 실행은 매시라 40분에서 끊고 다음 실행이 이어 받음
+const DETAIL_TIME_LIMIT = (HOURS > 24 ? 100 : 40) * 60e3;
 const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
 const ROWS = 999;
 const TYPES = [
