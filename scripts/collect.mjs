@@ -273,7 +273,11 @@ async function collectContracts(from, to) {
   }
   // 같은 계약번호는 가장 나중에 등록된 것만
   rows.sort((a, b) => String(a.registered_at ?? '').localeCompare(String(b.registered_at ?? '')));
-  return [...new Map(rows.map((r) => [r.contract_no, r])).values()];
+  const kept = [...new Map(rows.map((r) => [r.contract_no, r])).values()];
+  // 버려진 통합계약번호 → 남긴 통합계약번호 (계약 세부 줄을 저장된 계약에 잇기 위해)
+  const keptByNo = new Map(kept.map((r) => [r.contract_no, r.id]));
+  kept.alias = new Map(rows.map((r) => [r.id, keptByNo.get(r.contract_no)]));
+  return kept;
 }
 
 /* ---------- 계약 세부 (020) — 물품 품목·단가 (공사·용역 세부는 계약마다 호출이 필요해 제외) ---------- */
@@ -284,7 +288,7 @@ const LINE_OPS = [
       amount: num(it.prdctAmt), origin: it.orgplceNm || null, contract_date: it.cntrctCnclsDate || null }) },
 ];
 
-async function collectContractLines(from, to, dateOf) {
+async function collectContractLines(from, to, dateOf, alias = new Map()) {
   const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
   const rows = new Map();
   for (const l of LINE_OPS) {
@@ -292,8 +296,9 @@ async function collectContractLines(from, to, dateOf) {
       const items = await fetchAll(`${CNT}/${l.op}`, period);
       for (const it of items) {
         if (!it.untyCntrctNo) continue;
-        const r = { contract_id: it.untyCntrctNo, kind: l.kind, contract_date: null, ...l.map(it), collected_at: new Date().toISOString() };
-        r.contract_date = r.contract_date ?? dateOf.get(it.untyCntrctNo) ?? null;
+        const id = alias.get(it.untyCntrctNo) ?? it.untyCntrctNo;
+        const r = { contract_id: id, kind: l.kind, contract_date: null, ...l.map(it), collected_at: new Date().toISOString() };
+        r.contract_date = ymdOrNull(r.contract_date) ?? dateOf.get(id) ?? null;
         rows.set(`${r.contract_id}|${r.kind}|${r.seq}`, r);
       }
       console.log(`  계약 세부 ${l.kind}: ${items.length}행`);
@@ -490,7 +495,9 @@ async function main() {
       result.contracts += contracts.length;
       // 계약 세부 — 020 실행 전이면 경고만 (수집 실패로 치지 않음)
       try {
-        const lines = await collectContractLines(a, b, new Map(contracts.map((c) => [c.id, c.contract_date])));
+        const lines = await collectContractLines(a, b, new Map(contracts.map((c) => [c.id, c.contract_date])), contracts.alias);
+        const orphan = lines.filter((l) => !l.contract_date).length;
+        if (orphan) console.log(`  계약 세부 중 이번 구간 계약 목록에 없는 줄: ${orphan}/${lines.length}`);
         result.lines = (result.lines ?? 0) + lines.length;
         if (sb && lines.length) await upsert(sb, 'contract_lines', lines, 'contract_id,kind,seq');
       } catch (e) {
