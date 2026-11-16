@@ -80,7 +80,12 @@ export default function StartPage() {
 
   const confirm = () => {
     if (!found) return;
-    // 물품 공급 업체는 등록업종이 없을 수 있음 → 업종 직접 선택으로 이어감
+    // 물품 공급 업체는 등록업종 없이 공급물품만 있는 경우가 많음 → 공급물품으로 바로 맞춤 (2026-11-16 페르소나 점검)
+    if (!found.industries?.length && found.products?.length && found.location) {
+      go({ bizno: bizno.replace(/\D/g, ''), industries: [], location: found.location });
+      return;
+    }
+    // 업종도 공급물품도 없거나 소재지를 모르면 직접 선택
     if (!found.industries?.length || !found.location) {
       setIndustries(found.industries ?? []);
       setLocation(found.location ?? null);
