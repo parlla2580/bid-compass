@@ -12,7 +12,6 @@ import { fetchMyMarket, type MyMarket } from '@/lib/analysis';
 
 const SHADES = ['#1D4ED8', '#3B6FE6', '#6B93EE', '#9DB7F4', '#C9D7F9'];
 const MIN_RELIABLE = 10;
-const md = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}.${d.getDate()}`; };
 const chip = (on: boolean) => `h-9 shrink-0 rounded-full px-3.5 text-[14px] font-semibold transition ${on ? 'bg-ink text-white' : 'bg-white text-sub ring-1 ring-line'}`; // 우리 시장 개찰이 이보다 적으면 '데이터가 쌓이는 중' 표시
 
 export function MarketSection() {
@@ -57,8 +56,8 @@ export function MarketSection() {
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
         <Card title="자주 만나는 회사" aside={<span className="text-[13px] text-mute">함께 들어간 공고 수</span>}>
-          {comps.length ? <Bars rows={comps.map((c) => ({ label: c.name, value: c.shared, sub: [c.wins ? `낙찰 ${c.wins}번` : null, c.last_met ? `최근 ${md(c.last_met)}` : null].filter(Boolean).join(' · ') || undefined }))} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">참가 업체가 많은 공고와 아무 공고에나 들어가는 회사는 가중치를 낮춰 순위를 매겼어요. 같은 순위면 이 시장에서 낙찰한 횟수, 최근에 만난 순으로 놓았어요. 낙찰 횟수는 추첨 영향이 커 참고만 하세요.</p>
+          {comps.length ? <Bars rows={comps.map((c) => ({ label: c.name, value: c.shared, sub: [c.their_total ? `이 시장 비중 ${Math.round((c.shared / Math.max(c.their_total, c.shared)) * 100)}%` : null, c.wins ? `낙찰 ${c.wins}번` : null].filter(Boolean).join(' · ') || undefined }))} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
+          <p className="mt-3 text-[12px] leading-relaxed text-mute">참가 업체가 많은 공고와 아무 공고에나 들어가는 회사는 가중치를 낮춰 순위를 매겼어요. &lsquo;이 시장 비중&rsquo;은 그 회사가 들어간 전체 공고 중 우리와 함께 들어간 비율이에요. 높을수록 우리 시장에 집중하는 직접 경쟁자예요. 같은 순위면 이 시장에서 낙찰한 횟수, 최근에 만난 순으로 놓았어요. 낙찰 횟수는 추첨 영향이 커 참고만 하세요.</p>
         </Card>
 
         <Card title="이 시장 낙찰 금액" aside={m.market?.openings_with_winner ? <span className="text-[13px] text-mute">낙찰 {m.market.openings_with_winner}건 기준</span> : null}>
