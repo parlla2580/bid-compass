@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { COPY } from '@/lib/copy';
 import { Term } from '@/components/term';
+import { Tip } from '@/components/tip';
 import type { BidType } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
 import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type SajeongDist } from '@/lib/reserve';
@@ -130,8 +131,13 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
             <p className="text-[13px] text-mute">기초금액 × {cur.toFixed(2)}% × 낙찰하한율 {floor}%</p>
 
             <dl className="mt-4 space-y-2.5 border-t border-line pt-4 text-[15px]">
-              <div className="flex justify-between gap-3"><dt className="text-mute">과거 기준 하한 이상</dt><dd className="font-semibold">{Math.round(ok * 100)}%</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-mute">하한 미달</dt><dd className={`font-semibold ${ok < 0.5 ? 'text-bad' : ''}`}>{Math.round((1 - ok) * 100)}%</dd></div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-1 text-mute">지난 개찰에 대보면 하한 통과
+                  <Tip title="낙찰 확률이 아니에요">지난 개찰들의 실제 사정률에 이 금액 방식을 대입했을 때, 낙찰하한선 아래로 떨어지지 않았던 비율이에요. 통과해도 낙찰은 추첨·순위에 따라 정해져요.</Tip>
+                </dt>
+                <dd className="font-semibold">{Math.round(ok * 100)}%</dd>
+              </div>
+              <div className="flex justify-between gap-3"><dt className="text-mute">하한선 아래로 떨어짐</dt><dd className={`font-semibold ${ok < 0.5 ? 'text-bad' : ''}`}>{Math.round((1 - ok) * 100)}%</dd></div>
               {bt && bt.n >= 30 && (
                 <div className="rounded-2xl bg-fill p-3.5 text-[14px] leading-relaxed text-sub">
                   이 금액 방식으로 <b className="text-ink">지난 {bt.n}건</b>에 썼다면<br />

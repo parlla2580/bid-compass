@@ -1,6 +1,6 @@
 import { keywordHit, type BidType, type Notice, type Product, type Profile } from './data';
 import { productMatch } from './match';
-import type { Stats } from './stats';
+import { specificity, titleDf, type Stats } from './stats';
 import { getSupabase } from './supabase';
 
 /*
@@ -95,11 +95,43 @@ export function fetchPrespecs(): Promise<Prespec[]> {
 
 export interface PrespecMatch { p: Prespec; why: string; sim: number }
 
-/** 우리 회사와 맞는 사전규격 — 품목 코드(물품) 또는 드문 품명 낱말(용역·공사), 꼭 볼 단어. 빼고 싶은 단어·관심 없음 품목은 제외 */
+/** 업종 이름 → 사업명에서 찾을 핵심어 ('석면해체.제거업' → 석면해체 / '전기공사업' → 전기)
+ *  공사·용역 사전규격은 품목 코드가 거의 없어, 품목 없이 업종만 있는 회사(공사업체 등)를 위해 사용 */
+const IND_GENERIC = /^(공사|건설|시설|서비스|판매|제조|사업|용역|관리|일반|기타|종합|전문|자유|연구|학술|정보|통신|설비|업무|대행|제거|설치)$/;
+function industryWords(profile: Profile, stats: Stats | null): { w: string; name: string; build: boolean }[] {
+  const off = new Set((profile.muted ?? []).filter((m) => m.kind === 'industry').map((m) => m.code));
+  const out: { w: string; name: string; build: boolean }[] = [];
+  for (const ind of profile.industries ?? []) {
+    if (off.has(ind.code)) continue;
+    const build = /공사업/.test(ind.name); // 공사업 면허는 공사 사전규격에만
+    for (const raw of ind.name.replace(/\([^)]*\)/g, ' ').split(/[^가-힣A-Za-z0-9]+/)) {
+      const w = raw.replace(/(공사업|사업자|사업|업)$/, '');
+      if (w.length < 2 || IND_GENERIC.test(w)) continue;
+      // 아주 흔한 낱말은 제외 — 공고명 특이도 0.3 이상 (통계가 없으면 3글자 이상만)
+      if (stats ? specificity(stats, titleDf(stats, w)) < 0.3 : w.length < 3) continue;
+      for (const v of [w, ...(IND_SYNONYM[w] ?? [])]) if (!out.some((x) => x.w === v)) out.push({ w: v, name: ind.name, build });
+    }
+  }
+  return out;
+}
+
+/** 업종 이름과 공고에서 쓰는 말이 다른 경우 (면허 이름 → 사업명에 흔히 쓰는 말) */
+const IND_SYNONYM: Record<string, string[]> = {
+  건물위생관리: ['청소', '미화'],
+  소독: ['방역'],
+  경비: ['보안'],
+  조경식재: ['조경'],
+  실내건축: ['인테리어'],
+};
+
+/** 두 글자 낱말은 낱말 첫머리에서만 ('비계'가 '정비계획' 안에서 맞지 않게) */
+const hasWord = (title: string, w: string) => (w.length >= 3 ? title.includes(w) : new RegExp(`(^|[^가-힣])${w}`).test(title));
+
 export function matchPrespecs(list: Prespec[], profile: Profile, stats: Stats | null): PrespecMatch[] {
   const out: PrespecMatch[] = [];
   const mutedProd = new Set((profile.muted ?? []).filter((m) => m.kind === 'product').map((m) => m.code));
   const types = profile.types?.length ? new Set(profile.types) : null;
+  const indWords = industryWords(profile, stats);
   for (const p of list) {
     if (p.status === 'closed') continue;
     if (types && !types.has(p.kind)) continue;
@@ -108,8 +140,15 @@ export function matchPrespecs(list: Prespec[], profile: Profile, stats: Stats | 
     const plus = keywordHit(like, profile.keywords?.plus);
     if (plus) { out.push({ p, why: `꼭 볼 단어 · ${plus}`, sim: 1 }); continue; }
     const pm = productMatch(like, profile.products, stats);
-    if (!pm || pm.sim < 0.5 || mutedProd.has(pm.theirs.code)) continue;
-    out.push({ p, why: `${pm.sim >= 0.8 ? '우리 품목' : '비슷한 품목'} · ${pm.mine.name}`, sim: pm.sim });
+    if (pm && pm.sim >= 0.5 && !mutedProd.has(pm.theirs.code)) {
+      out.push({ p, why: `${pm.sim >= 0.8 ? '우리 품목' : '비슷한 품목'} · ${pm.mine.name}`, sim: pm.sim });
+      continue;
+    }
+    // 품목으로 못 맞추면 업종 이름 핵심어 (공사·용역)
+    if (p.kind !== '물품') {
+      const hit = indWords.find((x) => (!x.build || p.kind === '공사') && hasWord(p.title, x.w));
+      if (hit) out.push({ p, why: `우리 업종 · ${hit.name}`, sim: 0.6 });
+    }
   }
   return out;
 }

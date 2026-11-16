@@ -68,7 +68,7 @@ export default function CalculatorTabs() {
   const params = useSearchParams();
   const [tab, setTab] = useState<Tab>(params.get('tab') === 'score' ? 'score' : 'bid');
   const fromId = Number(params.get('from')) || null;
-  const { notices } = useStore();
+  const { notices, profile, loaded } = useStore();
   const [from, setFrom] = useState<Notice | null>(null);
   useEffect(() => {
     if (!fromId) return;
@@ -79,6 +79,15 @@ export default function CalculatorTabs() {
   const fromParams = !!params.get('base') || !!params.get('rate');
   const initType = params.get('type') as BidType | null;
   const [type, setType] = useState<BidType>(initType && TYPES.includes(initType) ? initType : (from?.type ?? '물품'));
+  // 공고에서 오지 않았으면 우리 회사 유형으로 시작 (공사 면허만 있으면 공사, 관심 유형이 하나면 그 유형)
+  const [guessed, setGuessed] = useState(false);
+  useEffect(() => {
+    if (guessed || !loaded || initType || fromId) return;
+    setGuessed(true);
+    const build = profile.industries?.some((i) => /공사업/.test(i.name)) && !profile.products?.length;
+    const t: BidType | null = build ? '공사' : profile.types.length === 1 ? profile.types[0] : null;
+    if (t) setType(t);
+  }, [guessed, loaded, initType, fromId, profile]);
 
   const selectTab = (t: Tab) => {
     setTab(t);

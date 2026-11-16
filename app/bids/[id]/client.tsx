@@ -62,7 +62,8 @@ export default function NoticeDetail({ id }: { id: number }) {
 
 function Detail({ n }: { n: Notice }) {
   const { profile, saved, toggleSaved, account, loaded, history, competition, stats } = useStore();
-  // 가입 전에는 상세를 흐리게 보여주고 가입 안내 (기획 v2.2)
+  // 가입 전: 참여 판정·이유·공고 정보·원문·계산기는 그대로, 경쟁·낙찰률·지난 계약·저장만 가입 후 (2026-11-16 초심자 점검)
+  //  가린 내용은 화면에 아예 그리지 않음 (흐림 처리만 하면 페이지 소스로 보임)
   const gated = loaded && !account;
   const toast = useToast();
   const [signup, setSignup] = useState(false);
@@ -71,7 +72,8 @@ function Detail({ n }: { n: Notice }) {
   const closed = n.d < 0;
   const on = saved.includes(n.id);
   const save = () => toast(toggleSaved(n.id) ? '저장했어요' : '저장을 취소했어요');
-  const onSave = () => (account ? save() : setSignup(true));
+  const [saveAfter, setSaveAfter] = useState(false);
+  const onSave = () => { if (account) save(); else { setSaveAfter(true); setSignup(true); } };
 
   const q = new URLSearchParams({ type: n.type, from: String(n.id) });
   if (n.basePrice) q.set('base', String(n.basePrice));
@@ -84,14 +86,12 @@ function Detail({ n }: { n: Notice }) {
       <Hero n={n} />
       <OrderNotice n={n} />
 
-      {gated && <SignupGate onSignup={() => setSignup(true)} />}
-      <div aria-hidden={gated || undefined}
-        className={`mt-6 lg:mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6 ${gated ? 'pointer-events-none max-h-[60vh] select-none overflow-hidden blur-[6px]' : ''}`}>
+      <div className="mt-6 lg:mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
         <div className="space-y-3 lg:space-y-4">
-          <Briefing n={n} />
           {!closed && <Judgment reasons={j.reasons} status={j.status} fit={fit} />}
+          <Briefing n={n} locked={gated} onSignup={() => setSignup(true)} />
           <Info n={n} />
-          <Similar n={n} />
+          {gated ? <SignupGate onSignup={() => setSignup(true)} /> : <Similar n={n} />}
         </div>
 
         {/* 데스크탑 오른쪽 고정 패널 */}
@@ -119,7 +119,7 @@ function Detail({ n }: { n: Notice }) {
       </div>
 
       {/* 모바일 하단 고정 버튼 */}
-      {!gated && <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-6 lg:hidden">
+      {<div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-6 lg:hidden">
         <button type="button" onClick={onSave} aria-pressed={on} aria-label={on ? '저장됨' : '저장하기'}
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-cta bg-white text-sub active:scale-[.98]">
           <Bookmark className={`h-6 w-6 ${on ? 'fill-brand text-brand' : ''}`} />
@@ -127,9 +127,9 @@ function Detail({ n }: { n: Notice }) {
         <Link href={calc} className={CTA_PRIMARY}>투찰금액 계산하기</Link>
       </div>}
 
-      <SignupSheet open={signup} onClose={() => setSignup(false)}
-        reason={gated ? '가입하면 판정 근거·경쟁·지난 계약을 바로 볼 수 있어요.' : '공고를 저장하려면 가입이 필요해요.'}
-        onDone={() => { setSignup(false); if (!gated) save(); }} />
+      <SignupSheet open={signup} onClose={() => { setSignup(false); setSaveAfter(false); }}
+        reason={saveAfter ? '공고를 저장하려면 가입이 필요해요. 마감 전에 알려드려요.' : '가입하면 경쟁·낙찰률·지난 계약을 보고, 공고를 저장할 수 있어요.'}
+        onDone={() => { setSignup(false); if (saveAfter) { setSaveAfter(false); save(); } }} />
     </main>
   );
 }
@@ -150,15 +150,15 @@ function OrderNotice({ n }: { n: Notice }) {
   );
 }
 
-/** 가입 전: 상세 위에 띄우는 가입 안내 */
+/** 가입 전: 지난 계약 자리에 두는 가입 안내 (내용은 그리지 않음) */
 function SignupGate({ onSignup }: { onSignup: () => void }) {
   return (
-    <section className="relative z-10 mt-6 rounded-box bg-white px-6 py-8 text-center">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand"><Lock className="h-5 w-5" /></span>
-      <h2 className="mt-4 text-[20px] font-bold">가입하고 자세히 보세요</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-sub">우리 회사가 참여할 수 있는지, 왜 그런지<br />지난번엔 누가 얼마에 계약했는지까지 보여드려요</p>
-      <button type="button" onClick={onSignup} className={`${CTA_PRIMARY} mx-auto mt-6 max-w-[360px]`}>1분 만에 가입하기</button>
-      <Link href="/login" className="mt-4 inline-block text-[14px] text-mute">이미 가입했어요 · 로그인</Link>
+    <section className="rounded-box bg-white px-6 py-7 text-center">
+      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-brand-soft text-brand"><Lock className="h-5 w-5" /></span>
+      <h2 className="mt-3 text-[18px] font-bold">지난번엔 누가 얼마에 계약했을까요?</h2>
+      <p className="mt-1.5 text-[15px] leading-relaxed text-sub">가입하면 이 기관의 지난 계약·경쟁·낙찰률을 보고<br />공고를 저장해 마감 알림을 받을 수 있어요</p>
+      <button type="button" onClick={onSignup} className={`${CTA_PRIMARY} mx-auto mt-5 max-w-[360px]`}>1분 만에 가입하기</button>
+      <Link href="/login" className="mt-3 inline-block text-[14px] text-mute">이미 가입했어요 · 로그인</Link>
     </section>
   );
 }
@@ -259,16 +259,20 @@ function FitBlock({ fit }: { fit: Fit }) {
 const dt = (s: string | null) => (s ? s.slice(5, 16).replace('-', '.').replace(' ', ' ') : null);
 const daysUntil = (s: string) => Math.ceil((new Date(s.replace(' ', 'T') + '+09:00').getTime() - Date.now()) / 86400e3);
 
-function Briefing({ n }: { n: Notice }) {
+function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean; onSignup?: () => void }) {
   const [extra, setExtra] = useState<NoticeExtra | null>(null);
   const [past, setPast] = useState<PastStats | null | undefined>(undefined);
   useEffect(() => {
     fetchNoticeExtra(n.id).then(setExtra).catch(() => setExtra(null));
-    fetchPastStats(n).then(setPast).catch(() => setPast(null));
-  }, [n]);
+    // 경쟁·낙찰률은 회원만 — 가입 전에는 아예 불러오지 않음
+    if (locked) setPast(null); else fetchPastStats(n).then(setPast).catch(() => setPast(null));
+  }, [n, locked]);
 
   const lines: { k: React.ReactNode; v: React.ReactNode }[] = [];
-  if (past) {
+  if (locked) {
+    const lock = <button type="button" onClick={onSignup} className="inline-flex items-center gap-1 font-semibold text-brand"><Lock className="h-3.5 w-3.5" />가입하면 보여요</button>;
+    lines.push({ k: '경쟁', v: lock }, { k: '낙찰률', v: lock });
+  } else if (past) {
     const basis = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
     if (past.medianParticipants) {
       const range = past.minParticipants !== past.maxParticipants ? ` 적게는 ${past.minParticipants!.toLocaleString()}곳, 많게는 ${past.maxParticipants!.toLocaleString()}곳이었어요.` : '';
@@ -301,7 +305,7 @@ function Briefing({ n }: { n: Notice }) {
               </li>
             ))}
           </ul>
-          {past === null && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요</p>}
+          {past === null && !locked && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요</p>}
         </>
       )}
     </Card>

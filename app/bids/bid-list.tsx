@@ -15,6 +15,7 @@ import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
 import { SoonList, useSoon } from './soon';
+import { Tip } from '@/components/tip';
 
 /*
  * 공고 (v3.1) — 공고는 이 화면 한 곳에서만
@@ -200,7 +201,8 @@ export default function BidList() {
               ))}
             </div>
           )}
-          {tab === 'match' && !profile.products?.length && (
+          {/* 공사 면허만 있는 회사는 업종으로 이미 맞추므로 품목 안내를 띄우지 않음 */}
+          {tab === 'match' && !profile.products?.length && !(profile.industries?.length && profile.industries.every((i) => /공사업/.test(i.name))) && (
             <Link href="/mypage?edit=company" className="mb-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
               <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b>을 넣으면 우리 회사 일과 맞는 공고만 골라 드려요</span>
               <ChevronRight className="h-5 w-5 text-mute" />
@@ -210,7 +212,9 @@ export default function BidList() {
           {tab === 'soon' ? <SoonList {...soon} /> : tab !== 'saved' ? (
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
-                <p className="text-[13px] text-mute">{tab === 'match' ? '맞춤 점수 높은 순' : `총 ${all.length.toLocaleString()}건`}</p>
+                <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '맞춤 점수 높은 순' : `총 ${all.length.toLocaleString()}건`}
+                  <Tip title="목록 보는 법">원 안의 숫자는 맞춤 점수예요. 우리 업종·품목·지역·지난 입찰과 얼마나 맞는지를 0~99%로 나타내요. 제목 앞 파란 점은 오늘 새로 올라온 공고예요.</Tip>
+                </p>
                 <label className="relative flex items-center">
                   <span className="sr-only">정렬</span>
                   <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="appearance-none bg-transparent py-1 pl-2 pr-6 text-[13px] font-medium text-sub focus:outline-none">

@@ -6,12 +6,11 @@ import { Loader2 } from 'lucide-react';
 import { Sheet } from './feedback';
 import { BTN_PRIMARY, INPUT_CLS } from './ui';
 import { maskBizNo } from '@/lib/format';
-import { verifyCompany } from '@/lib/verify-client';
 import { useStore } from '@/lib/store';
 
 /**
- * 회원가입 (v2.2) — 이메일(아이디)·비밀번호·사업자등록번호·대표자명·약관 동의를 한 화면에서
- * 사업자번호+대표자명은 나라장터 업체정보와 대조해 회사를 확인합니다 (대표자명은 저장하지 않음).
+ * 회원가입 — 이메일(아이디)·비밀번호·약관 동의만 (2026-11-16 초심자 점검: 대표자명 필수가 가장 큰 이탈 지점)
+ * 사업자번호는 선택(간편 시작 값 미리 채움). 회사 확인(대표자명 대조)은 입찰 분석을 쓸 때 VerifyBox에서.
  * 입력한 정보는 계정으로 옮겨져요.
  */
 export function SignupSheet({ open, onClose, onDone, reason }: {
@@ -25,11 +24,9 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [bizno, setBizno] = useState('');
-  const [ceo, setCeo] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [unregisteredOk, setUnregisteredOk] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // 간편 시작에서 넣은 사업자번호는 미리 채움
@@ -45,38 +42,16 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError('이메일 주소를 확인해 주세요');
     if (pw.length < 8) return setError('비밀번호는 8자 이상 입력해 주세요');
     if (pw !== pw2) return setError('비밀번호가 서로 다릅니다');
-    if (digits.length !== 10) return setError('사업자등록번호 10자리를 입력해 주세요');
-    if (ceo.trim().length < 2) return setError('대표자명을 입력해 주세요');
+    if (digits.length > 0 && digits.length !== 10) return setError('사업자등록번호 10자리를 확인해 주세요 (비워 둬도 돼요)');
     if (!agreeTerms || !agreePrivacy) return setError('필수 약관에 동의해 주세요');
 
     setBusy(true);
     try {
-      // 1) 회사 확인
-      const v = await verifyCompany(digits, ceo);
-      if (v.status === 'mismatch') throw new Error('대표자명이 나라장터에 등록된 정보와 다릅니다. 사업자등록증의 대표자명을 확인해 주세요');
-      if (v.status === 'unregistered' && !unregisteredOk) {
-        setUnregisteredOk(true);
-        throw new Error('나라장터에 없는 번호라 대표자명은 확인하지 않아요. 번호가 맞다면 한 번 더 눌러 주세요');
-      }
-
-      // 2) 계정 생성 (가입 전 정보는 이 단계에서 서버로 옮겨짐)
+      // 계정 생성 (가입 전 정보는 이 단계에서 서버로 옮겨짐)
       const r = await signUp(email, pw);
       if (r.error) throw new Error(r.error);
-
-      // 3) 회사 정보 반영 — 확인된 경우에만 업체명 저장. 업종·소재지는 비어 있을 때만 채움
-      if (v.status === 'verified') {
-        // 가입으로 로그인된 상태에서 한 번 더 확인 → 서버가 회사 확인을 기록 (입찰 분석은 이 기록으로만 열림)
-        await verifyCompany(digits, ceo).catch(() => null);
-        updateProfile({
-          bizno: digits,
-          naraRegistered: true,
-          corpName: v.corpName,
-          ...(profile.industries?.length ? {} : { industries: v.industries }),
-          ...(profile.location ? {} : { location: v.location }),
-        });
-      } else {
-        updateProfile({ bizno: digits, naraRegistered: false, corpName: null });
-      }
+      // 사업자번호가 바뀌었으면 반영 — 업체명은 회사 확인 후에만 저장 (입찰 분석은 서버 확인 기록으로만 열림)
+      if (digits && digits !== (profile.bizno ?? '').replace(/\D/g, '')) updateProfile({ bizno: digits, corpName: null });
       onDone?.();
     } catch (e) {
       setError((e as Error).message);
@@ -97,7 +72,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     <Sheet title="회원가입" open={open} onClose={onClose}
       footer={
         <button type="button" onClick={submit} disabled={busy} className={BTN_PRIMARY}>
-          {busy && <Loader2 className="h-5 w-5 animate-spin" />}{busy ? '확인하는 중…' : '가입하고 계속 보기'}
+          {busy && <Loader2 className="h-5 w-5 animate-spin" />}{busy ? '가입하는 중…' : '가입하고 계속 보기'}
         </button>
       }>
       <form className="space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -109,10 +84,8 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
         </div>
         {pw2 && pw !== pw2 && <p className="-mt-2 text-[13px] text-bad">비밀번호가 서로 달라요</p>}
         {field('su-bizno', '사업자등록번호',
-          <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => { setBizno(maskBizNo(e.target.value)); setUnregisteredOk(false); }} placeholder="000-00-00000" className={INPUT_CLS} />)}
-        {field('su-ceo', '대표자명',
-          <input id="su-ceo" autoComplete="off" value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="사업자등록증의 대표자 성명" className={INPUT_CLS} />,
-          '나라장터 등록 정보와 대조해 회사를 확인합니다. 대표자명은 저장하지 않아요.')}
+          <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => setBizno(maskBizNo(e.target.value))} placeholder="000-00-00000 (선택)" className={INPUT_CLS} />,
+          '우리 회사 입찰 분석은 가입 뒤 회사 확인(대표자명)을 하면 열려요.')}
 
         <div className="space-y-2 rounded-btn bg-fill p-4 text-[14px]">
           <label className="flex items-center gap-2 font-semibold">

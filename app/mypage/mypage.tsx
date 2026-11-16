@@ -8,6 +8,7 @@ import { Sheet, useToast } from '@/components/feedback';
 import { useRequireStart } from '@/components/layout';
 import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, ProductPicker, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
+import { VerifyBox } from '@/components/verify-box';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
 import { SIZES, hasSigungu, keywordHit, type BidType, type Keywords, type Notice, type Product, type Profile } from '@/lib/data';
 import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
@@ -15,7 +16,6 @@ import { judge } from '@/lib/judge';
 import { suggestProducts } from '@/lib/match';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
-import { verifyCompany } from '@/lib/verify-client';
 
 const TYPES: BidType[] = ['물품', '용역', '공사'];
 type SheetKey = 'company' | 'prefs' | null;
@@ -47,7 +47,7 @@ export default function MyPage() {
   if (!ready) return null;
 
   const companyRows: [string, React.ReactNode][] = [
-    ['업체명', profile.corpName ? `${profile.corpName}${profile.naraRegistered ? ' (나라장터 등록)' : ''}` : null],
+    ['업체명', profile.corpName ? `${profile.corpName}${profile.naraRegistered ? ' (나라장터 등록)' : ''}` : profile.bizno ? <span className="text-mute">회사 확인 후 표시돼요</span> : null],
     ['업종', profile.industries?.length ? profile.industries.map((i) => i.name).join(', ') : null],
     ['주요 품목', profile.products?.length ? profile.products.map((i) => i.name).join(', ') : null],
     ['꼭 볼 단어', profile.keywords?.plus?.length ? profile.keywords.plus.join(', ') : null],
@@ -181,38 +181,6 @@ export default function MyPage() {
       <SignupSheet open={signup} onClose={() => setSignup(false)} reason="가입하면 다른 기기에서도 이어서 볼 수 있어요."
         onDone={() => { setSignup(false); toast('가입했어요'); }} />
     </main>
-  );
-}
-
-/** 회사 확인하기 — 대표자명을 나라장터와 대조, 서버가 확인을 기록해야 입찰 분석이 열림 */
-function VerifyBox({ bizno, onVerified }: { bizno: string; onVerified: (corpName: string) => void }) {
-  const toast = useToast();
-  const [ceo, setCeo] = useState('');
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const v = await verifyCompany(bizno.replace(/\D/g, ''), ceo);
-      if (v.status === 'mismatch') return toast('대표자명이 나라장터에 등록된 정보와 달라요');
-      if (v.status === 'unregistered') return toast('나라장터에 등록되지 않은 번호라 확인할 수 없어요');
-      if (v.corpName) onVerified(v.corpName);
-      toast(v.stored ? '회사를 확인했어요. 입찰 분석을 볼 수 있어요' : '회사를 확인했어요');
-    } catch (e) {
-      toast((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="mt-4 rounded-2xl bg-brand-soft p-4">
-      <p className="text-[14px] font-semibold">회사 확인하기</p>
-      <p className="mt-0.5 text-[13px] text-sub">대표자명을 나라장터 정보와 맞춰 보면 입찰 분석이 열려요. 대표자명은 저장하지 않아요.</p>
-      <div className="mt-2.5 flex gap-2">
-        <input value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="대표자명" aria-label="대표자명" className={`${INPUT_CLS} flex-1`} />
-        <button type="button" onClick={run} disabled={busy || ceo.trim().length < 2}
-          className="shrink-0 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white disabled:bg-line disabled:text-mute">{busy ? '확인 중' : '확인'}</button>
-      </div>
-    </div>
   );
 }
 

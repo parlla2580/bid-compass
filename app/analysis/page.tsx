@@ -5,6 +5,7 @@ import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Download } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
+import { VerifyBox } from '@/components/verify-box';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
@@ -17,7 +18,7 @@ import { HIST_STRONG } from '@/lib/fit';
 
 /** F7 입찰 분석 — 성적표(F7-1), 아깝게 놓친 공고(F7-2), 하한선 미달(F7-3), 기관·유형별 */
 export default function AnalysisPage() {
-  const { loaded, account, profile } = useStore();
+  const { loaded, account, profile, updateProfile } = useStore();
   const judged = useJudged();
   const [report, setReport] = useState<BidReport | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,9 +67,11 @@ export default function AnalysisPage() {
   else if (!report) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
   else if (!report.verified) {
     body = (
-      <Empty title="회사 확인이 필요해요"
-        text="사업자등록번호와 대표자명으로 회사를 확인한 회원에게만 보여드려요.">
-        <Link href="/mypage?edit=company" className={BTN_PRIMARY}>기업 정보 확인하기</Link>
+      <Empty title="회사를 확인하면 성적표를 보여드려요"
+        text="우리 회사 입찰 기록은 회사 확인을 마친 회원에게만 보여드려요. 다른 회사가 우리 기록을 보지 못하게 하기 위해서예요.">
+        {profile.bizno
+          ? <VerifyBox bizno={profile.bizno} className="" onVerified={(corpName) => updateProfile({ corpName, naraRegistered: true })} />
+          : <Link href="/mypage?edit=company" className={BTN_PRIMARY}>사업자등록번호 넣기</Link>}
       </Empty>
     );
   } else if (!report.total) {
