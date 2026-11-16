@@ -1,0 +1,75 @@
+name: 과거 데이터 거슬러 받기
+
+# 한 번 실행하면 지정한 달부터 과거로 한 달씩 차례로 받음 (한 번에 한 달, 앞 달이 끝나야 다음 달)
+#  · 매시간 수집(collect.yml)과 별개로 돌아 평소 수집을 막지 않음
+#  · 한 달 약 2시간 (2026-10 시험 적재 실측 2시간 11분) → 36개월 약 3일
+#  · 투찰 순위는 각 달 실행과 매시간 수집이 나눠서 채움
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: '가장 최근 달 (YYYY-MM). 이 달부터 과거로 받음'
+        required: true
+        default: '2026-09'
+      months:
+        description: '몇 달 (1~36)'
+        required: true
+        default: '1'
+
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          START: ${{ github.event.inputs.start }}
+          MONTHS: ${{ github.event.inputs.months }}
+        run: |
+          node -e '
+            const [y, m] = process.env.START.split("-").map(Number);
+            const n = Math.max(1, Math.min(36, Number(process.env.MONTHS) || 1));
+            if (!y || !m || m < 1 || m > 12) { console.error("start는 YYYY-MM 형식이어야 해요"); process.exit(1); }
+            const pad = (v) => String(v).padStart(2, "0");
+            const out = [];
+            for (let i = 0; i < n; i++) {
+              const d = new Date(Date.UTC(y, m - 1 - i, 1));
+              const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+              const ym = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+              out.push({ month: ym, from: `${ym}-01`, to: `${ym}-${pad(last)}` });
+            }
+            console.log(out.map((x) => x.month).join(", "));
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(out)}\n`);
+          '
+
+  month:
+    needs: plan
+    name: ${{ matrix.range.month }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        range: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: 거슬러 받기 ${{ matrix.range.from }} ~ ${{ matrix.range.to }}
+        env:
+          NARA_API_KEY: ${{ secrets.NARA_API_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_URL: https://tpuhqzxhrwuugojsnfpj.supabase.co
+          COLLECT_FROM: ${{ matrix.range.from }}
+          COLLECT_TO: ${{ matrix.range.to }}
+          COLLECT_MODE: full
+        run: node scripts/collect.mjs
