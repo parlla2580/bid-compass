@@ -202,13 +202,27 @@ async function collectNotices(from, to) {
     });
   }
 
-  // 같은 공고번호·차수가 여러 번 나오면 마지막 것만. 이미 마감된 공고는 저장하지 않음 (백필 시 용량 절약)
+  // 같은 공고번호·차수가 여러 번 나오면 마지막 것만.
+  // 이미 마감된 공고는 원본(raw)에서 분석에 쓰는 항목만 남겨 저장 (2026-11-17 결정 B — 거슬러 받기 용량 절약)
+  //  · 품목·분류·면허·공고종류·사전규격번호 등은 남김 → 시장 나누기·사전규격 연결·이력 비슷한 공고에 사용
   const now = Date.now();
   const unique = [...new Map(rows.map((r) => [`${r.bid_no}-${r.bid_ord}`, r])).values()];
-  const open = unique.filter((r) => new Date(r.closes_at).getTime() >= now);
-  if (open.length < unique.length) console.log(`  이미 마감된 공고 ${unique.length - open.length}건 제외`);
-  return { rows: open, updates };
+  let slim = 0;
+  for (const r of unique) {
+    if (new Date(r.closes_at).getTime() >= now) continue;
+    r.raw = Object.fromEntries(RAW_KEEP.filter((k) => r.raw?.[k] !== undefined && r.raw[k] !== '').map((k) => [k, r.raw[k]]));
+    slim++;
+  }
+  if (slim) console.log(`  이미 마감된 공고 ${slim}건은 필요한 항목만 저장`);
+  return { rows: unique, updates };
 }
+
+/** 마감 공고에서 남길 원본 항목 — 화면·DB 함수(014 자동 계산 열, 022 pre_no)가 읽는 것 */
+const RAW_KEEP = [
+  'dtilPrdctClsfcNo', 'purchsObjPrdctList', 'pubPrcrmntClsfcNo', 'pubPrcrmntClsfcNm', 'ntceKindNm', 'prearngPrceDcsnMthdNm',
+  'indstrytyLmtYn', 'bfSpecRgstNo', 'bidBeginDt', 'bidQlfctRgstDt', 'opengDt', 'cmmnSpldmdMethdNm', 'reNtceYn',
+  'drwtPrdprcNum', 'totPrdprcNum', 'dlvryCndtnNm',
+];
 
 /** 이미 저장된 공고에 늦게 온 정보 덧붙이기 — 해당 공고가 아직 없으면 건너뜀 */
 async function applyUpdates(sb, updates) {
