@@ -125,7 +125,10 @@ const IND_SYNONYM: Record<string, string[]> = {
 };
 
 /** 두 글자 낱말은 낱말 첫머리에서만 ('비계'가 '정비계획' 안에서 맞지 않게) */
-const hasWord = (title: string, w: string) => (w.length >= 3 ? title.includes(w) : new RegExp(`(^|[^가-힣])${w}`).test(title));
+// 낱말 뒤에 붙으면 다른 뜻이 되는 경우 ('청소'+'년', '전기'+'차')
+const NOT_AFTER: Record<string, string> = { 청소: '년', 전기: '차', 소독: '약' };
+const hasWord = (title: string, w: string) => (w.length >= 3 ? title.includes(w)
+  : new RegExp(`(^|[^가-힣])${w}${NOT_AFTER[w] ? `(?!${NOT_AFTER[w]})` : ''}`).test(title));
 
 export function matchPrespecs(list: Prespec[], profile: Profile, stats: Stats | null): PrespecMatch[] {
   const out: PrespecMatch[] = [];
