@@ -110,7 +110,9 @@ export default function BidList() {
   const histCount = matchedAll.filter(isHist).length;
   const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
   const checkRows = all.filter((j) => j.judgment.status === 'check');
-  const otherRows = all.filter((j) => j.judgment.status === 'eligible' && (j.rel === 'none' || j.rel === 'weak'));
+  // 품목 분류만 가까운 공고(관문 미달)는 따로 접어 보여줌 — 맞춤은 정확하게, 0건은 피하게 (2026-11-16 의자 업체 점검)
+  const similarRows = all.filter((j) => j.judgment.status === 'eligible' && j.rel === 'weak' && (j.product?.sim ?? 0) >= 0.5);
+  const otherRows = all.filter((j) => j.judgment.status === 'eligible' && (j.rel === 'none' || j.rel === 'weak') && !similarRows.includes(j));
   const excludedRows = all.filter((j) => j.judgment.status === 'eligible' && j.rel === 'excluded');
 
   // 저장 공고 — 마감된 공고도 보이도록 id로 불러옴
@@ -225,7 +227,9 @@ export default function BidList() {
               </div>
               {tab === 'match' ? (
                 <>
-                  <Paged rows={matched} lead="score" selected={selected} onSelect={setSelected} empty="조건에 맞는 맞춤 공고가 없어요" />
+                  <Paged rows={matched} lead="score" selected={selected} onSelect={setSelected}
+                    empty={similarRows.length ? '우리 품목과 같은 공고는 지금 없어요. 아래 비슷한 품목 공고를 확인해 보세요' : '조건에 맞는 맞춤 공고가 없어요'} />
+                  <Folded title="비슷한 품목 공고" hint="우리 품목과 분류가 가까운 공고예요. 같은 품목만 맞춤 공고에 넣었어요" rows={similarRows} lead="score" selected={selected} onSelect={setSelected} defaultOpen={!matched.length} />
                   <Folded title="확인이 필요한 공고" hint="정보가 부족해 판정하지 못한 공고예요" rows={checkRows} lead="status" selected={selected} onSelect={setSelected} />
                   <Folded title="다른 참여 가능 공고" hint="흔한 품목·업종만 맞거나, 우리 회사 일과 거리가 있어 보여요" rows={otherRows} lead="score" selected={selected} onSelect={setSelected} />
                   <Folded title="빼고 싶은 단어로 뺀 공고" hint={`'${(profile.keywords?.minus ?? []).join("', '")}'이(가) 들어간 공고예요`} rows={excludedRows} lead="score" selected={selected} onSelect={setSelected} />
@@ -323,10 +327,10 @@ function Paged({ rows, lead, selected, onSelect, empty }: {
 }
 
 /** 접힌 묶음 — '확인 필요', '다른 참여 가능' */
-function Folded({ title, hint, rows, lead, selected, onSelect }: {
-  title: string; hint: string; rows: Judged[]; lead: 'score' | 'status'; selected: Notice | null; onSelect: (n: Notice) => void;
+function Folded({ title, hint, rows, lead, selected, onSelect, defaultOpen = false }: {
+  title: string; hint: string; rows: Judged[]; lead: 'score' | 'status'; selected: Notice | null; onSelect: (n: Notice) => void; defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   if (!rows.length) return null;
   return (
     <section className="mt-4">

@@ -52,12 +52,18 @@ function pickScore(o: SalesOrg, region: string | null) {
 }
 
 /** 추천 이유 한 문장 */
-function reason(o: SalesOrg): { text: string; tone: 'warn' | 'ink'; recur?: boolean } {
+/** 추천 대상 — 다시 맺는 계약이 곧 끝나는 기관, 또는 여러 번 산 기관만 (단발성 소액 계약은 추천하지 않음, 2026-11-16 결정) */
+function pickable(o: SalesOrg) {
+  const d = o.nextEnd ? daysTo(o.nextEnd) : null;
+  return (d !== null && d <= SOON && recurring(o)) || o.count >= 2;
+}
+
+function reason(o: SalesOrg, term = '품목'): { text: string; tone: 'warn' | 'ink'; recur?: boolean } {
   const d = o.nextEnd ? daysTo(o.nextEnd) : null;
   const soon = d !== null && d <= SOON;
   const endC = soon ? o.contracts.find((x) => x.endDate === o.nextEnd)! : null;
   if (endC && recurring(o)) return { text: `'${short(endC.title, 20)}' 계약이 ${md(o.nextEnd!)}에 끝나요 (D-${d})`, tone: 'warn', recur: true };
-  if (o.count >= 2) return { text: `우리 품목을 공고 없이 ${o.count}번 샀어요${endC ? ` · ${md(o.nextEnd!)}에 계약 끝` : ''}`, tone: 'ink' };
+  if (o.count >= 2) return { text: `우리 ${term}을 공고 없이 ${o.count}번 샀어요${endC ? ` · ${md(o.nextEnd!)}에 계약 끝` : ''}`, tone: 'ink' };
   if (endC) return { text: `'${short(endC.title)}' 계약이 ${md(o.nextEnd!)}에 끝나요 (D-${d})`, tone: 'warn' };
   return { text: `최근 '${short(o.contracts[0].title)}'을 공고 없이 샀어요`, tone: 'ink' };
 }
@@ -91,7 +97,9 @@ export function SalesSection({ focus }: { focus?: string | null }) {
 
   // 기본(공고 없이) 기관 묶음 — 추천·일정에 사용
   const base = useMemo(() => (list ? groupByOrg(list.filter((c) => c.noNotice)) : []), [list]);
-  const picks = useMemo(() => base.filter((o) => !isSavedOrg(o.name))
+  // 품목 없이 공사업 면허로만 맞춘 회사는 '공종'
+  const term = profile.products?.length ? '품목' : '공종';
+  const picks = useMemo(() => base.filter((o) => !isSavedOrg(o.name) && pickable(o))
     .map((o) => ({ o, s: pickScore(o, region) })).sort((a, b) => b.s - a.s).slice(0, PICKS).map((x) => x.o), [base, region, isSavedOrg]);
 
   // 저장한 기관의 다가오는 일정
@@ -167,12 +175,12 @@ export function SalesSection({ focus }: { focus?: string | null }) {
       {head(`공고 없이 우리 품목을 산 기관 ${base.length.toLocaleString()}곳을 찾았어요`)}
 
       {/* ① 이번 주 연락해 볼 기관 */}
-      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">공고 없이(수의계약) 우리 품목을 산 기관 중 ① 지금 계약이 곧 끝나는 곳 ② 여러 번 산 곳 ③ 우리 지역 ④ 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 저장한 기관은 아래 일정에서 보여드려요.</Tip>}>
+      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">공고 없이(수의계약) 우리 {term}을 산 기관 중 ① 유지보수·임차처럼 다시 맺는 계약이 곧 끝나는 곳 ② 여러 번 산 곳만 골랐어요. 우리 지역과 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 한 번 하고 끝나는 계약은 추천하지 않아요.</Tip>}>
         {picks.length ? (
           <ol className="-my-1 divide-y divide-line">
-            {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
+            {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} term={term} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
           </ol>
-        ) : <p className="py-6 text-center text-[14px] text-mute">추천할 기관을 모두 저장했어요</p>}
+        ) : <p className="py-6 text-center text-[14px] text-mute">{base.some((o) => !isSavedOrg(o.name)) ? '아직 다시 맺는 계약이나 여러 번 산 기관이 없어요. 아래 전체 목록에서 찾아보세요' : '추천할 기관을 모두 저장했어요'}</p>}
       </Card>
 
       {/* ② 저장한 기관의 다가오는 일정 */}
@@ -284,9 +292,9 @@ function SaveBtn({ saved, onSave, label }: { saved: boolean; onSave: () => void;
 }
 
 /** 추천 1곳 — 이유 한 문장 + 근거 한 줄 + [저장] [계약 보기] */
-function Pick({ n, o, saved, onSave }: { n: number; o: SalesOrg; saved: boolean; onSave: () => void }) {
+function Pick({ n, o, term, saved, onSave }: { n: number; o: SalesOrg; term: string; saved: boolean; onSave: () => void }) {
   const [open, setOpen] = useState(false);
-  const r = reason(o);
+  const r = reason(o, term);
   const facts = [
     `${o.count}건 · ${o.amount ? fmtShort(o.amount) : '금액 없음'}`,
     o.vendors[0] ? `지금 ${o.vendors[0].name}` : null,

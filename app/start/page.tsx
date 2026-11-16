@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BadgeCheck, Compass, Loader2 } from 'lucide-react';
 import { IndustryPicker, LocationPicker, ProductPicker } from '@/components/inputs';
 import { BTN_PRIMARY } from '@/components/ui';
@@ -22,6 +22,8 @@ interface Lookup {
 type Mode = 'bizno' | 'confirm' | 'manual' | 'products';
 
 /** S1. 간편 시작 (F1-1, v2.1) — 사업자번호(선택) → 나라장터 등록 업체는 자동, 아니면 업종·소재지 직접 입력 */
+const MANY = 10;
+
 export default function StartPage() {
   const router = useRouter();
   const { loaded, profile, updateProfile, notices } = useStore();
@@ -69,7 +71,9 @@ export default function StartPage() {
   // 업종·소재지 다음에 주요 품목 단계 (나라장터 공급물품이 있으면 미리 채움)
   const go = (patch: Parameters<typeof updateProfile>[0]) => {
     setPending(patch);
-    setProducts(found?.products?.map((p) => ({ ...p, source: 'nara' as const })) ?? profile.products ?? []);
+    // 공급물품이 많으면(소금·로봇·현미경까지 56개 등) 다 넣지 않고 주로 하는 것만 고르게 함 (2026-11-16 페르소나 점검)
+    const nara = found?.products ?? [];
+    setProducts(nara.length > MANY ? [] : nara.length ? nara.map((p) => ({ ...p, source: 'nara' as const })) : profile.products ?? []);
     setError(null);
     setMode('products');
   };
@@ -99,6 +103,15 @@ export default function StartPage() {
   };
 
   const manualReady = !!location;
+
+  // 공급물품이 많은 회사 — 지금 열린 공고에 자주 나오는 품목부터 보여 주고 고르게 함
+  const many = (found?.products?.length ?? 0) > MANY;
+  const manyList = useMemo(() => {
+    if (!many) return [];
+    const cnt = new Map<string, number>();
+    for (const n of notices ?? []) for (const x of n.products) cnt.set(x.code, (cnt.get(x.code) ?? 0) + 1);
+    return found!.products!.map((p) => ({ ...p, n: cnt.get(p.code) ?? 0 })).sort((a, b) => b.n - a.n);
+  }, [many, found, notices]);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-canvas px-5 lg:pt-10">
@@ -190,10 +203,26 @@ export default function StartPage() {
           <div className="rounded-box bg-white p-5">
             <h2 className="text-[17px] font-bold">주로 어떤 품목을 다루세요?</h2>
             <p className="mt-1 text-[14px] text-mute">
-              {found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.'
+              {many ? `나라장터에 공급물품이 ${found!.products!.length}개 등록돼 있어요. 주로 납품하는 것만 골라 주세요(10개 이하 권장). 고른 품목과 같은 공고만 맞춤으로 보여 드려요.`
+                : found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.'
                 : found ? '나라장터에 등록된 공급물품이 없어요. 공사·용역 업체는 업종(면허)으로 이미 맞춰 드려요. 다루는 물품이 있을 때만 추가하세요.'
                 : '품목을 고르면 우리 회사 일과 맞는 공고만 골라 드려요.'}
             </p>
+            {many && (
+              <div className="mt-4 flex max-h-[280px] flex-wrap gap-1.5 overflow-y-auto">
+                {manyList.map((p) => {
+                  const on = products.some((x) => x.code === p.code);
+                  return (
+                    <button key={p.code} type="button" aria-pressed={on}
+                      onClick={() => setProducts(on ? products.filter((x) => x.code !== p.code) : [...products, { ...p, source: 'nara' }])}
+                      className={`rounded-full px-3 py-1.5 text-[14px] font-medium transition ${on ? 'bg-ink text-white' : 'bg-white text-sub ring-1 ring-line'}`}>
+                      {on ? '✓ ' : '+ '}{p.name}{p.n ? <span className={`ml-1 text-[12px] ${on ? 'text-white/70' : 'text-mute'}`}>{p.n}</span> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {many && <p className="mt-2 text-[12px] text-mute">숫자는 지금 열린 공고 중 그 품목이 나온 공고 수예요. 고른 품목 {products.length}개</p>}
             <div className="mt-4">
               <ProductPicker value={products} onChange={setProducts}
                 suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, products)} />
