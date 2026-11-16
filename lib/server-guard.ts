@@ -61,5 +61,6 @@ export async function requestUser(headers: Headers): Promise<string | null> {
   const token = headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!sb || !token) return null;
   const { data, error } = await sb.auth.getUser(token);
+  if (error) console.error('requestUser 실패', error.status, error.message);
   return error ? null : data.user?.id ?? null;
 }
