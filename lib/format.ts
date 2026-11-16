@@ -41,6 +41,12 @@ export function maskBizNo(value: string) {
 export const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** 받침에 따라 목적격 조사 '을/를'을 붙임 */
+/** 받침에 따라 와/과 ('분광기와', '컴퓨터서버와', '의자와', '현미경과') */
+export function waGwa(word: string) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0 ? '과' : '와';
+}
+
 export function withEulReul(word: string) {
   const code = word.charCodeAt(word.length - 1) - 0xac00;
   const batchim = code >= 0 && code <= 11171 && code % 28 !== 0;

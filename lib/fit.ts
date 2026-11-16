@@ -5,6 +5,7 @@ import type { ProductMatch } from './match';
 import { words, type Competition } from './notices';
 import { keywordHit } from './data';
 import { licCode, specificity, titleDf, type Stats } from './stats';
+import { waGwa } from './format';
 
 /* =========================================================
  * 맞춤 점수 v4 — '우리 회사와 맞는 정도' (판정과 별개, 낙찰 확률 아님)
@@ -90,7 +91,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     prodV = best > 0 ? clamp(best * (0.85 + 0.15 * share) * (0.4 + 0.6 * sp)) : 0;
     if (prodV > 0) ev.push(prodV);
     push('product', '품목', prodV, pm && prodV > 0
-      ? `주요 품목 '${pm.mine.name}'${best >= 1 ? '과 같은 품목' : best >= 0.85 ? '과 같은 품명' : '과 비슷한 분류'}${per.length > 1 ? ` (공고 품목 ${per.length}개 중 ${per.filter((x) => x >= 0.6).length}개)` : ''}${rarity(sp, df)}`
+      ? `주요 품목 '${pm.mine.name}'${waGwa(pm.mine.name)} ${best >= 1 ? '같은 품목' : best >= 0.85 ? '같은 품명' : '비슷한 분류'}${per.length > 1 ? ` (공고 품목 ${per.length}개 중 ${per.filter((x) => x >= 0.6).length}개)` : ''}${rarity(sp, df)}`
       : '주요 품목과 다른 품목', 3);
   }
 

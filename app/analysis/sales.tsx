@@ -38,7 +38,7 @@ const short = (t: string, n = 24) => (t.length > n ? `${t.slice(0, n)}…` : t);
 
 /** 다시 맺는 일이 많은 계약 — 유지보수·운영·임차·구독 등 (끝나는 날이 곧 다음 구매 시점일 가능성이 큼) */
 const RECUR = /유지보수|유지관리|임차|임대|구독|라이선스|라이센스|연간|단가계약|위탁운영|운영위탁|운영\s*(용역|대행|지원)/;
-const ONEOFF = /채용|시험|행사|축제|대회|박람회|설명회|공모전/;
+const ONEOFF = /채용|시험|행사|축제|대회|박람회|엑스포|BIXPO|설명회|공모전|훈련|공연|페스티벌|기념식/i;
 const recurring = (o: SalesOrg) => o.contracts.some((c) => c.endDate === o.nextEnd && RECUR.test(c.title) && !ONEOFF.test(c.title));
 
 /** 추천 점수 — 반복 계약이 곧 끝남 > 여러 번 삼 > 우리 지역 > 소액(혼자 견적 가능성). 경험 규칙이라 반응 보고 조정 */
