@@ -11,13 +11,35 @@ import { fetchMyMarket, type MyMarket } from '@/lib/analysis';
  */
 
 const SHADES = ['#1D4ED8', '#3B6FE6', '#6B93EE', '#9DB7F4', '#C9D7F9'];
-const MIN_RELIABLE = 10; // 우리 시장 개찰이 이보다 적으면 '데이터가 쌓이는 중' 표시
+const MIN_RELIABLE = 10;
+const md = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}.${d.getDate()}`; };
+const chip = (on: boolean) => `h-9 shrink-0 rounded-full px-3.5 text-[14px] font-semibold transition ${on ? 'bg-ink text-white' : 'bg-white text-sub ring-1 ring-line'}`; // 우리 시장 개찰이 이보다 적으면 '데이터가 쌓이는 중' 표시
 
 export function MarketSection() {
   const [m, setM] = useState<MyMarket | null | undefined>(undefined);
-  useEffect(() => { fetchMyMarket(3).then(setM).catch(() => setM(null)); }, []);
+  const [seg, setSeg] = useState<string | null>(null);
+  // 시장 목록은 처음(전체) 결과의 것을 계속 씀
+  const [segs, setSegs] = useState<MyMarket['markets']>(undefined);
+  const [allN, setAllN] = useState(0);
+  useEffect(() => {
+    setM(undefined);
+    fetchMyMarket(3, seg).then((r) => { setM(r); if (!seg && r?.markets) { setSegs(r.markets); setAllN(r.my_openings ?? 0); } }).catch(() => setM(null));
+  }, [seg]);
 
-  if (m === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
+  const segName = seg ? segs?.find((x) => x.key === seg)?.name : null;
+  const chips = segs && segs.length > 1 && (
+    <div className="no-scrollbar -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+      <button type="button" onClick={() => setSeg(null)} className={chip(!seg)}>전체 {allN}</button>
+      {segs.map((x) => (
+        <button key={x.key} type="button" onClick={() => setSeg(x.key)} className={chip(seg === x.key)}>
+          <span className="text-[12px] opacity-70">{x.type}</span> {x.name} {x.openings}
+        </button>
+      ))}
+    </div>
+  );
+
+  // 시장을 바꾸는 동안에도 시장 고르기는 그대로 보이게
+  if (m === undefined) return segs ? <section className="space-y-3"><div className="px-1 pt-4"><h2 className="text-[20px] font-bold">시장 분석</h2>{chips}</div><div className="h-48 animate-pulse rounded-box bg-white" /></section> : <div className="h-48 animate-pulse rounded-box bg-white" />;
   if (!m || !m.verified) return null; // 010 실행 전이거나 회사 확인 전
 
   const n = m.my_openings ?? 0;
@@ -28,14 +50,15 @@ export function MarketSection() {
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
         <h2 className="text-[20px] font-bold">시장 분석</h2>
-        <p className="mt-0.5 text-[14px] text-mute">우리가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
+        {chips}
+        <p className="mt-0.5 text-[14px] text-mute">{segName ? `'${segName}' 시장에서 ` : ''}우리가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
         {thin && <p className="mt-1 text-[13px] font-medium text-warn">아직 근거가 적어요({n}건). 데이터가 쌓이면 더 정확해져요.</p>}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
         <Card title="자주 만나는 회사" aside={<span className="text-[13px] text-mute">함께 들어간 공고 수</span>}>
-          {comps.length ? <Bars rows={comps.map((c) => ({ label: c.name, value: c.shared, sub: c.wins ? `이 시장 낙찰 ${c.wins}건` : undefined }))} /> : <Empty text="함께 3건 이상 들어간 회사가 아직 없어요" />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">참가 업체가 많은 공고와 아무 공고에나 들어가는 회사는 가중치를 낮춰 순위를 매겼어요.</p>
+          {comps.length ? <Bars rows={comps.map((c) => ({ label: c.name, value: c.shared, sub: [c.wins ? `낙찰 ${c.wins}번` : null, c.last_met ? `최근 ${md(c.last_met)}` : null].filter(Boolean).join(' · ') || undefined }))} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
+          <p className="mt-3 text-[12px] leading-relaxed text-mute">참가 업체가 많은 공고와 아무 공고에나 들어가는 회사는 가중치를 낮춰 순위를 매겼어요. 같은 순위면 이 시장에서 낙찰한 횟수, 최근에 만난 순으로 놓았어요. 낙찰 횟수는 추첨 영향이 커 참고만 하세요.</p>
         </Card>
 
         <Card title="이 시장 낙찰 금액" aside={m.market?.openings_with_winner ? <span className="text-[13px] text-mute">낙찰 {m.market.openings_with_winner}건 기준</span> : null}>

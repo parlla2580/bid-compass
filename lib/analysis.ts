@@ -116,10 +116,15 @@ export function similarity(n: Notice, hist: ReturnType<typeof prepareHistory>, s
 }
 
 /* ---------- 우리 시장 (010) ---------- */
-export interface MarketCompetitor { bizno: number; name: string; shared: number; their_total: number; sim: number; wins: number; win_amount: number }
+export interface MarketCompetitor { bizno: number; name: string; shared: number; their_total: number; sim: number; wins: number; win_amount: number; last_met?: string }
+export interface MarketSeg { key: string; name: string; type: string; openings: number }
+
 export interface MyMarket {
   verified: boolean;
   years?: number;
+  /** 시장 나누기 (023) — 우리 투찰을 품목·분류·면허로 나눈 목록 */
+  markets?: MarketSeg[];
+  market_key?: string | null;
   my_openings?: number;
   competitors?: MarketCompetitor[];
   market?: { openings_with_winner: number; total_amount: number; mine: number; leaders: { name: string; amount: number; wins: number; me: boolean }[] };
@@ -127,10 +132,15 @@ export interface MyMarket {
   newcomers?: { name: string; shared: number; first_seen: string }[];
 }
 
-export async function fetchMyMarket(years = 3): Promise<MyMarket | null> {
-  const { data, error } = await getSupabase().rpc('my_market', { p_years: years });
-  if (error) return null; // 010 실행 전이면 숨김
-  return data as MyMarket;
+export async function fetchMyMarket(years = 3, market: string | null = null): Promise<MyMarket | null> {
+  const sb = getSupabase();
+  // 023: 시장 나누기 — 실행 전이면 예전 함수(전체 시장)로
+  const r = await sb.rpc('my_market', { p_years: years, p_market: market });
+  if (!r.error) return r.data as MyMarket;
+  if (market) return null;
+  const old = await sb.rpc('my_market', { p_years: years });
+  if (old.error) return null; // 010 실행 전이면 숨김
+  return old.data as MyMarket;
 }
 
 /* ---------- 입찰 이력 목록과 개찰 1건 요약 (011) ---------- */
