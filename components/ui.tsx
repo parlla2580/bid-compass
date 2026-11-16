@@ -108,9 +108,20 @@ export function NoticesState({ notices, error, children }: { notices: Notice[] |
 }
 
 /** '전기공사업 외 2 · 경기도 용인시' */
+const SIDO_SHORT: Record<string, string> = {
+  경상남도: '경남', 경상북도: '경북', 전라남도: '전남', 전라북도: '전북', 전북특별자치도: '전북', 충청남도: '충남', 충청북도: '충북',
+  경기도: '경기', 강원도: '강원', 강원특별자치도: '강원', 제주특별자치도: '제주', 세종특별자치시: '세종',
+};
+/** '경상남도 창원시 마산합포구 오동동' → '경남 창원시 마산합포구' (시도 줄임, 읍·면·동 생략) */
+export function shortLocation(loc: string): string {
+  const [sido, ...rest] = loc.trim().split(/\s+/);
+  const head = SIDO_SHORT[sido] ?? sido.replace(/(특별자치시|특별자치도|특별시|광역시)$/, '');
+  return [head, ...rest.filter((w) => !/(동|읍|면|리|가)$/.test(w) || /(시|군|구)$/.test(w)).slice(0, 2)].join(' ');
+}
+
 export function profileSummary(p: Profile): string {
   // '토목공사업 외 86'처럼 길어지지 않게 — 업종이 여러 개면 개수만
   const ind = !p.industries?.length ? '업종 미입력' : p.industries.length === 1 ? p.industries[0].name : `업종 ${p.industries.length}개`;
-  const loc = p.location ? p.location.replace(/(특별자치시|특별자치도|특별시|광역시)/, '').replace(/^(\S+?)도 /, '$1 ') : '소재지 미입력';
+  const loc = p.location ? shortLocation(p.location) : '소재지 미입력';
   return `${ind} · ${loc}`;
 }

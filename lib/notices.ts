@@ -197,8 +197,9 @@ export async function searchProducts(q: string): Promise<Product[]> {
   if (!s) return [];
   const { data, error } = await getSupabase()
     .from('notices')
-    .select('product_name, p_code:raw->>dtilPrdctClsfcNo, p_list:raw->>purchsObjPrdctList, s_code:raw->>pubPrcrmntClsfcNo, s_name:raw->>pubPrcrmntClsfcNm')
-    .or(`product_name.ilike.*${s}*,raw->>pubPrcrmntClsfcNm.ilike.*${s}*,raw->>purchsObjPrdctList.ilike.*${s}*`)
+    // 014 자동 계산 열로 검색 — 원본(raw) JSON을 훑으면 공고가 쌓인 뒤 시간 초과(57014)
+    .select('product_name, p_code, p_list, s_code, s_name')
+    .or(`product_name.ilike.*${s}*,s_name.ilike.*${s}*,p_list.ilike.*${s}*`)
     .order('id', { ascending: false })
     .limit(300);
   if (error) throw error;

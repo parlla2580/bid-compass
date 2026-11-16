@@ -185,17 +185,27 @@ export default function StartPage() {
           <div className="rounded-box bg-white p-5">
             <h2 className="text-[17px] font-bold">주로 어떤 품목을 다루세요?</h2>
             <p className="mt-1 text-[14px] text-mute">
-              {found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.' : '품목을 고르면 우리 회사 일과 맞는 공고만 골라 드려요.'}
+              {found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.'
+                : found ? '나라장터에 등록된 공급물품이 없어요. 공사·용역 업체는 업종(면허)으로 이미 맞춰 드려요. 다루는 물품이 있을 때만 추가하세요.'
+                : '품목을 고르면 우리 회사 일과 맞는 공고만 골라 드려요.'}
             </p>
             <div className="mt-4">
               <ProductPicker value={products} onChange={setProducts}
                 suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, products)} />
             </div>
           </div>
-          <button type="button" onClick={() => finish(true)} disabled={!products.length} className={BTN_PRIMARY}>
-            이 품목으로 공고 보기<ArrowRight className="h-5 w-5" />
-          </button>
-          <button type="button" onClick={() => finish(false)} className="w-full py-2 text-[15px] font-medium text-mute">나중에 할게요</button>
+          {found && !found.products?.length && !products.length ? (
+            <button type="button" onClick={() => finish(false)} className={BTN_PRIMARY}>
+              업종으로 공고 보기<ArrowRight className="h-5 w-5" />
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={() => finish(true)} disabled={!products.length} className={BTN_PRIMARY}>
+                이 품목으로 공고 보기<ArrowRight className="h-5 w-5" />
+              </button>
+              <button type="button" onClick={() => finish(false)} className="w-full py-2 text-[15px] font-medium text-mute">나중에 할게요</button>
+            </>
+          )}
         </section>
       )}
 
