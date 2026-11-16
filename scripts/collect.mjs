@@ -6,6 +6,7 @@
 //   SUPABASE_URL          Supabase 프로젝트 주소
 //   SUPABASE_SECRET_KEY   Supabase 관리자 키 (sb_secret_...) — 없으면 저장하지 않고 결과만 출력
 //   COLLECT_HOURS         수집 구간(시간, 예약 실행 3 · 수동 기본 6) — 등록일시 기준
+//   COLLECT_FROM/TO       과거 기간 거슬러 받기 (한국시간 날짜 YYYY-MM-DD, TO 포함). 있으면 HOURS 대신 사용
 //
 // 실행: node scripts/collect.mjs [--dry]
 // 실행 결과는 Supabase collect_runs 테이블에 기록됩니다.
@@ -17,6 +18,10 @@ const KEY = process.env.NARA_API_KEY;
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SECRET_KEY;
 const HOURS = Number(process.env.COLLECT_HOURS || 6);
+// 거슬러 받기 — 날짜 범위 (한국시간 0시 기준, 끝 날짜 하루 전체 포함)
+const RANGE_FROM = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_FROM ?? '') ? new Date(`${process.env.COLLECT_FROM}T00:00:00+09:00`) : null;
+const RANGE_TO = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_TO ?? '') ? new Date(new Date(`${process.env.COLLECT_TO}T00:00:00+09:00`).getTime() + 86400e3) : null;
+const LONG = HOURS > 24 || !!RANGE_FROM;
 // snapshot: 수집 없이 공고 목록 스냅샷만 다시 만듦 (수동 실행용)
 const MODE = process.env.COLLECT_MODE || 'full';
 const DRY = process.argv.includes('--dry') || !SB_KEY;
@@ -29,7 +34,7 @@ const SCS = 'https://apis.data.go.kr/1230000/as/ScsbidInfoService';
 const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 1500);
 const DETAIL_PARALLEL = 4;
 // 실행 시간 제한(150분) 안에서 여유 있게 멈춤. 예약 실행은 매시라 40분에서 끊고 다음 실행이 이어 받음
-const DETAIL_TIME_LIMIT = (HOURS > 24 ? 100 : 40) * 60e3;
+const DETAIL_TIME_LIMIT = (LONG ? 100 : 40) * 60e3;
 const IND = 'https://apis.data.go.kr/1230000/ao/IndstrytyBaseLawrgltInfoService/getIndstrytyBaseLawrgltInfoList';
 // 사전규격 (022) — 정식 공고 전 규격·배정예산 공개 → '곧 나올 공고'
 const HRC = 'https://apis.data.go.kr/1230000/ao/HrcspSsstndrdInfoService';
@@ -502,9 +507,10 @@ async function writeSnapshot(sb) {
 }
 
 async function main() {
-  const to = new Date();
-  const from = new Date(to.getTime() - HOURS * 3600e3);
-  console.log(`수집 구간 (한국시간): ${ymdhm(from)} ~ ${ymdhm(to)}${DRY ? '  [저장 안 함]' : ''}`);
+  const to = RANGE_FROM ? new Date(Math.min((RANGE_TO ?? new Date()).getTime(), Date.now())) : new Date();
+  const from = RANGE_FROM ?? new Date(to.getTime() - HOURS * 3600e3);
+  if (RANGE_FROM && from >= to) throw new Error(`거슬러 받기 기간이 잘못됐어요: ${process.env.COLLECT_FROM} ~ ${process.env.COLLECT_TO}`);
+  console.log(`수집 구간 (한국시간): ${ymdhm(from)} ~ ${ymdhm(to)}${RANGE_FROM ? '  [거슬러 받기]' : ''}${DRY ? '  [저장 안 함]' : ''}`);
 
   const sb = DRY ? null : createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
   if (MODE === 'snapshot') {
@@ -526,7 +532,7 @@ async function main() {
   const CHUNK = 24 * 3600e3;
   for (let s = from.getTime(); s < to.getTime(); s += CHUNK) {
     const a = new Date(s), b = new Date(Math.min(s + CHUNK, to.getTime()));
-    if (HOURS > 24) console.log(`- 구간 ${ymdhm(a)} ~ ${ymdhm(b)}`);
+    if (LONG) console.log(`- 구간 ${ymdhm(a)} ~ ${ymdhm(b)}`);
     try {
       const { rows: notices, updates } = await collectNotices(a, b);
       result.notices += notices.length;
