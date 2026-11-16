@@ -80,6 +80,10 @@ function industryRule(n: Notice, p: Profile): Reason {
   }
   const label = (l: LicenseLimit) => `${l.name}${l.code ? `(${l.code})` : ''}`;
   const required = n.licenseLimits.map(label).join(', ');
+  // 사업자번호로 조회했는데 등록 업종이 없는 회사(물품 공급업체 등)는 면허 제한 공고에 참여할 수 없음
+  if (p.industries?.length === 0 && p.bizno) {
+    return { rule, result: 'fail', text: `업종 제한: ${required} — 나라장터에 등록된 우리 업종이 없어요` };
+  }
   if (p.industries === null || p.industries.length === 0) {
     return { rule, result: 'check', text: `업종 제한: ${required} — 업종을 입력하면 판정됩니다`, need: 'industries' };
   }

@@ -65,7 +65,7 @@ function reason(o: SalesOrg): { text: string; tone: 'warn' | 'ink'; recur?: bool
 export function SalesSection({ focus }: { focus?: string | null }) {
   const { profile } = useStore();
   const { savedOrgs, isSavedOrg, saveOrg, unsaveOrg } = useInbox();
-  const codes = useMemo(() => productCodes(profile.products, profile.muted), [profile.products, profile.muted]);
+  const codes = useMemo(() => productCodes(profile.products, profile.muted, profile.industries), [profile.products, profile.muted, profile.industries]);
   const [list, setList] = useState<SalesContract[] | null | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
   // 전체 목록
@@ -261,7 +261,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
       </div>
 
       <p className="flex items-start gap-1 px-1 text-[12px] leading-relaxed text-mute">
-        <span>나라장터 계약의 품목 코드를 우리 주요 품목 {codes.size}개와 맞췄어요. 2026년 11월 15일부터 모으기 시작해 아직 기간이 짧아요.</span>
+        <span>나라장터 계약의 품목·공종 코드를 우리 품목·업종 {codes.size}개와 맞췄어요. 2026년 11월 15일부터 모으기 시작해 아직 기간이 짧아요.</span>
         <Tip title="기준">조달청이 대신 계약한 건은 실제로 산 기관(수요기관)으로 묶었고, 조달청 단가계약(3자단가·다수공급자)은 뺐어요. &apos;우리 지역&apos;은 기관 이름으로 추정해요. 계약이 끝나는 날은 다시 발주하는 날이 아니라 확인해 볼 시점이에요.</Tip>
       </p>
     </section>

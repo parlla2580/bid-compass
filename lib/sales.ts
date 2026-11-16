@@ -1,4 +1,4 @@
-import type { MuteItem, Product } from './data';
+import type { Industry, MuteItem, Product } from './data';
 import { getSupabase } from './supabase';
 
 /*
@@ -72,14 +72,44 @@ const unesc = (s: string) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').repl
 
 const chunk = <T,>(a: T[], n: number) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
-/** 회원 주요 품목(관심 없음 제외) → 8자리 코드 → 이름 */
-export function productCodes(products: Product[] | null, muted: MuteItem[] = []): Map<string, string> {
+/** 공사 계약의 공공조달분류 (계약 데이터 실측, 2026-11-16) — 공사업 면허 이름과 맞춰 '우리 공종'으로 씀 */
+const BUILD_CLASSES: [string, string][] = [
+  ['72151597', '전기공사'], ['72152799', '철근콘크리트공사'], ['72141119', '상하수도설비공사'], ['72102998', '조경식재공사'],
+  ['72149001', '토목공사'], ['72141103', '포장공사'], ['72153699', '실내건축공사'], ['72119001', '건축공사'],
+  ['72151699', '정보통신공사'], ['72151295', '기계설비공사'], ['72152402', '금속구조물·창호공사'], ['72101507', '시설물유지관리공사'],
+  ['72153999', '토공사'], ['72101509', '소방시설공사'], ['72151399', '도장공사'], ['72154096', '습식방수공사'],
+  ['72102902', '조경시설물설치공사'], ['72151909', '석공사'], ['72153402', '비계·구조물해체공사'], ['72149101', '조경공사'],
+  ['72101599', '국가유산수리공사'], ['72154097', '석면해체제거공사'], ['72152698', '지붕판금·건축물조립공사'], ['72141111', '가스시설시공'],
+  ['72141206', '준설공사'], ['72151099', '난방시공'], ['72154098', '승강기설치공사'], ['72152702', '보링그라우팅공사'],
+  ['72121599', '산업환경설비공사'], ['72141215', '수중공사'], ['72141603', '철도궤도공사'],
+];
+const parts = (s: string) => s.split(/[\s.·ㆍ,()]+/).map((x) => x.replace(/(공사업|공사|시공|업)$/, '')).filter((x) => x.length >= 2);
+
+/** 공사업 면허 → 공사 분류 코드 ('전기공사업' → 전기공사, '석면해체.제거업' → 석면해체제거공사) */
+export function industryClassCodes(industries: Industry[] | null, muted: MuteItem[] = []): Map<string, string> {
+  const off = new Set(muted.filter((m) => m.kind === 'industry').map((m) => m.code));
+  const out = new Map<string, string>();
+  for (const ind of industries ?? []) {
+    if (off.has(ind.code) || !/공사업|해체|석면/.test(ind.name)) continue;
+    const mine = parts(ind.name.replace(/석면해체\.?제거/, '석면해체제거')).join('');
+    for (const [code, name] of BUILD_CLASSES) {
+      const cls = parts(name);
+      if (cls.length && cls.every((t) => mine.includes(t)) && !out.has(code)) out.set(code, name);
+    }
+    if (/실내건축/.test(ind.name)) out.delete('72119001'); // 실내건축(전문)은 건축공사(종합)가 아님
+  }
+  return out;
+}
+
+/** 회원 주요 품목(관심 없음 제외) → 8자리 코드 → 이름. 품목이 없는 공사업체는 면허로 공사 분류를 대신 씀 */
+export function productCodes(products: Product[] | null, muted: MuteItem[] = [], industries: Industry[] | null = null): Map<string, string> {
   const off = new Set(muted.filter((m) => m.kind === 'product').map((m) => m.code.slice(0, 8)));
   const out = new Map<string, string>();
   for (const p of products ?? []) {
     const c = p.code?.slice(0, 8);
     if (c && c.length === 8 && !off.has(c) && !out.has(c)) out.set(c, p.name);
   }
+  for (const [c, n] of industryClassCodes(industries, muted)) if (!out.has(c)) out.set(c, n);
   return out;
 }
 

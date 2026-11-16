@@ -70,12 +70,14 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
 
   // 품목 — 계층 일치 × 공고 내 비중 × 특이도
   let prodV = 0;
+  let exactItem = false;
   if (p.products?.length && n.products.length) {
     const level = (a: string, b: string): [number, number] =>
       a.length >= 10 && b.length >= 10 && a.slice(0, 10) === b.slice(0, 10) ? [1, 10]
         : a.slice(0, 8) === b.slice(0, 8) ? [a.length === 8 && b.length === 8 ? 1 : 0.85, 8]
           : a.slice(0, 6) === b.slice(0, 6) ? [0.6, 6] : a.slice(0, 4) === b.slice(0, 4) ? [0.35, 4] : [0, 0];
     let best = 0, bestLen = 0, bestCode = '';
+    // (exactItem) 물품 세부품명 10자리까지 같으면 흔한 품목이라도 관문 통과 — 그 품목을 등록한 공급업체에겐 핵심 공고 (2026-11-16 의자 제조업체 점검: 맞춤 0건)
     const per = n.products.map((t) => {
       let m = 0;
       for (const mine of p.products!) {
@@ -89,6 +91,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
     const df = bestLen ? stats?.prod.get(bestCode.slice(0, bestLen)) : undefined;
     const sp = spec(df);
     prodV = best > 0 ? clamp(best * (0.85 + 0.15 * share) * (0.4 + 0.6 * sp)) : 0;
+    exactItem = best >= 1 && bestLen === 10;
     if (prodV > 0) ev.push(prodV);
     push('product', '품목', prodV, pm && prodV > 0
       ? `주요 품목 '${pm.mine.name}'${waGwa(pm.mine.name)} ${best >= 1 ? '같은 품목' : best >= 0.85 ? '같은 품명' : '비슷한 분류'}${per.length > 1 ? ` (공고 품목 ${per.length}개 중 ${per.filter((x) => x >= 0.6).length}개)` : ''}${rarity(sp, df)}`
@@ -155,7 +158,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   // 근거가 하나도 없는 회사(품목·이력 모두 없음)는 판단 정보 부족 → 중간 아래
   const relPts = 55 * (ev.length ? R : p.products?.length || hist.length ? 0.1 : 0.3) + 30 * H;
   // 품목·이력이 없는 회사(공사업 등)는 면허가 핵심 근거라 관문을 낮춤
-  const gate = R >= (p.products?.length ? GATE.rel : GATE.relNoProduct) || H >= GATE.hist || !!plus;
+  const gate = exactItem || R >= (p.products?.length ? GATE.rel : GATE.relNoProduct) || H >= GATE.hist || !!plus;
 
   /* ---------- ② 조건 점수 (더하고 빼기) ---------- */
   let cond = 0;
