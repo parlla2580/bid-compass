@@ -574,8 +574,10 @@ async function main() {
   const sb = DRY ? null : createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
   // 빈틈 메우기 — 매시간 수집이 몇 번 실패했으면 마지막으로 성공한 구간 끝부터 받음 (최대 48시간)
   if (sb && !RANGE_FROM && MODE !== 'snapshot') {
-    const { data: last } = await sb.from('collect_runs').select('window_to').in('status', ['ok', 'partial'])
-      .order('window_to', { ascending: false }).limit(1).maybeSingle();
+    // 공고 저장까지 성공한 실행만 (일부 실패라도 공고 오류가 있으면 제외 — 2026-11-17 DB 장애 때 '일부 실패'가 하나도 저장 못 함)
+    const { data: runs } = await sb.from('collect_runs').select('window_to,status,message').in('status', ['ok', 'partial'])
+      .order('window_to', { ascending: false }).limit(30);
+    const last = (runs ?? []).find((r) => r.status === 'ok' || !/공고\(|공고 보완|스냅샷/.test(r.message ?? ''));
     const end = last?.window_to ? new Date(last.window_to) : null;
     if (end && end < from) {
       from = new Date(Math.max(end.getTime() - 30 * 60e3, to.getTime() - CATCHUP_MAX_H * 3600e3));
