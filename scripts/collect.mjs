@@ -478,10 +478,26 @@ async function collectIndustries() {
 }
 
 /* ---------- 저장 ---------- */
+/*
+ * DB 보호 (2026-11-17 장애) — 거슬러 받기가 12시간 넘게 쓰자 DB(Micro, 메모리 1GB)가 스왑·디스크 대기 100%로 멈춤
+ *  · 거슬러 받기는 한 번에 200행씩, 매시간 수집은 500행씩
+ *  · DB 시간 초과면 기다렸다가 다시 (1분 → 2분 → 4분), 그래도 안 되면 실패
+ *  · 거슬러 받기는 하루치마다 쉬어 감 (BACKFILL_PAUSE_SEC, 기본 30초)
+ */
+const UPSERT_BATCH = RANGE_FROM ? 200 : 500;
+const DB_BUSY = /statement timeout|upstream request timeout|schema cache|fetch failed|ECONNRESET|503|504|544/i;
 async function upsert(sb, table, rows, onConflict) {
-  for (let i = 0; i < rows.length; i += 500) {
-    const { error } = await sb.from(table).upsert(rows.slice(i, i + 500), { onConflict });
-    if (error) throw new Error(`${table} 저장 실패: ${error.message}`);
+  for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
+    for (let attempt = 0; ; attempt++) {
+      const { error } = await sb.from(table).upsert(rows.slice(i, i + UPSERT_BATCH), { onConflict });
+      if (!error) break;
+      if (attempt < 3 && DB_BUSY.test(error.message)) {
+        console.log(`  ${table} 저장이 느려요 (${error.message.slice(0, 60)}) — ${2 ** attempt}분 뒤 다시`);
+        await sleep(2 ** attempt * 60e3);
+        continue;
+      }
+      throw new Error(`${table} 저장 실패: ${error.message}`);
+    }
   }
 }
 
@@ -588,6 +604,7 @@ async function main() {
   const CHUNK = 24 * 3600e3;
   for (let s = from.getTime(); s < to.getTime(); s += CHUNK) {
     const a = new Date(s), b = new Date(Math.min(s + CHUNK, to.getTime()));
+    if (RANGE_FROM && s > from.getTime()) await sleep(Number(process.env.BACKFILL_PAUSE_SEC ?? 30) * 1000); // DB 쉬어 가기
     if (LONG) console.log(`- 구간 ${ymdhm(a)} ~ ${ymdhm(b)}`);
     try {
       const { rows: notices, updates } = await collectNotices(a, b);
