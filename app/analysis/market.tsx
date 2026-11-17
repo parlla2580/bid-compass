@@ -130,7 +130,7 @@ function Rivals({ comps, market }: { comps: MarketCompetitor[]; market: string |
     const next = open === c.bizno ? null : c.bizno;
     setOpen(next);
     const k = key(c.bizno);
-    if (next === null || !c.wins || k in wins) return;
+    if (next === null || !c.wins || (k in wins && wins[k] !== null)) return; // 실패(null)면 다시 누를 때 다시 받음
     setWins((w) => ({ ...w, [k]: undefined }));
     fetchRivalWins(c.bizno, 3, market).then((r) => setWins((w) => ({ ...w, [k]: r }))).catch(() => setWins((w) => ({ ...w, [k]: null })));
   };
