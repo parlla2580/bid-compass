@@ -16,6 +16,7 @@ import {
   calcBid, checkBid, type BidCheck, type ScoreKey,
 } from './rules';
 import { SajeongPanel } from './sajeong';
+import { QualifyPanel } from './qualify-panel';
 
 type Tab = 'bid' | 'score';
 const TYPES: BidType[] = ['물품', '용역', '공사'];
@@ -90,6 +91,10 @@ export default function CalculatorTabs() {
     if (t) setType(t);
   }, [guessed, loaded, initType, fromId, profile]);
 
+  // 적격심사 역산에서 고른 최저 투찰률로 투찰금액 계산
+  const [rateOverride, setRateOverride] = useState<number | null>(null);
+  const applyRate = (v: number) => { setRateOverride(v); selectTab('bid'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
   const selectTab = (t: Tab) => {
     setTab(t);
     const u = new URL(window.location.href);
@@ -121,15 +126,19 @@ export default function CalculatorTabs() {
           <Segment label="사업유형" options={TYPES} value={type} onChange={setType} />
         </div>
         {tab === 'bid'
-          ? <BidPanel key={`bid-${type}`} type={type} estPrice={from?.estPrice}
+          ? <BidPanel key={`bid-${type}-${rateOverride ?? ''}`} type={type} estPrice={from?.estPrice}
               // 공고에서 왔는데 기초금액이 없으면 예시값을 채우지 않음 (단일예가·비예가 공고 등)
               initialBase={Number(params.get('base')) || from?.basePrice || (fromId ? null : 132_000_000)}
               notice={from}
               initialRange={params.get('range') ? Number(params.get('range')) : null}
-              initialRate={params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null}
+              initialRate={rateOverride ?? (params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null)}
+              rateNote={rateOverride ? `우리 회사 점수로 찾은 최저 투찰률 ${rateOverride.toFixed(3)}%를 넣었어요` : null}
+              onQualify={type === '공사' ? () => selectTab('score') : undefined}
               fromNotice={fromParams && type === params.get('type')}
               org={from?.org} demandOrg={from?.demandOrg} />
-          : <ScorePanel key={`score-${type}`} type={type} />}
+          : type === '공사'
+            ? <QualifyPanel notice={from} onUseRate={applyRate} />
+            : <ScorePanel key={`score-${type}`} type={type} />}
       </main>
     </>
   );
@@ -142,8 +151,10 @@ const CHECK_STYLE: Record<BidCheck['level'], { Icon: typeof CircleCheck; cls: st
 };
 
 /* ---------- 탭 1: 투찰금액 계산기 (F4-1) ---------- */
-function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice, org, demandOrg, notice }: {
+function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, fromNotice, org, demandOrg, notice, rateNote, onQualify }: {
   type: BidType;
+  rateNote?: string | null;
+  onQualify?: () => void;
   notice?: Notice | null;
   org?: string | null;
   demandOrg?: string | null;
@@ -223,6 +234,13 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
               <p className="mt-1.5 text-[13px] text-mute">나라장터에 이 공고의 A값 정보가 없어요. 공고문에 있으면 직접 넣어 주세요.</p>
             ) : null}
           </div>
+        )}
+        {rateNote && <p className="-mt-2 text-[13px] font-medium text-brand">{rateNote}</p>}
+        {onQualify && !rateNote && (
+          <button type="button" onClick={onQualify} className="-mt-2 flex w-full items-center justify-between gap-2 rounded-xl bg-brand-soft px-3.5 py-3 text-left text-[14px] text-brand">
+            <span><b className="font-semibold">우리 회사 점수로는 몇 %부터 통과할까요?</b><span className="block text-[13px] text-sub">경영상태·실적이 만점이 아니면 하한율로 써도 탈락할 수 있어요</span></span>
+            <ChevronRight className="h-5 w-5 shrink-0" />
+          </button>
         )}
         <label className="flex cursor-pointer items-start gap-3 rounded-btn bg-fill px-4 py-3.5 text-[15px]">
           <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-0.5 h-5 w-5 accent-blue-600" />
