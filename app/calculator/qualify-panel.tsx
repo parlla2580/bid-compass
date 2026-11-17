@@ -91,13 +91,13 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
         ) : (
           <>
             <p className="mt-1 text-[14px] text-sub">통과하려면 <Tip label="투찰 비율" title="(입찰가격 − A) ÷ (예정가격 − A)">A값이 없는 공고는 입찰가격 ÷ 예정가격이에요. 소수점 다섯째 자리에서 반올림해 평가해요.</Tip>을</p>
-            <p className="mt-0.5 text-[28px] font-bold tabular-nums tracking-tight text-brand">{range.wide ? `${pctS(range.low)} 이상` : `${pctS(range.low)} ~ ${pctS(range.high!)}`}</p>
+            <p className="mt-0.5 text-[28px] font-bold tabular-nums tracking-tight text-brand">{range.wide ? `${pctS(range.low)} 이상` : `${pctS(range.low)} 이상 ${pctS(range.high!)} 미만`}</p>
             <p className={`mt-2 inline-flex rounded-full px-3 py-1.5 text-[14px] font-semibold ${gap && gap > 0 ? 'bg-bad/10 text-bad' : 'bg-fill text-ok'}`}>
               {gap && gap > 0 ? `하한율 ${pctS(floor)}보다 ${gap.toFixed(3)}%p 높게 써야 해요` : `하한율 ${pctS(floor)}로 써도 통과해요`}
             </p>
-            {!range.wide && <p className="mt-2 text-[13px] leading-relaxed text-mute">{pctS(range.high!)}보다 높으면 가격점수가 {tier.price.fixed}점으로 고정돼 다시 모자라요. 이 좁은 구간 안에 써야 해요.</p>}
+            {!range.wide && <p className="mt-2 text-[13px] leading-relaxed text-mute">{pctS(range.high!)} 이상이면 가격점수가 {tier.price.fixed}점 이하로 내려가 다시 모자라요. 이 좁은 구간 안에 써야 해요.</p>}
             {base && range.low !== null && (
-              <p className="mt-3 text-[14px] text-sub">예정가격이 기초금액과 같다면(사정률 100%) <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low, a))}</b>{range.wide ? ' 이상' : ` ~ ${fmtWon(amountAt(base, range.high!, a))}`}{a ? ' (A값 반영)' : ''}</p>
+              <p className="mt-3 text-[14px] text-sub">예정가격이 기초금액과 같다면(사정률 100%) <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low, a))}</b>{range.wide ? ' 이상' : ` 이상 ${fmtWon(amountAt(base, range.high!, a))} 미만`}{a ? ' (A값 반영)' : ''}</p>
             )}
             <button type="button" onClick={() => onUseRate(range.low!)}
               className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-cta bg-ink text-[15px] font-semibold text-white active:scale-[.98]">

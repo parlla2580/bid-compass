@@ -134,7 +134,7 @@ export default function CalculatorTabs() {
               initialRate={rateOverride ?? (params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null)}
               rateNote={rateOverride ? `우리 회사 점수로 찾은 최저 투찰률 ${rateOverride.toFixed(3)}%를 넣었어요` : null}
               onQualify={type === '공사' ? () => selectTab('score') : undefined}
-              fromNotice={fromParams && type === params.get('type')}
+              fromNotice={(fromParams && type === params.get('type')) || (!!from && from.type === type)}
               org={from?.org} demandOrg={from?.demandOrg} />
           : type === '공사'
             ? <QualifyPanel notice={from} onUseRate={applyRate} />

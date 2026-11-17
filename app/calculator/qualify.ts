@@ -102,36 +102,44 @@ export function priceScore(tier: Tier, ratio: number): number {
   return Math.max(p.min, Math.round(s * 1000) / 1000);
 }
 
+/*
+ * 평가 비율은 소수점 넷째 자리(0.0001 단위)로 반올림된 값으로 점수를 매김
+ *  → 통과하는 '반올림된 비율'의 최소·최대를 0.0001 단위로 구한 뒤,
+ *    실제로 써도 되는 비율은 [최소 − 0.00005, 최대 + 0.00005) (반올림 경계)
+ */
+const U = 10000;
+const C4 = (t: Tier) => Math.round(t.price.c * U);
+/** 기준율에서 벗어나도 되는 폭 (0.0001 단위) */
+const slack = (t: Tier, need: number) => ((t.price.max - need) * 100) / t.price.k;
+const pct6 = (units: number) => Math.round(units * 10) / 1000; // 0.0001 단위 → % (예: 8974.5 → 89.745)
+
 /** 비가격 만점일 때 고정 평점을 받는 가장 낮은 비율 = 낙찰하한율 (검증용, %) */
 export function impliedFloor(tier: Tier): number {
-  const p = tier.price;
-  const low = p.c - (p.max - p.fixed) / (p.k * 100); // 반올림 후 이 값 이상
-  return Math.round((low - 0.00005) * 1e6) / 1e4; // %로, 반올림해서 low가 되는 가장 작은 값
+  const rMin = Math.ceil(C4(tier) - slack(tier, tier.price.fixed) - 1e-9);
+  return pct6(rMin - 0.5);
 }
 
 export interface PassRange {
   /** 필요한 가격 평점 */
   need: number;
-  /** 통과 가능한 (입찰가격−A)/(예정가격−A) 범위 (%, 반올림 전 값 기준) — 없으면 null */
+  /** 통과하는 투찰 비율 (%) — low 이상, high 미만. 없으면 null */
   low: number | null;
   high: number | null;
-  /** 특례(고정 평점) 구간까지 통과하는지 */
+  /** 특례(고정 평점) 구간까지 통과하는지 (high = 100%) */
   wide: boolean;
 }
 
-/**
- * 통과에 필요한 투찰 비율 범위
- * nonPrice: 가격 외 점수 합 (가점·감점 반영)
- */
+/** 통과에 필요한 투찰 비율 범위 — nonPrice: 가격 외 점수 합 (가점·감점 반영) */
 export function passRange(tier: Tier, nonPrice: number): PassRange {
   const p = tier.price;
   const need = Math.round((tier.pass - nonPrice) * 1000) / 1000;
   if (need > p.max) return { need, low: null, high: null, wide: false };
-  const d = Math.max(0, (p.max - need) / (p.k * 100)); // 기준율에서 벗어나도 되는 폭
-  const lowR = p.c - d;
-  const pct = (v: number) => Math.round(v * 1e6) / 1e4;
-  if (need <= p.fixed) return { need, low: pct(lowR - 0.00005), high: 100, wide: true };
-  return { need, low: pct(lowR - 0.00005), high: pct(p.c + d + 0.000049), wide: false };
+  const d = Math.max(0, slack(tier, need));
+  const rMin = Math.ceil(C4(tier) - d - 1e-9);
+  if (need <= p.fixed) return { need, low: pct6(rMin - 0.5), high: 100, wide: true };
+  const rMax = Math.floor(C4(tier) + d + 1e-9);
+  if (rMax < rMin) return { need, low: null, high: null, wide: false };
+  return { need, low: pct6(rMin - 0.5), high: pct6(rMax + 0.5), wide: false };
 }
 
 /** 비율(%) → 투찰금액 (원 올림) */
