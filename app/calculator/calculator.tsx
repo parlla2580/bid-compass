@@ -126,7 +126,7 @@ export default function CalculatorTabs() {
           <Segment label="사업유형" options={TYPES} value={type} onChange={setType} />
         </div>
         {tab === 'bid'
-          ? <BidPanel key={`bid-${type}-${rateOverride ?? ''}`} type={type} estPrice={from?.estPrice}
+          ? <BidPanel key={`bid-${type}-${rateOverride ?? ''}-${from?.id ?? ''}`} type={type} estPrice={from?.estPrice}
               // 공고에서 왔는데 기초금액이 없으면 예시값을 채우지 않음 (단일예가·비예가 공고 등)
               initialBase={Number(params.get('base')) || from?.basePrice || (fromId ? null : 132_000_000)}
               notice={from}
@@ -265,6 +265,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
             ? <span className="text-[13px] font-semibold text-ok">공고값 기준</span>
             : <span className="text-[13px] font-semibold text-warn">예시 계산</span>}
         </div>
+        {B <= 0 ? <p className="py-6 text-center text-[15px] text-mute">기초금액을 넣으면 계산해 드려요</p> : <>
         <dl className="divide-y divide-line">
           <div className="flex flex-col gap-1 py-3">
             <dt className="text-[13px] text-mute"><Term k="예정가격" /> 범위 (<Term k="사정률" /> {round1(100 - (range ?? 0))}~{round1(100 + (range ?? 0))}%)</dt>
@@ -289,6 +290,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           ))}
           {bid !== null && bid > 0 && <p className="text-right text-[12px] text-mute">검은 선: 내 투찰금액</p>}
         </div>
+        </>}
       </div>
 
       {B > 0 && rate && !noDraw ? (
