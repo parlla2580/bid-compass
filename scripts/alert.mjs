@@ -29,7 +29,10 @@ const errors = result?.errors ?? (jobFailed ? ['작업이 수집 결과를 남�
 // 다음 실행에서 다시 받는 일시적 오류 (네트워크, 투찰 순위 일부 실패)
 const NETWORK = /fetch failed|timeout|timed out|ECONNRESET|ETIMEDOUT|socket|EAI_AGAIN|502|503|504|투찰 순위 일부 실패/i;
 
-const alert = status === 'failed' || status === 'crashed' || (status === 'partial' && errors.some((e) => !NETWORK.test(e)));
+// DB 쪽 시간 초과(저장·조회 실패, 스냅샷)는 일시적이라도 서비스가 멈춘 것 → 알림 (2026-11-17 DB 과부하 때 놓침)
+const DB = /저장 실패|조회 실패|보완 실패|스냅샷|statement timeout|upstream request timeout/;
+const serious = (e) => DB.test(e) || !NETWORK.test(e);
+const alert = status === 'failed' || status === 'crashed' || (status === 'partial' && errors.some(serious));
 const open = () => {
   const list = JSON.parse(gh('issue', 'list', '--label', LABEL, '--state', 'open', '--json', 'number', '--limit', '1') || '[]');
   return list[0]?.number ?? null;
