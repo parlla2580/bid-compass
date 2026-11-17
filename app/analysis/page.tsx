@@ -39,6 +39,13 @@ export default function AnalysisPage() {
     const q = new URLSearchParams(window.location.search);
     if (q.get('tab') === 'sales') { setTab('sales'); setFocusOrg(q.get('org')); }
   }, []);
+  // 회사 확인은 됐지만 투찰 이력이 없는 회사(수의계약 위주 등)는 빈 성적표 대신 [영업]부터 (2026-11-17 우유나라 점검)
+  const [autoTab, setAutoTab] = useState(false);
+  useEffect(() => {
+    if (autoTab || !report?.verified || report.total) return;
+    setAutoTab(true);
+    if (!new URLSearchParams(window.location.search).get('tab')) setTab('sales');
+  }, [report, autoTab]);
   // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
   const openOf = useMemo(() => {
     const m = new Map<string, { all: number; matched: number }>();
@@ -76,9 +83,10 @@ export default function AnalysisPage() {
     );
   } else if (!report.total) {
     body = (
-      <Empty title="아직 분석할 입찰 이력이 없어요"
-        text="개찰 결과를 모으는 중이에요. 쌓이면 성적표가 채워져요.">
-        <Link href="/bids" className={BTN_PRIMARY}>지금 참여 가능한 공고 보기</Link>
+      <Empty title="아직 입찰한 기록이 없어요"
+        text="나라장터 개찰 결과에서 우리 회사 투찰을 찾지 못했어요. 입찰보다 수의계약으로 납품하는 회사라면, 공고 없이 우리 품목을 산 기관부터 찾아보세요.">
+        <button type="button" onClick={() => setTab('sales')} className={BTN_PRIMARY}>공고 없이 산 기관 보기</button>
+        <Link href="/bids" className="mt-3 block text-center text-[14px] font-semibold text-sub">지금 참여 가능한 공고 보기</Link>
       </Empty>
     );
   } else {
