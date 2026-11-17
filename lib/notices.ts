@@ -1,6 +1,7 @@
 import { NOTICE_COLUMNS, NOTICE_COLUMNS_FAST, toNotice, type Industry, type Notice, type NoticeRow, type Product } from './data';
 import { getSupabase } from './supabase';
 import { cacheGet, cacheSet } from './cache';
+import { fmtKorean } from './format';
 
 /* =========================================================
  * Supabase 읽기 — 공고·계약·업종 (공개 데이터, publishable 키로 읽기)
@@ -115,6 +116,58 @@ export async function fetchNoticesByIds(ids: number[]): Promise<Notice[]> {
   const { data, error } = await withCols<NoticeRow[]>((cols) => getSupabase().from('notices').select(cols).in('id', ids) as unknown as PromiseLike<Res<NoticeRow[]>>);
   if (error) throw error;
   return ((data ?? []) as NoticeRow[]).map((r) => toNotice(r));
+}
+
+/* ---------- 저장 공고 정정·취소 따라가기 ---------- */
+
+/** 저장한 공고(from)가 정정되어 새 차수(to)가 나왔거나 취소됨 */
+export interface SavedChange { from: number; to: number | null; bidNo: string; title: string; diff: string[]; cancelled: boolean; at: string }
+
+const md = (d: Date) => {
+  const k = new Date(d.getTime() + 9 * 3600e3);
+  const p = (v: number) => String(v).padStart(2, '0');
+  return `${k.getUTCMonth() + 1}/${k.getUTCDate()} ${p(k.getUTCHours())}:${p(k.getUTCMinutes())}`;
+};
+const won = fmtKorean;
+
+/** 바뀐 점 — 마감·금액·공고명. 그 밖(첨부·조건)은 공고문에서 확인 */
+export function noticeDiff(a: Notice, b: Notice): string[] {
+  const out: string[] = [];
+  if (a.closesAt.getTime() !== b.closesAt.getTime()) out.push(`마감 ${md(a.closesAt)} → ${md(b.closesAt)}`);
+  if (a.basePrice && b.basePrice && a.basePrice !== b.basePrice) out.push(`기초금액 ${won(a.basePrice)} → ${won(b.basePrice)}`);
+  else if (a.estPrice && b.estPrice && a.estPrice !== b.estPrice) out.push(`추정가격 ${won(a.estPrice)} → ${won(b.estPrice)}`);
+  if (a.title.trim() !== b.title.trim()) out.push('공고명이 바뀌었어요');
+  return out;
+}
+
+/**
+ * 저장한 공고 중 새 차수(정정공고)가 나왔거나 취소된 것 — 마감 7일 지난 공고는 보지 않음
+ * 공고 목록은 마지막 차수만 보여 주므로, 이전 차수를 저장해 두면 목록·마감 알림에서 빠지고 낡은 정보가 보임
+ */
+export async function findSavedChanges(ids: number[]): Promise<SavedChange[]> {
+  if (!ids.length) return [];
+  const sb = getSupabase();
+  const since = new Date(Date.now() - 7 * 86400e3).toISOString();
+  const { data: mine, error } = await withCols<NoticeRow[]>((cols) => sb.from('notices').select(cols).in('id', ids.slice(-300)).gte('closes_at', since) as unknown as PromiseLike<Res<NoticeRow[]>>);
+  if (error) throw error;
+  if (!mine?.length) return [];
+  const { data: all, error: e2 } = await withCols<NoticeRow[]>((cols) => sb.from('notices').select(cols).in('bid_no', [...new Set(mine.map((r) => r.bid_no))]) as unknown as PromiseLike<Res<NoticeRow[]>>);
+  if (e2) throw e2;
+  const last = new Map<string, Notice>();
+  for (const n of (all ?? []).map((r) => toNotice(r))) {
+    const cur = last.get(n.bidNo);
+    if (!cur || n.bidOrd > cur.bidOrd) last.set(n.bidNo, n);
+  }
+  const out: SavedChange[] = [];
+  const at = new Date().toISOString();
+  for (const old of mine.map((r) => toNotice(r))) {
+    const now = last.get(old.bidNo);
+    if (!now || now.bidOrd <= old.bidOrd) continue;
+    // 저장 목록에 이미 새 차수가 있으면 옛 차수만 정리
+    const cancelled = /취소/.test(now.kind ?? '');
+    out.push({ from: old.id, to: cancelled ? null : now.id, bidNo: old.bidNo, title: now.title || old.title, diff: cancelled ? [] : noticeDiff(old, now), cancelled, at });
+  }
+  return out;
 }
 
 /** 어느 분야 공고에나 나오는 입찰 일반어 — 유사도 비교에서 제외 */

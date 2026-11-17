@@ -40,19 +40,17 @@ export async function POST(req: NextRequest) {
 
     // 로그인한 회원이면 서버가 확인 결과를 기록 (관리자 키 + 016 필요, 없으면 stored: false)
     let stored = false;
-    // 저장 못 한 이유 (비밀값 없이 단계만) — no-admin: 관리자 키 없음 / no-user: 로그인 확인 실패 / db: 저장 오류
-    let why: string | undefined;
     const userId = await requestUser(req.headers);
     const sb = adminClient();
-    if (!sb) why = 'no-admin';
-    else if (!userId) why = 'no-user';
+    if (!sb) console.error('회사 확인 저장 안 함: 관리자 키 없음');
+    else if (!userId) { /* 비회원 확인 — 기록하지 않음 */ }
     else if (c.corpName) {
       const { error } = await sb.from('company_verifications')
         .upsert({ user_id: userId, bizno, corp_name: c.corpName, verified_at: new Date().toISOString() });
       stored = !error;
-      if (error) { why = `db:${error.code ?? ''}`; console.error('company_verifications 저장 실패', error.code, error.message); }
+      if (error) console.error('company_verifications 저장 실패', error.code, error.message);
     }
-    return NextResponse.json({ status: 'verified', corpName: c.corpName, location: c.location, industries: c.industries, stored, ...(stored ? {} : { why }) });
+    return NextResponse.json({ status: 'verified', corpName: c.corpName, location: c.location, industries: c.industries, stored });
   } catch (e) {
     return NextResponse.json({ error: `나라장터 조회에 실패했습니다: ${(e as Error).message}` }, { status: 502 });
   }

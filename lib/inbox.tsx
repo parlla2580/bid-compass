@@ -15,7 +15,7 @@ import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
  */
 
 export type InboxKind = 'action' | 'news';
-export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org' | 'soon';
+export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org' | 'soon' | 'change';
 
 export interface InboxItem {
   key: string;
@@ -69,7 +69,7 @@ interface InboxValue {
 const InboxContext = createContext<InboxValue | null>(null);
 
 export function InboxProvider({ children }: { children: ReactNode }) {
-  const { account, profile, saved, notices, stats } = useStore();
+  const { account, profile, saved, savedChanges, notices, stats } = useStore();
   const judged = useJudged();
   const verified = !!account && !!profile.corpName;
   const [firstRanks, setFirstRanks] = useState<FirstRank[]>([]);
@@ -163,6 +163,18 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       if (!saved.includes(n.id) || n.d < 0 || n.d > 1) continue;
       out.push({ key: `due:${n.id}`, kind: 'action', icon: 'clock', title: n.d === 0 ? '저장한 공고가 오늘 마감돼요' : '저장한 공고가 내일 마감돼요', sub: n.title, href: `/bids/${n.id}`, due: n.closesAt, at: n.closesAt });
     }
+    // 2-1) 저장한 공고가 정정·취소됨 — 정정은 [확인했어요]로 끝내는 해야 할 일, 취소는 소식
+    for (const c of savedChanges) {
+      const at = new Date(c.at);
+      if (c.cancelled) {
+        out.push({ key: `chg:${c.from}`, kind: 'news', icon: 'change', title: '저장한 공고가 취소됐어요', sub: `${c.title} · 저장 목록에서 뺐어요`, href: `/bids/${c.from}`, due: null, at });
+        continue;
+      }
+      const n = notices?.find((x) => x.id === c.to);
+      out.push({ key: `chg:${c.from}`, kind: 'action', icon: 'change', title: '저장한 공고가 정정됐어요',
+        sub: `${c.diff.length ? c.diff.join(' · ') : '첨부·조건이 바뀌었을 수 있어요. 공고문을 확인하세요'} · ${c.title}`,
+        href: `/bids/${c.to}`, due: n && n.d >= 0 ? n.closesAt : null, at, doneLabel: '확인했어요' });
+    }
     // 3) 결과 확정 — 최근 14일, 낙찰 또는 3위 안
     const since = Date.now() - 14 * 86400e3;
     for (const b of bids) {
@@ -206,7 +218,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '맞춤 점수 높은 순으로 볼 수 있어요', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, bids, judged, orgs, pre, profile, stats]);
+  }, [account, firstRanks, notices, saved, savedChanges, bids, judged, orgs, pre, profile, stats]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)

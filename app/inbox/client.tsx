@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
-import { BellOff, Building2, ChevronRight, Clock, FileSearch, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
+import { BellOff, Building2, ChevronRight, Clock, FilePen, FileSearch, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
 import { useInbox, type InboxIcon, type InboxItem } from '@/lib/inbox';
 import { useStore } from '@/lib/store';
 
@@ -19,6 +19,7 @@ const ICON: Record<InboxIcon, { I: typeof Trophy; c: string }> = {
   new: { I: FileText, c: 'bg-fill text-sub' },
   org: { I: Building2, c: 'bg-warn/10 text-warn' },
   soon: { I: FileSearch, c: 'bg-brand-soft text-brand' },
+  change: { I: FilePen, c: 'bg-warn/10 text-warn' },
 };
 
 const dday = (due: Date) => {

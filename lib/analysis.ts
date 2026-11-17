@@ -132,6 +132,15 @@ export interface MyMarket {
   newcomers?: { name: string; shared: number; first_seen: string }[];
 }
 
+export interface RivalWin { id: number; title: string; org: string | null; type: string; opened_at: string; amount: number | null }
+
+/** 자주 만나는 회사가 이 시장(우리 투찰 개찰)에서 낙찰한 공고 (025). 실행 전이면 null */
+export async function fetchRivalWins(bizno: number, years = 3, market: string | null = null): Promise<RivalWin[] | null> {
+  const r = await getSupabase().rpc('rival_wins', { p_bizno: bizno, p_years: years, p_market: market });
+  if (r.error || !r.data?.verified) return null;
+  return (r.data.wins ?? []) as RivalWin[];
+}
+
 export async function fetchMyMarket(years = 3, market: string | null = null): Promise<MyMarket | null> {
   const sb = getSupabase();
   // 023: 시장 나누기 — 실행 전이면 예전 함수(전체 시장)로

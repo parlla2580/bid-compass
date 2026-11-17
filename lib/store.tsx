@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { EMPTY_PROFILE, type Notice, type Profile } from './data';
 import { authErrorText, loadMember, saveProfile, setSaved as setSavedRemote, uploadLocal } from './db';
 import { judge, relevance, type Judgment } from './judge';
-import { cachedOpenNotices, fetchCompetition, fetchOpenNotices, type Competition } from './notices';
+import { cachedOpenNotices, fetchCompetition, fetchOpenNotices, findSavedChanges, type Competition, type SavedChange } from './notices';
 import { fetchMyHistory, prepareHistory, similarity, type HistoryItem, type Similarity } from './analysis';
 import { fitScore, type Fit } from './fit';
 import { buildStats, type Stats } from './stats';
@@ -38,6 +38,8 @@ interface Store {
   signOut: () => Promise<void>;
   saved: number[];
   toggleSaved: (id: number) => boolean;
+  /** 저장 공고가 정정·취소되어 새 차수로 옮긴 기록 (최근 30일, 이 기기) — 알림함 소식 */
+  savedChanges: SavedChange[];
   reset: () => void;
   /** 회사 확인 회원의 개찰 이력 (F7) — 없으면 빈 배열 */
   history: HistoryItem[];
@@ -78,6 +80,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileState] = useState<Profile>(EMPTY_PROFILE);
   const [account, setAccount] = useState<Account | null>(null);
   const [saved, setSavedState] = useState<number[]>([]);
+  const [savedChanges, setSavedChanges] = useState<SavedChange[]>([]);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notices, setNotices] = useState<Notice[] | null>(null);
   const [noticesError, setNoticesError] = useState<string | null>(null);
@@ -168,6 +171,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     fetchMyHistory().then(setHistory).catch(() => setHistory([]));
   }, [account, profile.corpName]);
 
+  // 저장 공고 정정·취소 따라가기 — 새 차수로 바꿔 저장하고 기록을 남김 (목록·마감 알림에서 빠지지 않게)
+  useEffect(() => {
+    const keep = (l: SavedChange[]) => l.filter((c) => Date.now() - new Date(c.at).getTime() < 30 * 86400e3);
+    setSavedChanges(keep(read<SavedChange[]>('changes', [])));
+    if (!loaded || !supabaseEnabled || !savedRef.current.length) return;
+    findSavedChanges(savedRef.current).then((found) => {
+      if (!found.length) return;
+      let ids = savedRef.current;
+      for (const c of found) {
+        ids = ids.filter((x) => x !== c.from);
+        if (c.to !== null && !ids.includes(c.to)) ids = [...ids, c.to];
+        const to = c.to;
+        if (to !== null) sync((uid) => setSavedRemote(uid, to, true).then(() => setSavedRemote(uid, c.from, false)));
+        else sync((uid) => setSavedRemote(uid, c.from, false));
+      }
+      applySaved(ids);
+      const prev = read<SavedChange[]>('changes', []);
+      const next = keep([...found.filter((c) => !prev.some((p) => p.from === c.from)), ...prev]);
+      write('changes', next);
+      setSavedChanges(next);
+    }).catch(() => { /* 다음 방문에 다시 확인 */ });
+  }, [loaded, account?.id, applySaved, sync]);
+
   const setProfile = useCallback(
     (p: Profile) => {
       applyProfile(p);
@@ -229,7 +255,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(() => {
     applyProfile(EMPTY_PROFILE);
     applySaved([]);
-    ['profile', 'saved'].forEach((k) => write(k, null));
+    setSavedChanges([]);
+    ['profile', 'saved', 'changes'].forEach((k) => write(k, null));
   }, [applyProfile, applySaved]);
 
   /** 로그아웃 — 같은 기기를 다른 사람이 쓸 수 있으므로 브라우저 사본도 지움 */
@@ -252,6 +279,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signOut,
       saved,
       toggleSaved,
+      savedChanges,
       reset,
       notices,
       noticesError,
@@ -261,7 +289,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       syncError,
       clearSyncError: () => setSyncError(null),
     }),
-    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, reset, notices, noticesError, history, competition, stats, syncError],
+    [loaded, profile, setProfile, updateProfile, account, signUp, signIn, signOut, saved, toggleSaved, savedChanges, reset, notices, noticesError, history, competition, stats, syncError],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
