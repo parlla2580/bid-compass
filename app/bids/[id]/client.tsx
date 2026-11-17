@@ -11,7 +11,7 @@ import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
-import { SIZES, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
+import { SIZES, calcHref, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
@@ -75,11 +75,7 @@ function Detail({ n }: { n: Notice }) {
   const [saveAfter, setSaveAfter] = useState(false);
   const onSave = () => { if (account) save(); else { setSaveAfter(true); setSignup(true); } };
 
-  const q = new URLSearchParams({ type: n.type, from: String(n.id) });
-  if (n.basePrice) q.set('base', String(n.basePrice));
-  if (n.reserveMax !== null) q.set('range', String(Math.abs(n.reserveMax)));
-  if (n.floorRate !== null) q.set('rate', String(n.floorRate));
-  const calc = `/calculator?${q}`;
+  const calc = calcHref(n);
 
   return (
     <main className="px-5 pb-32 lg:px-0 lg:pb-0">

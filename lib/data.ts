@@ -67,6 +67,11 @@ export interface Notice {
   postedAt: Date;
   /** 오늘 게시 */
   isNew: boolean;
+  /** 공사 A값 합계·적용 여부, 기초금액 순공사비, 기초금액 공개일 (026) */
+  aValue?: number | null;
+  aApply?: boolean | null;
+  netCost?: number | null;
+  baseOpenAt?: Date | null;
 }
 
 export interface Profile {
@@ -128,6 +133,15 @@ export const SIZES: CompanySize[] = ['소기업·소상공인', '중소기업', 
 /** 작을수록 0 — 제한 판정용 */
 export const SIZE_RANK: Record<CompanySize, number> = { '소기업·소상공인': 0, 중소기업: 1, 중견기업: 2, 대기업: 3 };
 
+/** 공고 → 투찰 도구 주소 (공고값을 채워서) */
+export function calcHref(n: Notice): string {
+  const q = new URLSearchParams({ type: n.type, from: String(n.id) });
+  if (n.basePrice) q.set('base', String(n.basePrice));
+  if (n.reserveMax !== null) q.set('range', String(Math.abs(n.reserveMax)));
+  if (n.floorRate !== null) q.set('rate', String(n.floorRate));
+  return `/calculator?${q}`;
+}
+
 /* ---------- 공고 행 → 화면용 ---------- */
 export interface NoticeRow {
   id: number;
@@ -159,6 +173,11 @@ export interface NoticeRow {
   kind?: string | null;
   prearng?: string | null;
   ind_lmt?: string | null;
+  /** 026 — 공사 A값·순공사비·기초금액 공개일 (스냅샷에만, 026 실행 전엔 없음) */
+  a_value?: number | null;
+  a_apply?: boolean | null;
+  net_cost?: number | null;
+  base_open_at?: string | null;
 }
 
 /** 014 실행 후 — 원본에서 미리 꺼내 둔 열을 그대로 읽음 (빠름) */
@@ -212,6 +231,10 @@ export function toNotice(r: NoticeRow, now = new Date()): Notice {
     url: r.url,
     postedAt,
     isNew: kstDay(postedAt) === kstDay(now),
+    aValue: r.a_value ? Number(r.a_value) : null,
+    aApply: r.a_apply ?? null,
+    netCost: r.net_cost ? Number(r.net_cost) : null,
+    baseOpenAt: r.base_open_at ? new Date(r.base_open_at) : null,
   };
 }
 

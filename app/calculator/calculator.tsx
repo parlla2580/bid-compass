@@ -6,8 +6,9 @@ import { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, CircleX, ChevronRight, TriangleAlert } from 'lucide-react';
 import { PageTitle } from '@/components/layout';
 import { Term } from '@/components/term';
+import { Tip } from '@/components/tip';
 import { looksUnitPrice, type BidType, type Notice } from '@/lib/data';
-import { fetchNotice } from '@/lib/notices';
+import { fetchNotice, fetchNoticeCost, type NoticeCost } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 import { fmtKorean, fmtNum, fmtShort, fmtWon, round1 } from '@/lib/format';
 import {
@@ -158,16 +159,27 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   const [rate, setRate] = useState<number | null>(initialRate ?? EXAMPLE_FLOOR_RATE[type]);
   const [verified, setVerified] = useState(false);
   const [bid, setBid] = useState<number | null>(null);
-  const [cost, setCost] = useState<{ material: number | null; labor: number | null; expense: number | null; vat: number | null }>(
+  // 공사 A값 (026) — 공고에서 왔으면 기초금액 API 값, 아니면 직접 입력
+  const [cost, setCostInfo] = useState<NoticeCost | null>(null);
+  const [a, setA] = useState<number | null>(null);
+  useEffect(() => {
+    if (type !== '공사' || !notice?.id) { setCostInfo(null); return; }
+    fetchNoticeCost(notice.id).then((c) => {
+      setCostInfo(c);
+      if (c?.aValue && c.aApply !== false) setA(c.aValue);
+    }).catch(() => setCostInfo(null));
+  }, [type, notice?.id]);
+  const A = type === '공사' ? a ?? 0 : 0;
+  const [costIn, setCost] = useState<{ material: number | null; labor: number | null; expense: number | null; vat: number | null }>(
     { material: null, labor: null, expense: null, vat: null },
   );
 
   const B = base ?? 0;
-  const r = calcBid(B, (range ?? 0) / 100, rate ?? 0);
+  const r = calcBid(B, (range ?? 0) / 100, rate ?? 0, A);
   const checks = bid ? checkBid(bid, r) : [];
 
-  const costSum = (cost.material ?? 0) + (cost.labor ?? 0) + (cost.expense ?? 0);
-  const vat = cost.vat ?? Math.round(costSum * VAT_RATE);
+  const costSum = (costIn.material ?? 0) + (costIn.labor ?? 0) + (costIn.expense ?? 0);
+  const vat = costIn.vat ?? Math.round(costSum * VAT_RATE);
   const constructionFloor = (costSum + vat) * CONSTRUCTION_FLOOR;
   const constructionWarn = type === '공사' && costSum > 0 && bid !== null && bid < constructionFloor;
 
@@ -195,6 +207,23 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           <NumField id="range" label={<><Term k="예비가격" /> 범위 ±</>} value={range} onChange={setRange} unit="%" decimals />
           <NumField id="rate" label={<Term k="낙찰하한율" />} value={rate} onChange={setRate} unit="%" decimals />
         </div>
+        {type === '공사' && (
+          <div>
+            <NumField id="aval" label={<span className="inline-flex items-center gap-1">A값 <span className="font-normal text-mute">(공사)</span>
+              <Tip title="A값">국민연금·건강보험·퇴직공제부금·노인장기요양보험료·산업안전보건관리비·안전관리비·품질관리비를 더한 금액이에요. A값 대상 공고는 투찰 하한이 (예정가격 − A) × 낙찰하한율 + A라서, A값을 빼먹으면 하한보다 낮게 써 탈락할 수 있어요. 공고문에 적힌 A값을 그대로 넣으세요.</Tip></span>}
+              value={a} onChange={setA} unit="원" hint={a ? fmtKorean(a) : '대상이 아니면 비워 두세요'} />
+            {cost?.aValue ? (
+              <div className="mt-2 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">
+                {cost.aApply === false
+                  ? <>나라장터 정보로는 <b className="font-semibold text-ink">A값 산식 대상이 아니에요.</b> 공고문에서 한 번 더 확인하세요. (항목 합계 {fmtWon(cost.aValue)})</>
+                  : <><b className="font-semibold text-ink">공고의 A값 {fmtWon(cost.aValue)}을 넣었어요.</b>{cost.aApply === null ? ' 적용 여부는 공고문에서 확인하세요.' : ''}</>}
+                {cost.aParts && <span className="mt-1 block text-mute">{Object.entries(cost.aParts).map(([k, v]) => `${k} ${fmtShort(v)}`).join(' · ')}</span>}
+              </div>
+            ) : notice && type === '공사' && cost !== null ? (
+              <p className="mt-1.5 text-[13px] text-mute">나라장터에 이 공고의 A값 정보가 없어요. 공고문에 있으면 직접 넣어 주세요.</p>
+            ) : null}
+          </div>
+        )}
         <label className="flex cursor-pointer items-start gap-3 rounded-btn bg-fill px-4 py-3.5 text-[15px]">
           <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-0.5 h-5 w-5 accent-blue-600" />
           <span>
@@ -224,7 +253,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
             <dd className="text-[17px] font-semibold tabular-nums">{fmtWon(r.plan[0])} ~ {fmtWon(r.plan[1])}</dd>
           </div>
           <div className="flex flex-col gap-1 py-3">
-            <dt className="text-[13px] text-mute">투찰 하한 구간 (예정가격 × 낙찰하한율 {rate ?? 0}%)</dt>
+            <dt className="text-[13px] text-mute">투찰 하한 구간 ({A ? `(예정가격 − A) × 낙찰하한율 ${rate ?? 0}% + A` : `예정가격 × 낙찰하한율 ${rate ?? 0}%`})</dt>
             <dd className="text-[20px] font-bold tabular-nums text-brand">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</dd>
           </div>
         </dl>
@@ -245,7 +274,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
       </div>
 
       {B > 0 && rate && !noDraw ? (
-        <SajeongPanel type={type} base={B} floor={rate} range={range ?? 2} org={org} demandOrg={demandOrg}
+        <SajeongPanel type={type} base={B} floor={rate} range={range ?? 2} org={org} demandOrg={demandOrg} a={A}
           onUse={(v) => { setBid(v); document.getElementById('bid')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} />
       ) : null}
 
@@ -261,12 +290,19 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
         <div className="space-y-4 rounded-box bg-white p-5 lg:col-start-1 lg:p-6">
           <h2 className="text-[17px] font-bold">공사 98% 하한 체크</h2>
           <p className="-mt-2 text-[14px] text-mute">내역서의 재료비·노무비·경비를 넣으면 98% 미만인지 확인해요</p>
+          {cost?.netCost ? (
+            <div className="rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">
+              나라장터에 올라온 이 공고의 <b className="font-semibold text-ink">기초금액 순공사비는 {fmtWon(cost.netCost)}</b>이에요. 98%는 {fmtWon(Math.ceil(cost.netCost * CONSTRUCTION_FLOOR))}이에요.
+              <span className="mt-1 block text-mute">순공사원가는 예정가격이 정해지면 그에 맞춰 달라질 수 있고, 부가가치세 포함 여부도 공고마다 달라요. 공고문·내역서로 확인하세요.</span>
+              {bid !== null && bid > 0 && bid < cost.netCost * CONSTRUCTION_FLOOR && <b className="mt-1 block font-semibold text-bad">내 투찰금액이 이 98%보다 낮아요.</b>}
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
-            <NumField id="material" label="재료비" value={cost.material} onChange={(v) => setCost({ ...cost, material: v })} unit="원" />
-            <NumField id="labor" label="노무비" value={cost.labor} onChange={(v) => setCost({ ...cost, labor: v })} unit="원" />
-            <NumField id="expense" label="경비" value={cost.expense} onChange={(v) => setCost({ ...cost, expense: v })} unit="원" />
-            <NumField id="vat" label="부가가치세" value={cost.vat} onChange={(v) => setCost({ ...cost, vat: v })} unit="원"
-              hint={cost.vat === null ? `비우면 10% 자동: ${fmtNum(vat)}원` : undefined} />
+            <NumField id="material" label="재료비" value={costIn.material} onChange={(v) => setCost({ ...costIn, material: v })} unit="원" />
+            <NumField id="labor" label="노무비" value={costIn.labor} onChange={(v) => setCost({ ...costIn, labor: v })} unit="원" />
+            <NumField id="expense" label="경비" value={costIn.expense} onChange={(v) => setCost({ ...costIn, expense: v })} unit="원" />
+            <NumField id="vat" label="부가가치세" value={costIn.vat} onChange={(v) => setCost({ ...costIn, vat: v })} unit="원"
+              hint={costIn.vat === null ? `비우면 10% 자동: ${fmtNum(vat)}원` : undefined} />
           </div>
           {costSum > 0 && (
             <p className="text-sm">98% 기준금액 <b className="tabular-nums">{fmtWon(constructionFloor)}</b></p>

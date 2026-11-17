@@ -68,6 +68,33 @@ const num = (s) => (s === undefined || s === null || s === '' ? null : Number(St
 /** 원 단위 금액(DB bigint) — 단가 입찰은 소수점(예: 1138.06원)이 있어 반올림 */
 const won = (s) => { const n = num(s); return n === null || Number.isNaN(n) ? null : Math.round(n); };
 
+/*
+ * 공사 A값·순공사비·기초금액 공개일 (026) — 기초금액 API에 함께 옴
+ *  A값 = 국민연금 + 건강보험 + 퇴직공제부금 + 노인장기요양 + 산업안전보건관리비 + 안전관리비 + 품질관리비(대상일 때)
+ *  A값 대상 공고의 투찰 하한 = (예정가격 − A) × 낙찰하한율 + A  (인포21C·비드큐 안내, 시설공사 적격심사)
+ *  026 실행 전에는 열이 없으므로 저장하지 않음 (hasCostCols)
+ */
+const A_KEYS = { npnInsrprm: '국민연금', mrfnHealthInsrprm: '건강보험', rtrfundNon: '퇴직공제부금', odsnLngtrmrcprInsrprm: '노인장기요양',
+  sftyMngcst: '산업안전보건관리비', sftyChckMngcst: '안전관리비', qltyMngcst: '품질관리비' };
+let hasCostCols = false;
+function costCols(b) {
+  if (!hasCostCols || !b) return {};
+  const parts = {};
+  for (const [k, label] of Object.entries(A_KEYS)) {
+    if (k === 'qltyMngcst' && b.qltyMngcstAObjYn === 'N') continue;
+    const v = won(b[k]);
+    if (v && v > 0) parts[label] = v;
+  }
+  const sum = Object.values(parts).reduce((a, x) => a + x, 0);
+  return {
+    a_value: sum || null,
+    a_apply: b.bidPrceCalclAYn === 'Y' ? true : b.bidPrceCalclAYn === 'N' ? false : null,
+    a_parts: sum ? parts : null,
+    net_cost: won(b.bssAmtPurcnstcst) || null,
+    base_open_at: kstIso(b.bssamtOpenDt) ?? (b.bssamt ? kstIso(b.inptDt) : null),
+  };
+}
+
 /* ---------- API 호출 (재시도 + 페이지 넘김) ---------- */
 async function call(url) {
   for (let attempt = 1; attempt <= 4; attempt++) {
@@ -158,6 +185,7 @@ async function collectNotices(from, to) {
         base_price: won(base?.bssamt),
         reserve_rate_min: num(base?.rsrvtnPrceRngBgnRate),
         reserve_rate_max: num(base?.rsrvtnPrceRngEndRate),
+        ...costCols(base),
         floor_rate: num(it.sucsfbidLwltRate),
         closes_at: kstIso(it.bidClseDt) ?? kstIso(it.opengDt) ?? new Date().toISOString(),
         period: it.dlvrTmlmtDt ? `납품기한 ${it.dlvrTmlmtDt.slice(0, 10)}` : it.dlvrDaynum ? `납품일수 ${it.dlvrDaynum}일` : null,
@@ -200,7 +228,7 @@ async function collectNotices(from, to) {
     if (rowNos.has(b.bidNtceNo)) continue;
     updates.push({
       match: { bid_no: b.bidNtceNo, bid_ord: b.bidNtceOrd ?? '000' },
-      set: { base_price: won(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate) },
+      set: { base_price: won(b.bssamt), reserve_rate_min: num(b.rsrvtnPrceRngBgnRate), reserve_rate_max: num(b.rsrvtnPrceRngEndRate), ...costCols(b) },
     });
   }
 
@@ -545,6 +573,8 @@ async function main() {
     try { console.log(`사전규격 스냅샷: ${await writePrespecSnapshot(sb)}`); } catch (e) { console.log(`사전규격 스냅샷 건너뜀: ${e.message}`); }
     return;
   }
+  // 026(A값·순공사비 열) 실행 여부
+  if (sb) hasCostCols = !(await sb.from('notices').select('a_value').limit(1)).error;
   let runId = null;
   if (sb) {
     const { data, error } = await sb.from('collect_runs')

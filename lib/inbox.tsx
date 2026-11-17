@@ -7,6 +7,8 @@ import { useJudged, useStore } from './store';
 import { getSupabase, supabaseEnabled } from './supabase';
 import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
 import { fetchQualifyBy } from './briefing';
+import { calcHref } from './data';
+import { fmtKorean } from './format';
 
 /*
  * 알림함 (기획 16장 A1)
@@ -180,6 +182,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       const hm = new Date(q.getTime() + 9 * 3600e3).toISOString().slice(11, 16);
       out.push({ key: `qual:${n.id}`, kind: 'action', icon: 'clock', title: `참가자격 등록이 ${day === 0 ? '오늘' : '내일'} ${hm}에 마감돼요`,
         sub: `${n.title} · 입찰 마감보다 먼저예요. 이 품목·업종이 나라장터 업체정보에 등록돼 있는지 확인하세요`, href: `/bids/${n.id}`, due: q, at: q, doneLabel: '확인했어요' });
+    }
+    // 2-0-1) 저장한 공고의 기초금액이 공개됨 (최근 3일, 026) — 그때부터 투찰금액을 계산할 수 있음
+    for (const n of notices ?? []) {
+      const at = n.baseOpenAt;
+      if (!at || !n.basePrice || !saved.includes(n.id) || n.d < 0 || at.getTime() > Date.now() || Date.now() - at.getTime() > 3 * 86400e3) continue;
+      out.push({ key: `base:${n.id}`, kind: 'news', icon: 'new', title: '저장한 공고의 기초금액이 나왔어요',
+        sub: `${n.title} · 기초금액 ${fmtKorean(n.basePrice)} — 이제 투찰금액을 계산할 수 있어요`, href: calcHref(n), due: null, at });
     }
     // 2-1) 저장한 공고가 정정·취소됨 — 정정은 [확인했어요]로 끝내는 해야 할 일, 취소는 소식
     for (const c of savedChanges) {

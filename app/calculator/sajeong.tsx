@@ -6,6 +6,7 @@ import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
 import type { BidType } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
+import { bidAmount } from './rules';
 import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type SajeongDist } from '@/lib/reserve';
 
 /*
@@ -23,7 +24,9 @@ const STRATEGIES = [
 
 const BIN = 0.25;
 
-export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }: {
+export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, a = 0 }: {
+  /** 공사 A값 — 있으면 투찰금액 = (기초금액 × 사정률 − A) × 낙찰하한율 + A */
+  a?: number;
   type: BidType;
   base: number;
   floor: number;
@@ -68,7 +71,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
   const sorted = dist?.sorted ?? [];
   const sameOrgCount = dist?.points.filter((p) => p.sameOrg).length ?? 0;
   const cur = s ?? 100;
-  const amount = Math.round(base * (cur / 100) * (floor / 100));
+  const amount = bidAmount(base, cur, floor, a);
   const ok = cdf(sorted, cur);
   const W = 600, H = 150, x = (v: number) => ((v - lo) / (hi - lo)) * W;
 
@@ -128,7 +131,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
           <div className="mt-5 lg:mt-0">
             <p className="text-[14px] text-mute">사정률 {cur.toFixed(2)}%로 쓰면</p>
             <p className="mt-1 text-[28px] font-bold tabular-nums tracking-tight">{fmtWon(amount)}</p>
-            <p className="text-[13px] text-mute">기초금액 × {cur.toFixed(2)}% × 낙찰하한율 {floor}%</p>
+            <p className="text-[13px] text-mute">{a ? `(기초금액 × ${cur.toFixed(2)}% − A) × 낙찰하한율 ${floor}% + A` : `기초금액 × ${cur.toFixed(2)}% × 낙찰하한율 ${floor}%`}</p>
 
             <dl className="mt-4 space-y-2.5 border-t border-line pt-4 text-[15px]">
               <div className="flex items-center justify-between gap-3">
@@ -142,6 +145,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse }
                 <div className="rounded-2xl bg-fill p-3.5 text-[14px] leading-relaxed text-sub">
                   이 금액 방식으로 <b className="text-ink">지난 {bt.n}건</b>에 썼다면<br />
                   1순위 <b className="text-brand">{bt.first}번</b> · 3위 안 {bt.top3}번 · 하한 미달 {bt.below}번
+                  {a > 0 && <span className="mt-1 block text-[12px] text-mute">지난 개찰의 A값은 알 수 없어 A값 없이 대본 결과예요.</span>}
                 </div>
               )}
             </dl>

@@ -105,6 +105,14 @@ export async function fetchLatestOrder(bidNo: string): Promise<{ id: number; bid
   return data ? { id: data.id, bidOrd: data.bid_ord, kind: data.kind ?? null } : null;
 }
 
+/** 공사 A값·순공사비 (026) — 계산기용. 026 실행 전이거나 값이 없으면 null */
+export interface NoticeCost { aValue: number | null; aApply: boolean | null; aParts: Record<string, number> | null; netCost: number | null }
+export async function fetchNoticeCost(id: number): Promise<NoticeCost | null> {
+  const { data, error } = await getSupabase().from('notices').select('a_value,a_apply,a_parts,net_cost').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return { aValue: data.a_value ? Number(data.a_value) : null, aApply: data.a_apply ?? null, aParts: data.a_parts ?? null, netCost: data.net_cost ? Number(data.net_cost) : null };
+}
+
 export async function fetchNotice(id: number): Promise<Notice | null> {
   const { data, error } = await withCols<NoticeRow>((cols) => getSupabase().from('notices').select(cols).eq('id', id).maybeSingle() as unknown as PromiseLike<Res<NoticeRow>>);
   if (error) throw error;

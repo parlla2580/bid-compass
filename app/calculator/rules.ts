@@ -9,8 +9,11 @@ import type { BidType } from '@/lib/data';
 /** 예비가격 범위 예시값 (±, 비율) */
 export const EXAMPLE_RESERVE_RANGE = 0.02;
 
-/** 낙찰하한율 예시값 (%) */
-export const EXAMPLE_FLOOR_RATE: Record<BidType, number> = { '물품': 87.745, '용역': 87.745, '공사': 86.745 };
+/**
+ * 낙찰하한율 예시값 (%) — 마감 전 복수예가 공고에서 가장 흔한 값 (2026-11-17 실측 14,292건)
+ * 공사 89.745%(2,985건 중 2,480건, 2%p 상향 반영), 물품 88%(718건), 용역 88%(651건)
+ */
+export const EXAMPLE_FLOOR_RATE: Record<BidType, number> = { '물품': 88, '용역': 88, '공사': 89.745 };
 
 /** 낙찰기준점 일반 기준 (5.4) — 공고별로 다르므로 수정 가능 */
 export const DEFAULT_PASS: Record<BidType, number> = { '물품': 85, '용역': 85, '공사': 95 };
@@ -21,9 +24,23 @@ export const CONSTRUCTION_FLOOR = 0.98;
 /** 부가가치세 자동 계산 비율 (공고 내역서 값이 다르면 직접 입력) */
 export const VAT_RATE = 0.1;
 
-export function calcBid(base: number, reserveRange: number, floorRate: number) {
+/**
+ * 투찰 하한 금액 — A값 대상 공사는 (예정가격 − A) × 낙찰하한율 + A, 아니면 예정가격 × 낙찰하한율
+ * 원 단위 올림 (내림하면 하한보다 1원 모자랄 수 있음)
+ * 근거: 시설공사 적격심사 A값 산식 안내 (인포21C·비드큐), 026
+ */
+export function floorAmount(plan: number, floorRate: number, a = 0) {
+  return Math.ceil((plan - a) * (floorRate / 100) + a - 1e-6); // 부동소수점 오차로 1원 올라가지 않게
+}
+
+/** 사정률 s(%)로 정한 투찰금액 — 기초금액 × 사정률을 예정가격으로 보고 하한 금액 */
+export function bidAmount(base: number, sajeong: number, floorRate: number, a = 0) {
+  return floorAmount(base * (sajeong / 100), floorRate, a);
+}
+
+export function calcBid(base: number, reserveRange: number, floorRate: number, a = 0) {
   const plan = [base * (1 - reserveRange), base * (1 + reserveRange)] as const;
-  const floor = [plan[0] * (floorRate / 100), plan[1] * (floorRate / 100)] as const;
+  const floor = [floorAmount(plan[0], floorRate, a), floorAmount(plan[1], floorRate, a)] as const;
   return { plan, floor };
 }
 
