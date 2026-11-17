@@ -13,6 +13,7 @@
 // =========================================================
 import { createClient } from '@supabase/supabase-js';
 import { gzipSync } from 'node:zlib';
+import { writeFileSync } from 'node:fs';
 
 const KEY = process.env.NARA_API_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -651,10 +652,17 @@ async function main() {
       api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, 사전규격 ${result.prespecs ?? 0}건`, ...result.errors].join(' / '),
     }).eq('id', runId);
   }
+  // 장애 알림(scripts/alert.mjs)이 읽는 결과
+  writeResult({ status, errors: result.errors, summary: `공고 ${result.notices}건, 계약 ${result.contracts}건, 개찰 ${result.openings ?? 0}건, 사전규격 ${result.prespecs ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회` });
   if (status === 'failed') process.exit(1);
+}
+
+function writeResult(r) {
+  try { writeFileSync('collect-result.json', JSON.stringify({ ...r, window: RANGE_FROM ? `${process.env.COLLECT_FROM} ~ ${process.env.COLLECT_TO || '오늘'}` : `최근 ${HOURS}시간` })); } catch { /* 알림용 파일이라 실패해도 무시 */ }
 }
 
 main().catch((e) => {
   console.error('수집 실패:', e.message);
+  writeResult({ status: 'crashed', errors: [e.message], summary: '수집이 중간에 멈췄어요' });
   process.exit(1);
 });

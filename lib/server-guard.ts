@@ -38,7 +38,7 @@ function memHit(key: string, windowSec: number, max: number): boolean {
   return list.length <= max;
 }
 
-export interface Limit { name: string; key: string; windowSec: number; max: number }
+export interface Limit { name: string; key: string; windowSec: number; max: number; message?: string }
 
 /** 모든 제한을 통과하면 null, 걸리면 사용자에게 보여줄 문장 */
 export async function checkLimits(limits: Limit[]): Promise<string | null> {
@@ -50,6 +50,7 @@ export async function checkLimits(limits: Limit[]): Promise<string | null> {
       const { data, error } = await sb.rpc('rl_hit', { p_key: key, p_window_sec: l.windowSec, p_max: l.max });
       if (!error) ok = data === true; // 016 실행 전이면 오류 → 메모리 제한만
     }
+    if (!ok && l.message) return l.message;
     if (!ok) return `요청이 너무 많아요. ${l.windowSec >= 3600 ? `${Math.round(l.windowSec / 3600)}시간` : `${Math.round(l.windowSec / 60)}분`} 뒤에 다시 시도해 주세요`;
   }
   return null;

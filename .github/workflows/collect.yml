@@ -31,6 +31,10 @@ on:
       - 'scripts/collect.mjs'
       - '.github/workflows/collect.yml'
 
+permissions:
+  contents: read
+  issues: write
+
 concurrency:
   group: collect
   cancel-in-progress: false
@@ -76,3 +80,12 @@ jobs:
           COLLECT_FROM: ${{ github.event.inputs.from || '' }}
           COLLECT_TO: ${{ github.event.inputs.to || '' }}
         run: node scripts/collect.mjs
+
+      - name: 문제가 있으면 알림 (GitHub 이슈)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_NAME: 매시간 수집
+        run: node scripts/alert.mjs

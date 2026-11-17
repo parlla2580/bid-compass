@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const limited = await checkLimits([
     { name: 'verify-ip-hour', key: ip, windowSec: 3600, max: 10 },
     { name: 'verify-ip-day', key: ip, windowSec: 86400, max: 30 },
-    { name: 'verify-bizno-hour', key: bizno, windowSec: 3600, max: 5 },
+    { name: 'verify-bizno-hour', key: bizno, windowSec: 3600, max: 5, message: '이 사업자번호로 대표자명 확인을 한 시간에 5번까지 할 수 있어요. 1시간 뒤에 다시 시도해 주세요' },
   ]);
   if (limited) return NextResponse.json({ error: limited }, { status: 429 });
 

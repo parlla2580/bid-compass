@@ -15,16 +15,19 @@ export function VerifyBox({ bizno, onVerified, title = '회사 확인하기', cl
   const toast = useToast();
   const [ceo, setCeo] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
   const run = async () => {
     setBusy(true);
+    setHint(null);
     try {
       const v = await verifyCompany(bizno.replace(/\D/g, ''), ceo);
-      if (v.status === 'mismatch') return toast('대표자명이 나라장터에 등록된 정보와 달라요. 사업자등록증의 대표자명을 확인해 주세요');
-      if (v.status === 'unregistered') return toast('나라장터에 등록되지 않은 번호라 확인할 수 없어요');
+      // 화면에 남는 안내 — 테스트에서 7곳 중 2곳이 나라장터 등록 대표자와 달랐음 (2026-11-16)
+      if (v.status === 'mismatch') return setHint('mismatch');
+      if (v.status === 'unregistered') return setHint('unregistered');
       if (v.corpName) onVerified(v.corpName);
       toast(v.stored ? '회사를 확인했어요. 입찰 분석을 볼 수 있어요' : '회사를 확인했어요');
     } catch (e) {
-      toast((e as Error).message);
+      setHint((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -38,6 +41,22 @@ export function VerifyBox({ bizno, onVerified, title = '회사 확인하기', cl
         <button type="button" onClick={run} disabled={busy || ceo.trim().length < 2}
           className="shrink-0 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white disabled:bg-line disabled:text-mute">{busy ? '확인 중' : '확인'}</button>
       </div>
+      {hint && (
+        <div role="alert" className="mt-2.5 rounded-xl bg-white px-3.5 py-3 text-[13px] leading-relaxed text-sub">
+          {hint === 'mismatch' ? (
+            <>
+              <b className="font-semibold text-bad">나라장터에 등록된 대표자명과 달라요.</b>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                <li>사업자등록증에 적힌 대표자 성명을 띄어쓰기 없이 넣어 주세요.</li>
+                <li>공동대표라면 한 분의 이름만 넣어도 돼요.</li>
+                <li>최근 대표자가 바뀌었다면 나라장터 업체정보(입찰참가자격 등록)가 아직 예전 대표자로 되어 있을 수 있어요. 나라장터에서 등록 정보를 바꾼 뒤 다시 확인해 주세요.</li>
+              </ul>
+            </>
+          ) : hint === 'unregistered' ? (
+            <>나라장터에 입찰참가자격이 등록되지 않은 사업자번호라 확인할 수 없어요. 사업자번호가 맞는지 마이페이지에서 확인해 주세요.</>
+          ) : hint}
+        </div>
+      )}
     </div>
   );
 }

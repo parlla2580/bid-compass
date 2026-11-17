@@ -16,6 +16,10 @@ on:
         required: true
         default: '1'
 
+permissions:
+  contents: read
+  issues: write
+
 concurrency:
   group: backfill
   cancel-in-progress: false
@@ -73,3 +77,12 @@ jobs:
           COLLECT_TO: ${{ matrix.range.to }}
           COLLECT_MODE: full
         run: node scripts/collect.mjs
+
+      - name: 문제가 있으면 알림 (GitHub 이슈)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW_NAME: 거슬러 받기 ${{ matrix.range.month }}
+        run: node scripts/alert.mjs
