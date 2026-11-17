@@ -6,6 +6,7 @@ import { fetchFirstRanks, type FirstRank } from './first-rank';
 import { useJudged, useStore } from './store';
 import { getSupabase, supabaseEnabled } from './supabase';
 import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
+import { fetchQualifyBy } from './briefing';
 
 /*
  * 알림함 (기획 16장 A1)
@@ -86,6 +87,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [account, profile.products]);
   const [orgServer, setOrgServer] = useState(false);
+  // 저장 공고의 참가자격 등록 마감 — 입찰 마감 3일 안쪽 공고만 받음
+  const [qual, setQual] = useState<Map<number, Date>>(new Map());
+  const soonIds = useMemo(() => (notices ?? []).filter((n) => saved.includes(n.id) && n.d >= 0 && n.d <= 3).map((n) => n.id).sort((a, b) => a - b).join(','), [notices, saved]);
+  useEffect(() => {
+    if (!account || !soonIds || !supabaseEnabled) { setQual(new Map()); return; }
+    fetchQualifyBy(soonIds.split(',').map(Number)).then(setQual).catch(() => setQual(new Map()));
+  }, [account, soonIds]);
 
   // 저장한 기관 — 서버(021) 우선, 없으면 이 기기
   useEffect(() => {
@@ -163,6 +171,16 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       if (!saved.includes(n.id) || n.d < 0 || n.d > 1) continue;
       out.push({ key: `due:${n.id}`, kind: 'action', icon: 'clock', title: n.d === 0 ? '저장한 공고가 오늘 마감돼요' : '저장한 공고가 내일 마감돼요', sub: n.title, href: `/bids/${n.id}`, due: n.closesAt, at: n.closesAt });
     }
+    // 2-0) 저장한 공고의 참가자격 등록 마감 (오늘·내일, 입찰 마감보다 1시간 넘게 먼저일 때) — 놓치면 투찰 자체가 안 됨
+    for (const n of notices ?? []) {
+      const q = qual.get(n.id);
+      if (!q || !saved.includes(n.id) || q.getTime() < Date.now() || n.closesAt.getTime() - q.getTime() < 3600e3) continue;
+      const day = Math.round((new Date(kstDay(q)).getTime() - new Date(kstDay()).getTime()) / 86400e3);
+      if (day > 1) continue;
+      const hm = new Date(q.getTime() + 9 * 3600e3).toISOString().slice(11, 16);
+      out.push({ key: `qual:${n.id}`, kind: 'action', icon: 'clock', title: `참가자격 등록이 ${day === 0 ? '오늘' : '내일'} ${hm}에 마감돼요`,
+        sub: `${n.title} · 입찰 마감보다 먼저예요. 이 품목·업종이 나라장터 업체정보에 등록돼 있는지 확인하세요`, href: `/bids/${n.id}`, due: q, at: q, doneLabel: '확인했어요' });
+    }
     // 2-1) 저장한 공고가 정정·취소됨 — 정정은 [확인했어요]로 끝내는 해야 할 일, 취소는 소식
     for (const c of savedChanges) {
       const at = new Date(c.at);
@@ -218,7 +236,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '맞춤 점수 높은 순으로 볼 수 있어요', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, savedChanges, bids, judged, orgs, pre, profile, stats]);
+  }, [account, firstRanks, notices, saved, savedChanges, qual, bids, judged, orgs, pre, profile, stats]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)

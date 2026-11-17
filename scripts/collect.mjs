@@ -23,6 +23,7 @@ const HOURS = Number(process.env.COLLECT_HOURS || 6);
 const RANGE_FROM = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_FROM ?? '') ? new Date(`${process.env.COLLECT_FROM}T00:00:00+09:00`) : null;
 const RANGE_TO = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_TO ?? '') ? new Date(new Date(`${process.env.COLLECT_TO}T00:00:00+09:00`).getTime() + 86400e3) : null;
 const LONG = HOURS > 24 || !!RANGE_FROM;
+const CATCHUP_MAX_H = 48; // 빈틈 메우기 최대 시간
 // snapshot: 수집 없이 공고 목록 스냅샷만 다시 만듦 (수동 실행용)
 const MODE = process.env.COLLECT_MODE || 'full';
 const DRY = process.argv.includes('--dry') || !SB_KEY;
@@ -523,11 +524,21 @@ async function writeSnapshot(sb) {
 
 async function main() {
   const to = RANGE_FROM ? new Date(Math.min((RANGE_TO ?? new Date()).getTime(), Date.now())) : new Date();
-  const from = RANGE_FROM ?? new Date(to.getTime() - HOURS * 3600e3);
+  let from = RANGE_FROM ?? new Date(to.getTime() - HOURS * 3600e3);
   if (RANGE_FROM && from >= to) throw new Error(`거슬러 받기 기간이 잘못됐어요: ${process.env.COLLECT_FROM} ~ ${process.env.COLLECT_TO}`);
-  console.log(`수집 구간 (한국시간): ${ymdhm(from)} ~ ${ymdhm(to)}${RANGE_FROM ? '  [거슬러 받기]' : ''}${DRY ? '  [저장 안 함]' : ''}`);
 
   const sb = DRY ? null : createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+  // 빈틈 메우기 — 매시간 수집이 몇 번 실패했으면 마지막으로 성공한 구간 끝부터 받음 (최대 48시간)
+  if (sb && !RANGE_FROM && MODE !== 'snapshot') {
+    const { data: last } = await sb.from('collect_runs').select('window_to').in('status', ['ok', 'partial'])
+      .order('window_to', { ascending: false }).limit(1).maybeSingle();
+    const end = last?.window_to ? new Date(last.window_to) : null;
+    if (end && end < from) {
+      from = new Date(Math.max(end.getTime() - 30 * 60e3, to.getTime() - CATCHUP_MAX_H * 3600e3));
+      console.log(`지난 수집이 ${ymdhm(end)}까지라 빈틈을 메워요`);
+    }
+  }
+  console.log(`수집 구간 (한국시간): ${ymdhm(from)} ~ ${ymdhm(to)}${RANGE_FROM ? '  [거슬러 받기]' : ''}${DRY ? '  [저장 안 함]' : ''}`);
   if (MODE === 'snapshot') {
     if (!sb) throw new Error('스냅샷은 SUPABASE_SECRET_KEY가 있어야 만들 수 있습니다');
     console.log(`공고 목록 스냅샷: ${await writeSnapshot(sb)}`);

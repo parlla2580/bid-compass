@@ -50,6 +50,25 @@ export async function fetchNoticeExtra(id: number): Promise<NoticeExtra | null> 
   };
 }
 
+/** 나라장터 일시 문자열('2026-11-23 18:00' 등, 한국시간) → Date */
+export function kstDate(s: string | null | undefined): Date | null {
+  const m = s?.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+09:00`) : null;
+}
+
+/**
+ * 여러 공고의 입찰참가자격 등록 마감 — 알림함용 (저장 공고만, 많지 않음)
+ * 실측(2026-11-17, 마감 전 1,000건): 84%가 입찰 마감 전날 18:00로 입찰 마감보다 먼저 끝남
+ */
+export async function fetchQualifyBy(ids: number[]): Promise<Map<number, Date>> {
+  const out = new Map<number, Date>();
+  if (!ids.length) return out;
+  const { data, error } = await getSupabase().from('notices').select('id, q:raw->>bidQlfctRgstDt').in('id', ids.slice(0, 200));
+  if (error) throw error;
+  for (const r of (data ?? []) as { id: number; q: string | null }[]) { const d = kstDate(r.q); if (d) out.set(r.id, d); }
+  return out;
+}
+
 type Row = { participants: number | null; winner_rate: number | null };
 
 function summarize(rows: Row[], basis: PastStats['basis']): PastStats {

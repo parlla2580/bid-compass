@@ -113,6 +113,9 @@ export function productCodes(products: Product[] | null, muted: MuteItem[] = [],
   return out;
 }
 
+/** 계약일 상한 — 내일(한국시간). 원본에 미래 날짜로 잘못 입력된 계약이 있음 */
+export const futureLimit = () => new Date(Date.now() + 33 * 3600e3).toISOString().slice(0, 10);
+
 export async function fetchSalesContracts(codes: Map<string, string>): Promise<SalesContract[]> {
   if (!codes.size) return [];
   const sb = getSupabase();
@@ -122,7 +125,7 @@ export async function fetchSalesContracts(codes: Map<string, string>): Promise<S
   const goods = new Map<string, { matched: Set<string>; items: SalesItem[] }>();
   for (const part of chunk(list, 40)) {
     const { data, error } = await sb.from('contract_lines').select('contract_id,code,item_name,name,unit_price,qty')
-      .in('code', part).order('contract_date', { ascending: false, nullsFirst: false }).limit(LIMIT);
+      .in('code', part).lte('contract_date', futureLimit()).order('contract_date', { ascending: false, nullsFirst: false }).limit(LIMIT);
     if (error) throw new Error(error.message);
     for (const l of data ?? []) {
       const g = goods.get(l.contract_id) ?? { matched: new Set<string>(), items: [] };
@@ -151,9 +154,11 @@ export async function fetchSalesContracts(codes: Map<string, string>): Promise<S
     }
   }
 
-  // 3) 실제 구매기관, 단가계약 제외
+  // 3) 실제 구매기관, 단가계약 제외 / 계약일이 미래인 잘못 입력된 계약 제외 (2026-11-15 점검 375건)
   const out: SalesContract[] = [];
+  const maxDate = futureLimit();
   for (const { row: r, matched, items } of rows.values()) {
+    if (r.contract_date && r.contract_date > maxDate) continue;
     const pps = PPS.test(r.org ?? '');
     if (pps && PPS_FRAME.test(r.title)) continue;
     const dem = pps ? firstDemand(r.demand_orgs) : null;

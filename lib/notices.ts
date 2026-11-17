@@ -198,6 +198,7 @@ export async function fetchSimilarContracts(n: Notice): Promise<SimilarContract[
     .from('contracts')
     .select('id,title,org,method,amount,contract_date,corps,detail_url')
     .in('org', orgs)
+    .lte('contract_date', new Date(Date.now() + 33 * 3600e3).toISOString().slice(0, 10)) // 미래 날짜로 잘못 입력된 계약 제외
     .order('contract_date', { ascending: false })
     .limit(50);
   if (error) throw error;
