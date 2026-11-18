@@ -175,10 +175,10 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   const [cost, setCostInfo] = useState<NoticeCost | null>(null);
   const [a, setA] = useState<number | null>(null);
   useEffect(() => {
-    if (type !== '공사' || !notice?.id) { setCostInfo(null); return; }
+    if (!notice?.id) { setCostInfo(null); return; }
     fetchNoticeCost(notice.id).then((c) => {
       setCostInfo(c);
-      if (c?.aValue && c.aApply !== false) setA(c.aValue);
+      if (type === '공사' && c?.aValue && c.aApply !== false) setA(c.aValue);
     }).catch(() => setCostInfo(null));
   }, [type, notice?.id]);
   const A = type === '공사' ? a ?? 0 : 0;
@@ -202,10 +202,15 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   // 예정가격 결정방법 — 추첨(복수예가)이 없는 공고는 사정률 분포가 의미 없음
   const method = notice?.prearng ?? null;
   const noDraw = !!method && method !== '복수예가';
+  // 추첨이 없고 하한율도 없는 공고(최저가·협상·규격가격동시 등) — '하한선에 붙여 쓰기' 계산이 맞지 않아 입력·결과를 숨김
+  const noCalc = !!notice && noDraw && !notice.floorRate && !notice.basePrice;
 
   return (
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">
-      {notice && <BaseNotice notice={notice} range={range ?? EXAMPLE_RESERVE_RANGE * 100} rate={rate ?? EXAMPLE_FLOOR_RATE[type]} />}
+      {notice && <BaseNotice notice={notice} range={range ?? EXAMPLE_RESERVE_RANGE * 100} rate={rate ?? EXAMPLE_FLOOR_RATE[type]}
+        budget={cost?.budget ?? null}
+        onEstimate={(v) => { setBase(v); setRange(0); if (notice.floorRate) setRate(notice.floorRate); setBid(null); }} />}
+      {!noCalc && <>
       <div className="space-y-5 rounded-box bg-white p-5 lg:p-6">
         <NumField id="base" label={<Term k="기초금액" />} value={base} onChange={setBase} unit="원" hint={base ? fmtKorean(base) : undefined} />
         <div className="grid grid-cols-2 gap-3">
@@ -333,6 +338,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {type === '공사' && costSum > 0 && bid === null && <p className="text-[13px] text-mute">내 투찰금액을 넣으면 경고 여부를 알려드려요</p>}
         </div>
       )}
+      </>}
 
       <p className="px-1 text-[13px] leading-relaxed text-mute lg:col-span-2">
         계산 결과는 참고용이에요. 공고 세부기준표로 꼭 확인하세요.
