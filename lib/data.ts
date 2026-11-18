@@ -133,6 +133,31 @@ export const SIZES: CompanySize[] = ['소기업·소상공인', '중소기업', 
 /** 작을수록 0 — 제한 판정용 */
 export const SIZE_RANK: Record<CompanySize, number> = { '소기업·소상공인': 0, 중소기업: 1, 중견기업: 2, 대기업: 3 };
 
+/**
+ * 기초금액 상태 — 투찰금액 계산기를 쓸 수 있는지 (2026-11-18)
+ *  ok      기초금액 있음
+ *  pending 복수예가인데 아직 공개 전 (기초금액은 공고보다 늦게, 마감 며칠 전 공개되기도 함)
+ *  noDraw  비예가 — 예정가격을 정하지 않음 (협상 계약 등) → 사정률 계산 대상 아님
+ *  single  단일예가 — 예정가격을 하나로 정함, 기초금액이 공개되지 않는 경우가 많음
+ *  unknown 예정가격 방식도 기초금액도 없음
+ * 실측(마감 전 14,375건): 용역의 55%가 비예가, 복수예가 중 기초금액 없음 물품 49%·용역 54%·공사 26%
+ */
+export type BaseStatus = 'ok' | 'pending' | 'noDraw' | 'single' | 'unknown';
+export function baseStatus(n: Notice): BaseStatus {
+  if (n.basePrice) return 'ok';
+  if (n.prearng === '비예가') return 'noDraw';
+  if (n.prearng === '단일예가') return 'single';
+  if (n.prearng === '복수예가') return 'pending';
+  return 'unknown';
+}
+
+/**
+ * 기초금액 미리보기 — 추정가격 × 1.1 (부가세)
+ * 실측(2026-11-18, 기초금액이 있는 마감 전 공고): ±2% 안에 공사 96%(2,150/2,236)·용역 85%·물품 78%
+ * 단가 입찰은 맞지 않음. 실제 투찰에는 쓰지 않도록 화면에서 '추정' 표시
+ */
+export const previewBase = (n: Notice): number | null => (n.estPrice > 0 ? Math.round(n.estPrice * 1.1) : null);
+
 /** 공고 → 투찰 도구 주소 (공고값을 채워서) */
 export function calcHref(n: Notice): string {
   const q = new URLSearchParams({ type: n.type, from: String(n.id) });

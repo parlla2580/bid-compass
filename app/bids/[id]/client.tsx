@@ -11,7 +11,7 @@ import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
-import { SIZES, calcHref, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
+import { SIZES, baseStatus, calcHref, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
@@ -71,11 +71,18 @@ function Detail({ n }: { n: Notice }) {
   const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history), stats) : null, history, productMatch(n, profile.products, stats), competition, stats);
   const closed = n.d < 0;
   const on = saved.includes(n.id);
-  const save = () => toast(toggleSaved(n.id) ? '저장했어요' : '저장을 취소했어요');
+  // 기초금액 상태 — 공개 전이면 저장 = 공개 알림, 비예가면 계산기 대신 공고문 (2026-11-18)
+  const bst = baseStatus(n);
+  const save = () => toast(toggleSaved(n.id) ? (bst === 'pending' && !closed ? '저장했어요. 기초금액이 나오면 알려 드릴게요' : '저장했어요') : '저장을 취소했어요');
   const [saveAfter, setSaveAfter] = useState(false);
   const onSave = () => { if (account) save(); else { setSaveAfter(true); setSignup(true); } };
 
   const calc = calcHref(n);
+  const calcLabel = bst === 'pending' ? '기초금액 공개 전 · 미리 계산' : '투찰금액 계산하기';
+  // 비예가는 사정률 계산 대상이 아님 → 공고문으로
+  const primary = bst === 'noDraw'
+    ? (n.url ? <a href={n.url} target="_blank" rel="noopener noreferrer" className={CTA_PRIMARY}>공고문에서 가격 평가 보기</a> : null)
+    : <Link href={calc} className={CTA_PRIMARY}>{calcLabel}</Link>;
 
   return (
     <main className="px-5 pb-32 lg:px-0 lg:pb-0">
@@ -103,8 +110,10 @@ function Detail({ n }: { n: Notice }) {
               <Row k="추정가격" v={n.estPrice ? fmtWon(n.estPrice) : '미공개'} />
               <Row k="낙찰하한율" v={n.floorRate ? `${n.floorRate}%` : '–'} />
             </dl>
+            {bst === 'pending' && !closed && <p className="mt-4 rounded-xl bg-brand-soft px-3.5 py-3 text-[13px] leading-relaxed text-sub"><b className="font-semibold text-ink">기초금액은 아직 공개 전이에요.</b> 저장해 두면 공개될 때 알려 드려요.</p>}
+            {bst === 'noDraw' && <p className="mt-4 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">예정가격을 추첨하지 않는 <b className="font-semibold text-ink">비예가</b> 공고라 투찰금액 계산 대상이 아니에요.</p>}
             <div className="mt-6 space-y-2">
-              <Link href={calc} className={CTA_PRIMARY}>투찰금액 계산하기</Link>
+              {primary}
               <button type="button" onClick={onSave} aria-pressed={on} className={CTA_SOFT}>
                 <Bookmark className={`h-5 w-5 ${on ? 'fill-brand text-brand' : ''}`} />{on ? '저장됨' : '저장하기'}
               </button>
@@ -120,7 +129,7 @@ function Detail({ n }: { n: Notice }) {
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-cta bg-white text-sub active:scale-[.98]">
           <Bookmark className={`h-6 w-6 ${on ? 'fill-brand text-brand' : ''}`} />
         </button>
-        <Link href={calc} className={CTA_PRIMARY}>투찰금액 계산하기</Link>
+        {primary}
       </div>}
 
       <SignupSheet open={signup} onClose={() => { setSignup(false); setSaveAfter(false); }}

@@ -7,7 +7,7 @@ import { CircleAlert, CircleCheck, CircleX, ChevronRight, TriangleAlert } from '
 import { PageTitle } from '@/components/layout';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
-import { looksUnitPrice, type BidType, type Notice } from '@/lib/data';
+import type { BidType, Notice } from '@/lib/data';
 import { fetchNotice, fetchNoticeCost, type NoticeCost } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 import { fmtKorean, fmtNum, fmtShort, fmtWon, round1 } from '@/lib/format';
@@ -17,6 +17,7 @@ import {
 } from './rules';
 import { SajeongPanel } from './sajeong';
 import { QualifyPanel } from './qualify-panel';
+import { BaseNotice } from './base-notice';
 
 type Tab = 'bid' | 'score';
 const TYPES: BidType[] = ['물품', '용역', '공사'];
@@ -201,17 +202,10 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   // 예정가격 결정방법 — 추첨(복수예가)이 없는 공고는 사정률 분포가 의미 없음
   const method = notice?.prearng ?? null;
   const noDraw = !!method && method !== '복수예가';
-  const unit = !!notice && looksUnitPrice(notice);
 
   return (
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">
-      {(noDraw || (notice && !notice.basePrice) || unit) && (
-        <div className="rounded-box bg-white px-5 py-4 text-[14px] leading-relaxed text-sub lg:col-span-2">
-          {noDraw && <p><b className="font-semibold text-ink">{method} 공고예요.</b> {method === '비예가' ? '예정가격이 없는 공고라 계산이 맞지 않을 수 있어요. 공고문을 확인하세요.' : '예정가격이 추첨 없이 하나로 정해져 사정률 분포는 보여드리지 않아요.'}</p>}
-          {notice && !notice.basePrice && <p className={noDraw ? 'mt-1' : ''}><b className="font-semibold text-ink">공고에 기초금액이 없어요.</b> 공고문에서 확인한 값을 직접 넣어 주세요.</p>}
-          {unit && <p><b className="font-semibold text-ink">단가 입찰로 보여요.</b> 기초금액({fmtWon(notice!.basePrice!)})이 추정가격보다 훨씬 작아요. 1개·1회 단가 기준으로 계산돼요. (추정)</p>}
-        </div>
-      )}
+      {notice && <BaseNotice notice={notice} range={range ?? EXAMPLE_RESERVE_RANGE * 100} rate={rate ?? EXAMPLE_FLOOR_RATE[type]} />}
       <div className="space-y-5 rounded-box bg-white p-5 lg:p-6">
         <NumField id="base" label={<Term k="기초금액" />} value={base} onChange={setBase} unit="원" hint={base ? fmtKorean(base) : undefined} />
         <div className="grid grid-cols-2 gap-3">

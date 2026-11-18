@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { TERMS, type TermKey } from '@/lib/terms';
+import { TERMS, TERM_EXAMPLES, type TermKey } from '@/lib/terms';
 
 /** 용어 툴팁 (F2-5) — 점선 밑줄, 탭하면 한 줄 설명 */
 export function Term({ k, children }: { k: TermKey; children?: ReactNode }) {
@@ -32,9 +32,10 @@ export function Term({ k, children }: { k: TermKey; children?: ReactNode }) {
       </button>
       {open && (
         <span id={id} role="tooltip"
-          className="fade-in absolute left-0 top-full z-50 mt-1.5 block w-64 max-w-[calc(100vw-2rem)] rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white">
+          className="fade-in absolute left-0 top-full z-50 mt-1.5 block w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-slate-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white">
           <b className="mb-0.5 block text-[13px]">{k}</b>
           {TERMS[k]}
+          {TERM_EXAMPLES[k] && <span className="mt-1.5 block rounded-md bg-white/10 px-2 py-1.5 tabular-nums text-white/90">예) {TERM_EXAMPLES[k]}</span>}
         </span>
       )}
     </span>
