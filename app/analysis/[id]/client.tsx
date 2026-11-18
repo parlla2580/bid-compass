@@ -47,6 +47,9 @@ export default function OpeningView({ id }: { id: number }) {
         <p className={`mt-2 text-[18px] font-bold ${verdict.c}`}>{verdict.t}{me?.rate ? <span className="ml-2 text-[15px] font-medium text-sub">내 투찰률 {me.rate}%{me.amount ? ` · ${fmtWon(me.amount)}` : ''}</span> : null}</p>
       </section>
 
+      {/* 개찰 복기 — 한 줄로 '얼마 차이였나' (2026-11-18 로드맵 1) */}
+      <Review o={o} bidders={bidders} floor={floor} />
+
       {/* 입찰 진행 추적 — 1순위였거나 낙찰한 건 (기획 16장 A1) */}
       <BidTracker openingId={o.id} bidNo={o.bid_no} openedAt={o.opened_at} rank={me?.rank ?? null} won={o.winner_is_me} decided={!pending} />
 
@@ -84,6 +87,52 @@ function Stat({ k, v, sub, small }: { k: string; v: string; sub?: string; small?
 }
 
 /** 하한율이 없으면 투찰 기록으로 추정 (미달 업체 최고와 유효 업체 최저의 중간) */
+/*
+ * 개찰 복기 — 결과마다 '얼마 차이였나'를 금액으로 (투찰률 차이 × 예정가격)
+ *  · 낙찰·1순위: 2순위와의 차이 / 하한선과의 거리
+ *  · 2위 이하: 1순위와의 차이, 그 사이 업체 수 — "○원 낮게 썼다면 1순위"
+ *  · 하한 미달: 하한선(추정)보다 얼마 낮았나
+ *  금액 차이는 개찰 뒤에야 알 수 있는 값(예정가격은 추첨) — 다음 입찰의 정답처럼 쓰지 않게 문구로 밝힘
+ */
+function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDetail['opening']>; bidders: OpeningBidder[]; floor: number | null }) {
+  // 공사는 A값 때문에 실제 하한선이 공고 하한율보다 높음 → 투찰 기록으로 추정한 선을 먼저 (027과 같은 원칙)
+  const floor = (o.type === '공사' ? estimateFloor(bidders) : null) ?? noticeFloor;
+  const me = bidders.find((b) => b.me);
+  const P = o.planned_price ?? 0;
+  if (!me || me.rate == null || !P) return null;
+  const valid = bidders.filter((b) => b.note === null && b.rate != null).sort((a, b) => Number(a.rate) - Number(b.rate));
+  const won = (pp: number) => Math.round((pp / 100) * P); // 투찰률 %p → 원
+  const myRate = Number(me.rate);
+  let head: string | null = null;
+  let sub: string | null = null;
+  if (me.note === 1 && floor) {
+    const gap = floor - myRate;
+    head = `하한선보다 약 ${fmtWon(won(gap))} 낮아서 빠졌어요`;
+    sub = `내 투찰률 ${myRate.toFixed(3)}% · 하한선 약 ${floor.toFixed(3)}%${o.sajeong ? ` · 사정률이 ${o.sajeong}%로 나왔어요` : ''}`;
+  } else if (me.note === null && valid.length) {
+    const first = valid[0];
+    const idx = valid.findIndex((b) => b.me);
+    if (idx === 0) {
+      const second = valid[1];
+      head = second ? `2순위보다 ${fmtWon(won(Number(second.rate) - myRate))} 낮게 써서 1순위였어요` : '유효 투찰 중 가장 낮아 1순위였어요';
+      sub = floor ? `하한선과는 약 ${fmtWon(won(myRate - floor))} 차이` : null;
+    } else if (idx > 0) {
+      const gap = myRate - Number(first.rate);
+      head = `1순위보다 ${fmtWon(won(gap))} 높았어요`;
+      sub = `${fmtWon(won(gap))}만 낮게 썼다면 1순위였어요 · 그 사이에 ${idx - 1 > 0 ? `${idx - 1}곳` : '아무도 없었어요'}${idx - 1 > 0 ? '이 있었어요' : ''}`;
+    }
+  }
+  if (!head) return null;
+  return (
+    <section className="rounded-box bg-white px-5 py-4">
+      <p className="text-[13px] font-semibold text-brand">한 줄 복기</p>
+      <p className="mt-1 text-[17px] font-bold leading-snug">{head}</p>
+      {sub && <p className="mt-0.5 text-[14px] text-sub">{sub}</p>}
+      <p className="mt-2 text-[12px] text-mute">예정가격은 추첨으로 정해져 개찰 전엔 이 차이를 알 수 없어요. 다음 입찰의 정답이 아니라 이번 결과의 거리예요.</p>
+    </section>
+  );
+}
+
 function estimateFloor(b: OpeningBidder[]): number | null {
   const below = b.filter((x) => x.note === 1 && x.rate).map((x) => Number(x.rate));
   const ok = b.filter((x) => x.note === null && x.rate).map((x) => Number(x.rate));

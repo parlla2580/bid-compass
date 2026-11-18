@@ -202,13 +202,15 @@ export function InboxProvider({ children }: { children: ReactNode }) {
         sub: `${c.diff.length ? c.diff.join(' · ') : '첨부·조건이 바뀌었을 수 있어요. 공고문을 확인하세요'} · ${c.title}`,
         href: `/bids/${c.to}`, due: n && n.d >= 0 ? n.closesAt : null, at, doneLabel: '확인했어요' });
     }
-    // 3) 결과 확정 — 최근 14일, 낙찰 또는 3위 안
+    // 3) 결과 확정 — 최근 14일. 낙찰·순위·하한 미달 모두 (2026-11-18: 결과마다 '한 줄 복기'로 이어짐)
     const since = Date.now() - 14 * 86400e3;
     for (const b of bids) {
       if (new Date(b.opened_at).getTime() < since) continue;
       const o = bidOutcome(b);
       if (o === 'won') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'win', title: '낙찰됐어요 🎉', sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
-      else if (o === 'lost' && b.rank && b.rank <= 3) out.push({ key: `result:${b.id}`, kind: 'news', icon: 'result', title: `결과가 나왔어요 · ${b.rank}위`, sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
+      else if (o === 'lost' || o === 'below') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'result',
+        title: o === 'below' ? '결과가 나왔어요 · 하한 미달' : `결과가 나왔어요${b.rank ? ` · ${b.rank}위` : ''}`,
+        sub: `얼마 차이였는지 복기 보기 · ${b.title}`, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
     }
     // 4) 저장한 기관 — 진행 중 계약이 곧 끝남 (해야 할 일, [확인했어요]로 끝냄)
     const now = Date.now();
