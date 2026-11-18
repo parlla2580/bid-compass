@@ -11,13 +11,18 @@ import { clearMyVerification, fetchMyVerification, verifyCompany, type MyVerific
  *  예전엔 이 기기의 업체명으로 판단해, 서버는 확인됨인데 마이페이지는 '회사 확인하기'를 보여 주는 일이 있었음
  *  확인됨이면 업체명·확인일 + '확인 해제'(029), 아니면 대표자명 입력
  */
-export function VerifyStatus({ bizno, onVerified, onCleared }: {
-  bizno: string; onVerified: (corpName: string) => void; onCleared?: () => void;
+export function VerifyStatus({ bizno, corpName, onVerified, onCleared }: {
+  bizno: string;
+  /** 지금 회사 정보의 업체명 — 서버는 확인됨인데 비어 있으면 채움 */
+  corpName?: string | null;
+  onVerified: (corpName: string) => void; onCleared?: () => void;
 }) {
   const toast = useToast();
   const [v, setV] = useState<MyVerification | null | undefined>(undefined);
   useEffect(() => { fetchMyVerification().then(setV).catch(() => setV(null)); }, [bizno]);
   const same = !!v && v.bizno.replace(/\D/g, '') === bizno.replace(/\D/g, '');
+  // 서버 확인 기록이 있는데 업체명이 비어 있으면 채움 (예: 다른 기기에서 확인, 2026-11-18 '확인했는데 업체명이 비어 있음')
+  useEffect(() => { if (same && v && !corpName) onVerified(v.corpName); }, [same, v, corpName]); // eslint-disable-line react-hooks/exhaustive-deps
   if (v === undefined) return null;
   if (!same) return <VerifyBox bizno={bizno} onVerified={(c) => { onVerified(c); fetchMyVerification().then(setV).catch(() => {}); }} />;
   const clear = async () => {

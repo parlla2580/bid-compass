@@ -87,7 +87,7 @@ export default function MyPage() {
           ))}
         </dl>
         <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
-        {account && profile.bizno && <VerifyStatus bizno={profile.bizno} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} />}
+        {account && profile.bizno && <VerifyStatus bizno={profile.bizno} corpName={profile.corpName} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} />}
       </section>
 
       {/* 매칭 선호도 */}

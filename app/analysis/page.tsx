@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Download } from 'lucide-react';
 import { SignupSheet } from '@/components/signup-sheet';
 import { VerifyBox } from '@/components/verify-box';
+import { fetchMyVerification } from '@/lib/verify-client';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
@@ -28,6 +29,12 @@ export default function AnalysisPage() {
     if (!account) return;
     fetchMyReport(3).then(setReport).catch((e: Error) => setError(e.message));
   }, [account, profile.corpName]);
+
+  // 서버는 회사 확인됨(분석 열림)인데 업체명이 비어 있으면 채움 — 마이페이지·상단 업체명이 '확인 전'처럼 보이지 않게 (2026-11-18)
+  useEffect(() => {
+    if (!report?.verified || profile.corpName) return;
+    fetchMyVerification().then((v) => { if (v) updateProfile({ corpName: v.corpName, naraRegistered: true }); }).catch(() => {});
+  }, [report?.verified, profile.corpName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 맞춤 공고 중 '이력' 근거가 있는 공고 — 맞춤 공고 수의 부분집합이 되도록 같은 기준 사용
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
