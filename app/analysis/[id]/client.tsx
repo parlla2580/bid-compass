@@ -36,19 +36,23 @@ export default function OpeningView({ id }: { id: number }) {
   const floor = o.floor_rate ?? estimateFloor(bidders);
 
   const pending = !o.winner && !o.winner_is_me; // 적격심사·PQ 등으로 낙찰자 결정 전
-  const verdict = o.winner_is_me ? { t: '낙찰했어요', c: 'text-brand' }
-    : me?.note === 1 ? { t: '하한 미달로 빠졌어요', c: 'text-bad' }
-      : me?.rank ? { t: `${me.rank}위였어요`, c: 'text-ink' } : { t: '결과 확인', c: 'text-ink' };
+  // 결과는 문장 대신 짧은 이름표로 (2026-11-18 사용자: '~어요'는 자리만 차지)
+  const verdict = o.winner_is_me ? { t: '낙찰', c: 'bg-brand text-white' }
+    : me?.note === 1 ? { t: '하한 미달', c: 'bg-[#FEE2E2] text-bad' }
+      : me?.rank ? { t: `${me.rank}위`, c: 'bg-ink text-white' } : { t: '결과 확인 중', c: 'bg-fill text-sub' };
 
   return (
     <main className="space-y-3 px-5 pb-28 lg:space-y-4 lg:px-0 lg:pb-0">
       <section className="pt-1">
         <p className="text-[14px] text-mute">{o.type} · {o.demand_org ?? o.org} · 개찰 {fmtDateTime(new Date(o.opened_at))}</p>
         <h1 className="mt-1.5 text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{o.title}</h1>
-        <p className={`mt-2 text-[18px] font-bold ${verdict.c}`}>{verdict.t}{me?.rate ? <span className="ml-2 text-[15px] font-medium text-sub">내 투찰률 {me.rate}%{me.amount ? ` · ${fmtWon(me.amount)}` : ''}</span> : null}</p>
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] text-sub">
+          <span className={`rounded-md px-2 py-0.5 text-[15px] font-bold ${verdict.c}`}>{verdict.t}</span>
+          {me?.rate ? <span className="tabular-nums">{me.rate}%{me.amount ? <span className="text-mute"> · {fmtWon(me.amount)}</span> : null}</span> : null}
+        </p>
       </section>
 
-      {/* 개찰 복기 — 한 줄로 '얼마 차이였나' (2026-11-18 로드맵 1) */}
+      {/* 결과 차이 — 이름표 + 금액 + 위치 막대 (2026-11-18 로드맵 1) */}
       <Review o={o} bidders={bidders} floor={floor} />
 
       {/* 입찰 진행 추적 — 1순위였거나 낙찰한 건 (기획 16장 A1) */}
@@ -89,7 +93,7 @@ function Stat({ k, v, sub, small }: { k: string; v: string; sub?: string; small?
 
 /** 하한율이 없으면 투찰 기록으로 추정 (미달 업체 최고와 유효 업체 최저의 중간) */
 /*
- * 개찰 복기 — 결과마다 '얼마 차이였나'를 금액으로 (투찰률 차이 × 예정가격)
+ * 결과 차이 — 결과마다 '얼마 차이였나'를 금액으로 (투찰률 차이 × 예정가격)
  *  · 낙찰·1순위: 2순위와의 차이 / 하한선과의 거리
  *  · 2위 이하: 1순위와의 차이, 그 사이 업체 수 — "○원 낮게 썼다면 1순위"
  *  · 하한 미달: 하한선(추정)보다 얼마 낮았나
@@ -108,11 +112,11 @@ function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDeta
   const first = valid[0];
   const second = valid[1];
 
-  // 한 줄: 무엇과 얼마 차이였나
-  let lead: string, amount: string, tail: string;
-  if (me.note === 1 && floor) { lead = '하한선까지'; amount = won(floor - myRate); tail = '모자랐어요'; }
-  else if (idx === 0 && second) { lead = '2순위보다'; amount = won(Number(second.rate) - myRate); tail = '낮게 써서 1순위'; }
-  else if (idx > 0 && first) { lead = '1순위와'; amount = won(myRate - Number(first.rate)); tail = '차이'; }
+  // 이름표 + 금액 하나 (문장 없이)
+  let label: string, amount: string;
+  if (me.note === 1 && floor) { label = '하한선까지 부족'; amount = won(floor - myRate); }
+  else if (idx === 0 && second) { label = '2순위와 차이'; amount = won(Number(second.rate) - myRate); }
+  else if (idx > 0 && first) { label = '1순위와 차이'; amount = won(myRate - Number(first.rate)); }
   else return null;
 
   // 위치 막대 — 하한선 · 다른 업체 · 1순위 · 우리 (투찰률 기준)
@@ -128,12 +132,11 @@ function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDeta
 
   return (
     <section className="rounded-box bg-white px-5 pb-5 pt-4">
-      <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">
-        복기
-        <Tip title="개찰 뒤에야 아는 거리예요">투찰률 차이에 예정가격을 곱한 금액이에요. 예정가격은 추첨이라 투찰 전엔 알 수 없어요. 다음 입찰의 정답이 아니에요.</Tip>
+      <p className="flex items-center gap-1 text-[13px] text-mute">
+        {label}
+        <Tip title="개찰 뒤에야 아는 차이">투찰률 차이 × 예정가격. 예정가격은 추첨이라 투찰 전엔 알 수 없음 — 다음 입찰의 정답이 아님.</Tip>
       </p>
-      <p className="mt-1 text-[16px] text-sub">{lead} <b className="text-[24px] font-bold tracking-tight text-ink">{amount}</b> {tail}</p>
-
+      <p className={`mt-0.5 text-[28px] font-bold tabular-nums tracking-tight ${me.note === 1 ? 'text-bad' : 'text-ink'}`}>{amount}</p>
       <div className="relative mt-7 h-10">
         <div className="absolute inset-x-0 top-[9px] h-0.5 rounded-full bg-line" />
         {floor && (
@@ -153,7 +156,7 @@ function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDeta
         )}
         <span className="absolute top-[2px] -translate-x-1/2 text-center" style={{ left: x(myRate) }}>
           <span className="mx-auto block h-4 w-4 rounded-full bg-brand ring-2 ring-white" />
-          <span className="mt-1 block whitespace-nowrap text-[11px] font-semibold text-brand">우리{me.rank ? ` ${me.rank}위` : ''}</span>
+          <span className="mt-1 block whitespace-nowrap text-[11px] font-semibold text-brand">우리</span>
         </span>
       </div>
     </section>
