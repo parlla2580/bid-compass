@@ -188,7 +188,7 @@ export default function AnalysisPage() {
             <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
               {([['me', '입찰 성과'], ['market', '시장 분석'], ['sales', '영업']] as const).map(([t, label]) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-                  className={`flex-1 rounded-[10px] px-3 py-2 text-[15px] font-semibold transition lg:px-5 ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
+                  className={`flex-1 whitespace-nowrap rounded-[10px] px-2 py-2 text-[15px] font-semibold transition sm:px-3 lg:px-5 ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
               ))}
             </div>
             {tab !== 'sales' && !!report?.total && <ExportButton corpName={profile.corpName ?? null} />}
@@ -304,8 +304,8 @@ function ExportButton({ corpName }: { corpName: string | null }) {
   return (
     <div className="relative shrink-0">
       <button type="button" onClick={run} disabled={busy} aria-label="엑셀로 받기"
-        className="flex h-[44px] items-center gap-1.5 rounded-btn bg-white px-3.5 text-[14px] font-semibold text-sub disabled:opacity-60">
-        <Download className="h-[18px] w-[18px]" />{busy ? '만드는 중' : '엑셀'}
+        className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-btn bg-white px-3 text-[14px] font-semibold text-sub disabled:opacity-60 sm:px-3.5">
+        <Download className="h-[18px] w-[18px]" /><span className="hidden whitespace-nowrap min-[400px]:inline">{busy ? '만드는 중' : '엑셀'}</span>
       </button>
       {err && <p className="absolute right-0 top-full z-10 mt-1 w-56 rounded-xl bg-ink px-3 py-2 text-[13px] text-white">{err}</p>}
     </div>
