@@ -21,7 +21,7 @@ export default function PrivacyPage() {
             <tr><td className="border border-line p-2">저장한 공고</td><td className="border border-line p-2">관심 공고 보관, 마감 안내</td></tr>
           </tbody>
         </table>
-        <p>대표자명은 회사 확인 시 나라장터 공개 업체정보와 대조하는 데에만 쓰며 <b>저장하지 않습니다</b>.</p>
+        <p>대표자명은 가입·회사 확인 시 나라장터 공개 업체정보와 대조하는 데에만 쓰며 <b>저장하지 않습니다</b>.</p>
         <p>비밀번호는 암호화되어 저장되며 운영자도 알 수 없습니다.</p>
       </DocSection>
       <DocSection title="2. 보유 기간">

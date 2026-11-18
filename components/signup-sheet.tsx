@@ -6,12 +6,16 @@ import { Loader2 } from 'lucide-react';
 import { Sheet } from './feedback';
 import { BTN_PRIMARY, INPUT_CLS } from './ui';
 import { maskBizNo } from '@/lib/format';
+import { verifyCompany } from '@/lib/verify-client';
 import { useStore } from '@/lib/store';
 
 /**
- * 회원가입 — 이메일(아이디)·비밀번호·약관 동의만 (2026-11-16 초심자 점검: 대표자명 필수가 가장 큰 이탈 지점)
- * 사업자번호는 선택(간편 시작 값 미리 채움). 회사 확인(대표자명 대조)은 입찰 분석을 쓸 때 VerifyBox에서.
- * 입력한 정보는 계정으로 옮겨져요.
+ * 회원가입 — 이메일(아이디)·비밀번호·사업자등록번호·대표자명·약관 동의를 한 화면에서 (2026-11-18 사용자 결정으로 v2.2 방식 복원)
+ *  흐름: 간편 시작에서 사업자번호 → 공고 '자세히 보기' 등에서 가입 시트 → 대표자명을 나라장터와 대조해 회사 확인
+ *  · 대조 실패(대표자명 다름)면 가입하지 않음. 나라장터 미등록 번호는 한 번 더 누르면 확인 없이 가입(입찰 분석은 잠김)
+ *  · 가입 직후 로그인 상태로 한 번 더 확인 → 서버가 회사 확인을 기록 (입찰 분석은 이 기록으로만 열림, 016)
+ *  · 대표자명은 저장하지 않음. 가입 뒤에 확인하지 못한 회원은 마이페이지·입찰 분석의 회사 확인 상자로
+ * (11/16~18에는 가입을 이메일·비밀번호만으로 줄였었음 — 분석이 열리는 기준과 화면 표시가 어긋나는 혼란이 있어 되돌림)
  */
 export function SignupSheet({ open, onClose, onDone, reason }: {
   open: boolean;
@@ -24,6 +28,8 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [bizno, setBizno] = useState('');
+  const [ceo, setCeo] = useState('');
+  const [unregisteredOk, setUnregisteredOk] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,16 +48,37 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError('이메일 주소를 확인해 주세요');
     if (pw.length < 8) return setError('비밀번호는 8자 이상 입력해 주세요');
     if (pw !== pw2) return setError('비밀번호가 서로 다릅니다');
-    if (digits.length > 0 && digits.length !== 10) return setError('사업자등록번호 10자리를 확인해 주세요 (비워 둬도 돼요)');
+    if (digits.length !== 10) return setError('사업자등록번호 10자리를 입력해 주세요');
+    if (ceo.trim().length < 2) return setError('대표자명을 입력해 주세요');
     if (!agreeTerms || !agreePrivacy) return setError('필수 약관에 동의해 주세요');
 
     setBusy(true);
     try {
-      // 계정 생성 (가입 전 정보는 이 단계에서 서버로 옮겨짐)
+      // 1) 회사 확인 — 대표자명이 다르면 가입하지 않음
+      const v = await verifyCompany(digits, ceo);
+      if (v.status === 'mismatch') throw new Error('대표자명이 나라장터 등록 정보와 달라요. 사업자등록증의 성명을 띄어쓰기 없이 넣어 주세요. 대표자가 최근 바뀌었다면 나라장터 업체정보도 바꿔야 해요.');
+      if (v.status === 'unregistered' && !unregisteredOk) {
+        setUnregisteredOk(true);
+        throw new Error('나라장터에 입찰참가자격이 등록되지 않은 번호라 회사 확인을 할 수 없어요. 번호가 맞다면 한 번 더 누르면 가입돼요 (입찰 분석은 등록 후 열려요).');
+      }
+
+      // 2) 계정 생성 (가입 전 정보는 이 단계에서 서버로 옮겨짐)
       const r = await signUp(email, pw);
       if (r.error) throw new Error(r.error);
-      // 사업자번호가 바뀌었으면 반영 — 업체명은 회사 확인 후에만 저장 (입찰 분석은 서버 확인 기록으로만 열림)
-      if (digits && digits !== (profile.bizno ?? '').replace(/\D/g, '')) updateProfile({ bizno: digits, corpName: null });
+
+      // 3) 확인된 회사면 로그인 상태로 한 번 더 확인 → 서버가 기록. 업종·소재지는 비어 있을 때만 채움
+      if (v.status === 'verified') {
+        await verifyCompany(digits, ceo).catch(() => null);
+        updateProfile({
+          bizno: digits,
+          naraRegistered: true,
+          corpName: v.corpName ?? null,
+          ...(profile.industries?.length ? {} : { industries: v.industries ?? [] }),
+          ...(profile.location ? {} : { location: v.location ?? null }),
+        });
+      } else {
+        updateProfile({ bizno: digits, naraRegistered: false, corpName: null });
+      }
       onDone?.();
     } catch (e) {
       setError((e as Error).message);
@@ -72,7 +99,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     <Sheet title="회원가입" open={open} onClose={onClose}
       footer={
         <button type="button" onClick={submit} disabled={busy} className={BTN_PRIMARY}>
-          {busy && <Loader2 className="h-5 w-5 animate-spin" />}{busy ? '가입하는 중…' : '가입하고 계속 보기'}
+          {busy && <Loader2 className="h-5 w-5 animate-spin" />}{busy ? '회사 확인하는 중…' : '가입하고 계속 보기'}
         </button>
       }>
       <form className="space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
@@ -84,8 +111,11 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
         </div>
         {pw2 && pw !== pw2 && <p className="-mt-2 text-[13px] text-bad">비밀번호가 서로 달라요</p>}
         {field('su-bizno', '사업자등록번호',
-          <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => setBizno(maskBizNo(e.target.value))} placeholder="000-00-00000 (선택)" className={INPUT_CLS} />,
-          '우리 회사 입찰 분석은 가입 뒤 회사 확인(대표자명)을 하면 열려요.')}
+          <input id="su-bizno" inputMode="numeric" maxLength={12} value={bizno} onChange={(e) => { setBizno(maskBizNo(e.target.value)); setUnregisteredOk(false); }} placeholder="000-00-00000" className={INPUT_CLS} />)}
+        {field('su-ceo', '대표자명',
+          <input id="su-ceo" autoComplete="off" value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="사업자등록증의 대표자 성명" className={INPUT_CLS} />,
+          '나라장터 등록 정보와 맞춰 회사를 확인해요. 공동대표는 한 분 이름만. 대표자명은 저장하지 않아요.')}
+        {error && <p role="alert" className="-mt-1 rounded-xl bg-[#FEF2F2] px-3.5 py-2.5 text-[14px] leading-relaxed text-bad">{error}</p>}
 
         <div className="space-y-2 rounded-btn bg-fill p-4 text-[14px]">
           <label className="flex items-center gap-2 font-semibold">
@@ -107,7 +137,6 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
           </div>
         </div>
 
-        {error && <p role="alert" className="text-[14px] text-bad">{error}</p>}
         <p className="text-center text-xs text-mute">
           이미 가입하셨나요? <Link href="/login" className="font-semibold text-primary">로그인</Link>
         </p>

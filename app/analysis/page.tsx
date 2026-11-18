@@ -73,7 +73,7 @@ export default function AnalysisPage() {
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
-        text="회사를 확인하면 투찰 이력을 찾아 분석해요. 따로 입력할 건 없어요.">
+        text="가입할 때 사업자등록번호와 대표자명으로 회사를 확인하면, 나라장터 투찰 이력을 찾아 바로 분석해 드려요.">
         <button type="button" onClick={() => setSignup(true)} className={BTN_PRIMARY}>가입하고 성적표 보기</button>
       </Empty>
     );
