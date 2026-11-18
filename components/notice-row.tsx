@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Notice } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import type { Judged } from '@/lib/store';
+import { useSeen } from '@/lib/seen';
 import { STATUS_STYLE } from './ui';
 
 /*
@@ -11,6 +12,7 @@ import { STATUS_STYLE } from './ui';
  *  왼쪽: 맞춤 점수(맞춤 탭) 또는 판정 점(전체 탭)
  *  가운데: 새 공고 점 · 제목 / 기관 · 유형(회색 글자)
  *  오른쪽: 금액 / 마감(3일 이내만 빨강)
+ *  열어 본 공고는 제목이 회색, 파란 점은 지난 확인 이후 새로 들어온 공고(첫 방문이면 오늘 올라온 공고) — lib/seen
  */
 
 const dday = (d: number) => (d < 0 ? '마감' : d === 0 ? '오늘' : `D-${d}`);
@@ -24,6 +26,9 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   onSelect?: (n: Notice) => void;
 }) {
   const n = item.notice;
+  const { isSeen, isFresh, markSeen } = useSeen();
+  const seen = isSeen(n.id);
+  const fresh = !seen && (isFresh(n.id) ?? n.isNew);
   const body = (
     <>
       {lead !== 'none' && (
@@ -35,8 +40,10 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
       )}
       <span className="min-w-0 flex-1">
         <span className="flex items-start gap-1.5">
-          {n.isNew && <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-label="새 공고" />}
-          <span className="line-clamp-2 text-[15px] font-medium leading-snug text-ink lg:line-clamp-1">{n.title}</span>
+          {fresh && <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-label="새 공고" />}
+          <span className={`line-clamp-2 text-[15px] leading-snug lg:line-clamp-1 ${seen ? 'font-normal text-mute' : 'font-medium text-ink'}`}>
+            {seen && <span className="sr-only">열어 본 공고, </span>}{n.title}
+          </span>
         </span>
         <span className="mt-1 block truncate text-[13px] text-mute">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org} · {n.type}</span>
       </span>
@@ -48,8 +55,8 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   );
   const cls = `flex w-full items-start gap-3 px-4 py-3.5 text-left transition lg:px-5 ${active ? 'bg-brand-soft' : 'hover:bg-fill/70'}`;
   return onSelect
-    ? <button type="button" onClick={() => onSelect(n)} className={cls} aria-pressed={active}>{body}</button>
-    : <Link href={`/bids/${n.id}`} className={cls}>{body}</Link>;
+    ? <button type="button" onClick={() => { markSeen(n.id); onSelect(n); }} className={cls} aria-pressed={active}>{body}</button>
+    : <Link href={`/bids/${n.id}`} onClick={() => markSeen(n.id)} className={cls}>{body}</Link>;
 }
 
 /** 한 장 안에 구분선으로 나눈 목록 */

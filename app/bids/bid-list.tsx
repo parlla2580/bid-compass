@@ -13,6 +13,7 @@ import { fmtDateTime, fmtWon } from '@/lib/format';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
+import { useSeen } from '@/lib/seen';
 import { HIST_STRONG } from '@/lib/fit';
 import { SoonList, useSoon } from './soon';
 import { Tip } from '@/components/tip';
@@ -94,6 +95,16 @@ export default function BidList() {
   const [histOnly, setHistOnly] = useState(params.get('hist') === '1');
   // 기관 한정 (입찰 분석 '어디서 잘하나'에서 넘어오면 켜짐)
   const [orgOnly, setOrgOnly] = useState<string | null>(params.get('org'));
+  // 열어 본 공고 · 지난 확인 이후 새 공고 (lib/seen)
+  const seen = useSeen();
+  // '안 본 공고만'을 켠 순간의 열어 본 공고 — 켠 뒤에 연 공고가 목록에서 바로 사라지지 않게
+  const [hideIds, setHideIds] = useState<Set<number> | null>(null);
+  const unseenOnly = hideIds !== null;
+  const [freshOnly, setFreshOnly] = useState(false);
+  const setUnseenOnly = (on: boolean) => setHideIds(on ? new Set((judged ?? []).filter((j) => seen.isSeen(j.notice.id)).map((j) => j.notice.id)) : null);
+  const maxId = useMemo(() => (notices ?? []).reduce((m, n) => Math.max(m, n.id), 0), [notices]);
+  const { visitList } = seen;
+  useEffect(() => { if (maxId) visitList(maxId); }, [maxId, visitList]);
 
   // 검색·필터 (맞춤·전체 공통)
   const query = q.trim().toLowerCase();
@@ -102,9 +113,10 @@ export default function BidList() {
       const v = filters[g.key];
       const opt = v ? g.options.find(([label]) => label === v) : null;
       return !opt || opt[1](j.notice, j.judgment.status);
-    }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
+    }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query))
+    && (!hideIds || !hideIds.has(j.notice.id)) && (!freshOnly || !!seen.isFresh(j.notice.id));
 
-  const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly, hideIds, freshOnly, seen.prevMark]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG);
   const matchedAll = all.filter((j) => j.matched);
   const histCount = matchedAll.filter(isHist).length;
@@ -211,11 +223,13 @@ export default function BidList() {
             </Link>
           )}
 
+          {(tab === 'match' || tab === 'all') && judged && <SeenBar rows={tab === 'match' ? matchedAll : all} on={unseenOnly} setOn={setUnseenOnly} fresh={freshOnly} setFresh={setFreshOnly} />}
+
           {tab === 'soon' ? <SoonList {...soon} /> : tab !== 'saved' ? (
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
                 <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '맞춤 점수 높은 순' : `총 ${all.length.toLocaleString()}건`}
-                  <Tip title="목록 보는 법">원 안의 숫자는 맞춤 점수예요. 우리 업종·품목·지역·지난 입찰과 얼마나 맞는지를 0~99%로 나타내요. 제목 앞 파란 점은 오늘 새로 올라온 공고예요.</Tip>
+                  <Tip title="목록 보는 법">원 안의 숫자는 맞춤 점수예요. 우리 업종·품목·지역·지난 입찰과 얼마나 맞는지를 0~99%로 나타내요. 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
                 </p>
                 <label className="relative flex items-center">
                   <span className="sr-only">정렬</span>
@@ -391,5 +405,26 @@ function Preview({ item, onMute }: { item: Judged | { notice: Notice; judgment?:
         </div>
       </div>
     </section>
+  );
+}
+
+/** 지난 확인 이후 새 공고 수 + '안 본 공고만' — 하루에도 공고가 많아 본 것과 안 본 것을 가르기 (2026-11-18) */
+function SeenBar({ rows, on, setOn, fresh: freshOn, setFresh }: { rows: Judged[]; on: boolean; setOn: (v: boolean) => void; fresh: boolean; setFresh: (v: boolean) => void }) {
+  const { isSeen, isFresh, prevMark } = useSeen();
+  const fresh = prevMark === null ? 0 : rows.filter((j) => isFresh(j.notice.id) && !isSeen(j.notice.id)).length;
+  const unseen = rows.filter((j) => !isSeen(j.notice.id)).length;
+  return (
+    <div className="no-scrollbar mb-3 flex items-center gap-2 overflow-x-auto">
+      {prevMark !== null && (
+        <button type="button" aria-pressed={freshOn} onClick={() => setFresh(!freshOn)}
+          className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${freshOn ? chipClass(true) : 'border-transparent bg-brand-soft text-brand'}`}>
+          <i className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${freshOn ? 'bg-white' : 'bg-brand'}`} />지난번 확인 이후 새 공고 {freshOn ? '' : fresh.toLocaleString()}
+        </button>
+      )}
+      <button type="button" aria-pressed={on} onClick={() => setOn(!on)}
+        className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(on)}`}>
+        안 본 공고만 {on ? '' : unseen.toLocaleString()}
+      </button>
+    </div>
   );
 }

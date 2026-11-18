@@ -19,6 +19,7 @@ import { fetchNoticeExtra, fetchPastStats, type NoticeExtra, type PastStats } fr
 import { prepareHistory, similarity } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
 import { productMatch } from '@/lib/match';
+import { useSeen } from '@/lib/seen';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
 
@@ -42,6 +43,8 @@ export default function NoticeDetail({ id }: { id: number }) {
   const cached = notices?.find((n) => n.id === id) ?? null;
   const [notice, setNotice] = useState<Notice | null>(cached);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>(cached ? 'ok' : 'loading');
+  const { markSeen } = useSeen();
+  useEffect(() => { markSeen(id); }, [id, markSeen]);
 
   useEffect(() => {
     if (cached) { setNotice(cached); setState('ok'); return; }
