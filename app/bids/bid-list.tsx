@@ -116,13 +116,16 @@ export default function BidList() {
       const v = filters[g.key];
       const opt = v ? g.options.find(([label]) => label === v) : null;
       return !opt || opt[1](j.notice, j.judgment.status);
-    }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query))
-    && (!hideIds || !hideIds.has(j.notice.id)) && (!freshOnly || !!seen.isFresh(j.notice.id));
+    }) && (!orgOnly || orgOfNotice(j.notice) === orgOnly || j.notice.org === orgOnly) && (!query || j.notice.title.toLowerCase().includes(query) || j.notice.org.toLowerCase().includes(query) || !!j.notice.demandOrg?.toLowerCase().includes(query));
+  // 봤음 필터는 따로 — 켜도 위 칩(맞춤 전체·이력과 비슷한)의 숫자가 사라지지 않게 (2026-11-18 사용자 피드백)
+  const seenOk = (j: Judged) => (!hideIds || !hideIds.has(j.notice.id)) && (!freshOnly || !!seen.isFresh(j.notice.id));
 
-  const all = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly, hideIds, freshOnly, seen.prevMark]); // eslint-disable-line react-hooks/exhaustive-deps
+  const base = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const all = useMemo(() => base.filter(seenOk), [base, hideIds, freshOnly, seen.prevMark]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG);
+  const matchedBase = base.filter((j) => j.matched);
   const matchedAll = all.filter((j) => j.matched);
-  const histCount = matchedAll.filter(isHist).length;
+  const histCount = matchedBase.filter(isHist).length;
   const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
   const checkRows = all.filter((j) => j.judgment.status === 'check');
   // 품목 분류만 가까운 공고(관문 미달)는 따로 접어 보여줌 — 맞춤은 정확하게, 0건은 피하게 (2026-11-16 의자 업체 점검)
@@ -210,12 +213,20 @@ export default function BidList() {
                 className="shrink-0 rounded-full bg-white px-3 py-1 text-[13px] font-medium text-sub">전체 보기 ×</button>
             </div>
           )}
-          {tab === 'match' && histCount > 0 && (
-            <div className="no-scrollbar mb-3 flex gap-1.5 overflow-x-auto">
-              {([[false, `맞춤 공고 전체 ${matchedAll.length.toLocaleString()}`], [true, `이력과 비슷한 공고 ${histCount.toLocaleString()}`]] as const).map(([v, label]) => (
-                <button key={String(v)} type="button" aria-pressed={histOnly === v} onClick={() => setHistOnly(v)}
-                  className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(histOnly === v)}`}>{label}</button>
-              ))}
+          {/* 칩 한 줄: [맞춤 전체 · 이력과 비슷한] | [새 공고 · 안 본 공고] — 어느 칩을 눌러도 다른 칩이 사라지지 않음 */}
+          {(tab === 'match' || tab === 'all') && judged && (
+            <div className="no-scrollbar -mx-5 mb-3 flex items-center gap-1.5 overflow-x-auto px-5 lg:mx-0 lg:px-0">
+              {tab === 'match' && histCount > 0 && (
+                <>
+                  {([[false, '맞춤 전체', matchedBase.length], [true, '이력과 비슷한', histCount]] as const).map(([v, label, n]) => (
+                    <button key={String(v)} type="button" aria-pressed={histOnly === v} onClick={() => setHistOnly(v)} className={chipCls(histOnly === v)}>
+                      {label} <span className="tabular-nums opacity-70">{n.toLocaleString()}</span>
+                    </button>
+                  ))}
+                  <span className="mx-1 h-4 w-px shrink-0 bg-line" aria-hidden />
+                </>
+              )}
+              <SeenChips rows={tab === 'match' ? matchedBase : base} on={unseenOnly} setOn={setUnseenOnly} fresh={freshOnly} setFresh={setFreshOnly} />
             </div>
           )}
           {/* 공사 면허만 있는 회사는 업종으로 이미 맞추므로 품목 안내를 띄우지 않음 */}
@@ -225,8 +236,6 @@ export default function BidList() {
               <ChevronRight className="h-5 w-5 text-mute" />
             </Link>
           )}
-
-          {(tab === 'match' || tab === 'all') && judged && <SeenBar rows={tab === 'match' ? matchedAll : all} on={unseenOnly} setOn={setUnseenOnly} fresh={freshOnly} setFresh={setFreshOnly} />}
 
           {tab === 'soon' ? <SoonList {...soon} /> : tab !== 'saved' ? (
             <NoticesState notices={notices} error={noticesError}>
@@ -411,23 +420,23 @@ function Preview({ item, onMute }: { item: Judged | { notice: Notice; judgment?:
   );
 }
 
-/** 지난 확인 이후 새 공고 수 + '안 본 공고만' — 하루에도 공고가 많아 본 것과 안 본 것을 가르기 (2026-11-18) */
-function SeenBar({ rows, on, setOn, fresh: freshOn, setFresh }: { rows: Judged[]; on: boolean; setOn: (v: boolean) => void; fresh: boolean; setFresh: (v: boolean) => void }) {
+const chipCls = (on: boolean) => `h-9 shrink-0 whitespace-nowrap rounded-full border px-3.5 text-[14px] font-medium transition ${chipClass(on)}`;
+
+/** 새 공고 · 안 본 공고 칩 — 숫자는 봤음 필터를 켜도 그대로 (하루에도 공고가 많아 본 것과 안 본 것을 가르기, 2026-11-18) */
+function SeenChips({ rows, on, setOn, fresh: freshOn, setFresh }: { rows: Judged[]; on: boolean; setOn: (v: boolean) => void; fresh: boolean; setFresh: (v: boolean) => void }) {
   const { isSeen, isFresh, prevMark } = useSeen();
   const fresh = prevMark === null ? 0 : rows.filter((j) => isFresh(j.notice.id) && !isSeen(j.notice.id)).length;
   const unseen = rows.filter((j) => !isSeen(j.notice.id)).length;
   return (
-    <div className="no-scrollbar mb-3 flex items-center gap-2 overflow-x-auto">
+    <>
       {prevMark !== null && (
-        <button type="button" aria-pressed={freshOn} onClick={() => setFresh(!freshOn)}
-          className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${freshOn ? chipClass(true) : 'border-transparent bg-brand-soft text-brand'}`}>
-          <i className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${freshOn ? 'bg-white' : 'bg-brand'}`} />지난번 확인 이후 새 공고 {freshOn ? '' : fresh.toLocaleString()}
+        <button type="button" aria-pressed={freshOn} onClick={() => setFresh(!freshOn)} className={chipCls(freshOn)}>
+          <i className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${freshOn ? 'bg-white' : 'bg-brand'}`} />새 공고 <span className="tabular-nums opacity-70">{fresh.toLocaleString()}</span>
         </button>
       )}
-      <button type="button" aria-pressed={on} onClick={() => setOn(!on)}
-        className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${chipClass(on)}`}>
-        안 본 공고만 {on ? '' : unseen.toLocaleString()}
+      <button type="button" aria-pressed={on} onClick={() => setOn(!on)} className={chipCls(on)}>
+        안 본 공고 <span className="tabular-nums opacity-70">{unseen.toLocaleString()}</span>
       </button>
-    </div>
+    </>
   );
 }

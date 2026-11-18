@@ -147,7 +147,6 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
                 <div className="rounded-2xl bg-fill p-3.5 text-[14px] leading-relaxed text-sub">
                   이 금액 방식으로 <b className="text-ink">지난 {bt.n}건</b>에 썼다면<br />
                   1순위 <b className="text-brand">{bt.first}번</b> · 3위 안 {bt.top3}번 · 하한 미달 {bt.below}번
-                  {bt.luck != null && <span className="mt-1 block text-[12px] text-mute">아무 금액이나 썼을 때 기대 1순위는 약 {Math.round(bt.luck)}번이에요. 지난 개찰은 투찰 기록으로 실제 하한선을 추정해 대봤어요.</span>}
                 </div>
               )}
             </dl>
