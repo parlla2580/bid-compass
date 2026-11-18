@@ -2,15 +2,21 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/layout';
 import { fmtDate, fmtShort } from '@/lib/format';
-import { fetchMyMarket, fetchRivalWins, type MarketCompetitor, type MyMarket, type RivalWin } from '@/lib/analysis';
+import { fetchH2H, fetchMissed, fetchMyBidList, fetchMyMarket, fetchRivalWins, type H2H, type MarketCompetitor, type Missed, type MyMarket, type RivalWin } from '@/lib/analysis';
+import { bucketPhrase, winPattern, type WinPattern } from '@/lib/win-pattern';
 import { useStore } from '@/lib/store';
 
 /*
- * 입찰 분석 — 「우리 시장」 (010 my_market)
- * 글보다 그림: 막대·100% 막대로 보여주고, 근거 건수를 항상 함께 표시
+ * 입찰 분석 — 「시장 분석」 (010 my_market · 030 my_h2h · my_missed)
+ * 2026-11-18 개편: 묘사(누가 있나) 대신 질문 셋에 답하고, 답마다 다음 행동(공고)으로 잇기
+ *  Q1 우리는 어떤 판에서 이기나 — 내 투찰 기록을 조건별로 나눈 낙찰률 (lib/win-pattern)
+ *  Q2 누구와 싸우고, 앞서고 있나 — 자주 만나는 회사와의 순위 비교 (030 my_h2h)
+ *  Q3 우리 시장인데 놓친 공고 — 들어간 비율, 놓친 기관, 지금 열린 공고 (030 my_missed)
+ *  그 밖(낙찰 금액 비중·다른 시장·새 회사)은 아래 '시장 지도'로
+ * 근거 건수를 항상 함께 보여 주고, 표본이 적으면 숨기거나 '참고'로
  */
 
 const SHADES = ['#1D4ED8', '#3B6FE6', '#6B93EE', '#9DB7F4', '#C9D7F9'];
@@ -34,6 +40,20 @@ export function MarketSection() {
     setM(undefined);
     fetchMyMarket(3, seg).then((r) => { setM(r); if (!seg && r?.markets) { setSegs(r.markets); setAllN(r.my_openings ?? 0); } }).catch(() => setM(null));
   }, [seg]);
+  // Q1 — 전체 투찰 기준 (시장을 골라도 그대로)
+  const [wp, setWp] = useState<WinPattern | null | undefined>(undefined);
+  useEffect(() => { fetchMyBidList().then((l) => setWp(l ? winPattern(l) : null)).catch(() => setWp(null)); }, []);
+  // Q2 — 자주 만나는 회사 순위가 나온 뒤
+  const [h2h, setH2h] = useState<H2H[] | null | undefined>(undefined);
+  const compKey = (m?.competitors ?? []).map((c) => c.bizno).join(',');
+  useEffect(() => {
+    if (!m?.competitors) return;
+    setH2h(undefined);
+    fetchH2H(m.competitors.map((c) => c.bizno), seg).then(setH2h).catch(() => setH2h(null));
+  }, [compKey, seg]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Q3
+  const [missed, setMissed] = useState<Missed | null | undefined>(undefined);
+  useEffect(() => { setMissed(undefined); fetchMissed(seg).then(setMissed).catch(() => setMissed(null)); }, [seg]);
 
   const segName = seg ? segs?.find((x) => x.key === seg)?.name : null;
   const chips = segs && segs.length > 1 && (
@@ -59,27 +79,37 @@ export function MarketSection() {
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
         <h2 className="text-[20px] font-bold">시장 분석</h2>
+        <p className="mt-0.5 text-[14px] text-mute">우리 투찰 기록으로 본, 우리가 이기는 판과 놓친 기회예요</p>
+      </div>
+
+      <WinPatternCard wp={wp} />
+
+      <div className="px-1 pt-2">
+        <h3 className="text-[17px] font-bold">{segName ? `'${segName}' 시장` : '우리 시장'}</h3>
         {chips}
-        <p className="mt-0.5 text-[14px] text-mute">{segName ? `'${segName}' 시장에서 ` : ''}우리가 투찰한 개찰 {n.toLocaleString()}건에 함께 들어온 회사들로 그린 시장 지도예요</p>
-        {thin && <p className="mt-1 text-[13px] font-medium text-warn">아직 근거가 적어요({n}건). 데이터가 쌓이면 더 정확해져요.</p>}
+        <p className="mt-1 text-[13px] text-mute">우리가 투찰한 개찰 {n.toLocaleString()}건 기준{thin ? ' · 아직 근거가 적어요' : ''}</p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-        <Card title="자주 만나는 회사" aside={<span className="text-[13px] text-mute">함께 들어간 공고 수</span>}>
-          {comps.length ? <Rivals comps={comps} market={seg} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">참가 업체가 많은 공고와 아무 공고에나 들어가는 회사는 가중치를 낮춰 순위를 매겼어요. &lsquo;이 시장 비중&rsquo;은 그 회사가 들어간 전체 공고 중 우리와 함께 들어간 비율이에요. 높을수록 우리 시장에 집중하는 직접 경쟁자예요. 회사를 누르면 이 시장에서 낙찰한 공고를 볼 수 있어요. 같은 순위면 이 시장에서 낙찰한 횟수, 최근에 만난 순으로 놓았어요. 낙찰 횟수는 추첨 영향이 커 참고만 하세요.</p>
+        <Card title="자주 만나는 회사와의 전적" aside={<span className="text-[13px] text-mute">순위 비교</span>}>
+          {comps.length ? <Rivals comps={comps} market={seg} h2h={h2h} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
+          <p className="mt-3 text-[12px] leading-relaxed text-mute">둘 다 순위가 나온 공고에서 누가 앞섰는지예요. 낙찰은 추첨 영향이 커서 참고만 하세요. 누르면 그 회사가 이 시장에서 낙찰한 공고를 볼 수 있어요.</p>
         </Card>
+        <MissedCard d={missed} />
+      </div>
 
+      <div className="px-1 pt-2"><h3 className="text-[17px] font-bold">시장 지도</h3></div>
+      <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
         <Card title="이 시장 낙찰 금액" aside={m.market?.openings_with_winner ? <span className="text-[13px] text-mute">낙찰 {m.market.openings_with_winner}건 기준</span> : null}>
           <Share market={m.market} />
         </Card>
 
-        <Card title="그 회사들이 가는 다른 시장" aside={<span className="text-[13px] text-mute">최근 1년</span>}>
+        <Card title="경쟁사가 가는 다른 시장" aside={<span className="text-[13px] text-mute">최근 1년</span>}>
           {m.other_markets?.length
             ? <Bars rows={m.other_markets.map((o) => { const open = openByOrg.get(o.org) ?? 0; return { label: `${o.org}`, tag: o.type, value: o.firms, sub: `공고 ${o.openings}건`, unit: '곳',
                 link: open ? { href: `/bids?tab=all&org=${encodeURIComponent(o.org)}`, label: `지금 낸 공고 ${open}건 보기` } : undefined }; })} />
             : <Empty text="아직 찾은 다른 시장이 없어요" />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가본 기관만 보여드려요. 지금 마감 전 공고가 있으면 바로 볼 수 있어요.</p>
+          <p className="mt-3 text-[12px] leading-relaxed text-mute">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가 본 기관만 보여 드려요.</p>
         </Card>
 
         <Card title="새로 들어온 회사" aside={<span className="text-[13px] text-mute">최근 90일</span>}>
@@ -96,6 +126,114 @@ export function MarketSection() {
         </Card>
       </div>
     </section>
+  );
+}
+
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/** Q1 우리가 이기는 판 — 조건별 낙찰률 막대 + 평균선, 뚜렷한 차이 하나를 맨 위 한 줄로 */
+function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
+  if (wp === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
+  if (!wp || !wp.dims.length) return null;
+  const h = wp.headline;
+  return (
+    <div className="rounded-box bg-white p-5 lg:p-6">
+      <p className="text-[13px] font-semibold text-brand">우리가 이기는 판</p>
+      {h ? (
+        <div className="mt-1.5 flex gap-2.5">
+          <Lightbulb className="mt-1 h-5 w-5 shrink-0 text-brand" />
+          <div className="min-w-0">
+            <p className="text-[18px] font-bold leading-snug tracking-tight">
+              <span className="text-brand">{bucketPhrase(h.key, h.hi.label)}</span> 공고에서 낙찰률 {pct(h.hi.rate)},<br className="sm:hidden" /> {bucketPhrase(h.key, h.lo.label)}에선 {pct(h.lo.rate)}
+            </p>
+            <p className="mt-0.5 text-[13px] text-mute">{h.dim}별로 나눠 본 결과 · 각 {h.hi.n}건 · {h.lo.n}건</p>
+            {h.hi.href && <Link href={h.hi.href} className="mt-2 inline-flex items-center text-[14px] font-semibold text-brand">지금 열린 {h.hi.label} 공고 보기<ChevronRight className="h-4 w-4" /></Link>}
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[16px] font-bold leading-snug">아직 어느 조건에서도 낙찰률이 뚜렷하게 갈리지 않아요</p>
+      )}
+
+      <div className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+        {wp.dims.map((d) => (
+          <div key={d.key}>
+            <p className="mb-2 text-[13px] font-semibold text-sub">{d.title}</p>
+            <ul className="space-y-2">
+              {d.buckets.map((b) => {
+                const up = b.rate > wp.rate;
+                const row = (
+                  <>
+                    <div className="mb-1 flex items-baseline justify-between gap-2 text-[13px]">
+                      <span className="min-w-0 truncate text-ink">{b.label}</span>
+                      <span className="shrink-0 tabular-nums"><b className="font-semibold text-ink">{pct(b.rate)}</b><span className="ml-1 text-mute">{b.n}건</span></span>
+                    </div>
+                    <div className="relative h-2 rounded-full bg-fill">
+                      <div className={`h-2 rounded-full ${up ? 'bg-brand' : 'bg-[#C9D7F9]'}`} style={{ width: `${Math.max(2, b.rate * 100)}%` }} />
+                      <span className="absolute -top-0.5 h-3 w-px bg-ink/40" style={{ left: `${wp.rate * 100}%` }} aria-hidden />
+                    </div>
+                  </>
+                );
+                return <li key={b.label}>{b.href ? <Link href={b.href} className="block rounded-lg hover:opacity-80">{row}</Link> : row}</li>;
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4 text-[12px] text-mute">세로 선은 우리 평균 낙찰률 {pct(wp.rate)}(결과가 나온 {wp.n}건)이에요. 5건 미만인 구간은 뺐어요.</p>
+    </div>
+  );
+}
+
+/** Q3 놓친 공고 — 우리 시장에서 들어간 비율, 놓친 공고가 많은 기관, 지금 열린 공고 */
+function MissedCard({ d }: { d: Missed | null | undefined }) {
+  if (d === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
+  if (!d || !d.total) return null;
+  const share = d.joined / d.total;
+  return (
+    <Card title="우리 시장인데 놓친 공고" aside={<span className="text-[13px] text-mute">최근 {d.days}일</span>}>
+      <p className="text-[15px] leading-relaxed text-sub">
+        우리 시장 공고 <b className="text-ink">{d.total.toLocaleString()}건</b> 중 들어간 건 <b className="text-ink">{d.joined.toLocaleString()}건({pct(share)})</b>이에요.
+      </p>
+      <div className="mt-2 flex h-2.5 gap-0.5 overflow-hidden rounded-full">
+        <div className="bg-brand" style={{ width: `${share * 100}%` }} />
+        <div className="flex-1 bg-fill" />
+      </div>
+      {d.missed_avg_participants != null && d.joined_avg_participants != null && (
+        <p className="mt-2 text-[13px] text-mute">평균 참가 — 놓친 공고 {d.missed_avg_participants}곳 · 들어간 공고 {d.joined_avg_participants}곳</p>
+      )}
+
+      {d.missed_orgs.length > 0 && (
+        <>
+          <p className="mb-1.5 mt-4 text-[13px] font-semibold text-sub">많이 놓친 기관</p>
+          <ul className="divide-y divide-line">
+            {d.missed_orgs.slice(0, 3).map((o) => (
+              <li key={o.org}>
+                <Link href={`/bids?tab=all&org=${encodeURIComponent(o.org)}`} className="flex items-center justify-between gap-3 py-2 text-[14px] hover:opacity-80">
+                  <span className="min-w-0 truncate font-medium">{o.org}</span>
+                  <span className="flex shrink-0 items-center text-[13px] text-mute">{o.n}건{o.avg_participants != null ? ` · 평균 ${o.avg_participants}곳` : ''}<ChevronRight className="h-4 w-4" /></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {d.open_now > 0 && (
+        <div className="mt-4 rounded-xl bg-brand-soft px-4 py-3">
+          <p className="text-[14px] font-semibold text-brand">지금 열린 우리 시장 공고 {d.open_now.toLocaleString()}건</p>
+          <ul className="mt-1.5 space-y-1">
+            {d.open_list.map((o) => (
+              <li key={o.id}>
+                <Link href={`/bids/${o.id}`} className="flex items-baseline justify-between gap-3 text-[14px] hover:underline">
+                  <span className="min-w-0 truncate text-ink">{o.title}</span>
+                  <span className="shrink-0 text-[12px] text-mute">{fmtDate(new Date(o.closes_at))} 마감</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -120,11 +258,11 @@ function Bars({ rows }: { rows: { label: string; value: number; sub?: string; ta
   );
 }
 
-/** 자주 만나는 회사 — 누르면 이 시장에서 그 회사가 낙찰한 공고 (025) */
-function Rivals({ comps, market }: { comps: MarketCompetitor[]; market: string | null }) {
+/** 자주 만나는 회사와의 전적 — 순위 비교 막대(우리 앞섬 | 그쪽 앞섬), 누르면 이 시장에서 그 회사가 낙찰한 공고 (025·030) */
+function Rivals({ comps, market, h2h }: { comps: MarketCompetitor[]; market: string | null; h2h?: H2H[] | null }) {
+  const hmap = new Map((h2h ?? []).map((h) => [h.bizno, h]));
   const [open, setOpen] = useState<number | null>(null);
   const [wins, setWins] = useState<Record<string, RivalWin[] | null | undefined>>({});
-  const max = Math.max(1, ...comps.map((c) => c.shared));
   const key = (b: number) => `${b}:${market ?? ''}`;
   const toggle = (c: MarketCompetitor) => {
     const next = open === c.bizno ? null : c.bizno;
@@ -139,18 +277,28 @@ function Rivals({ comps, market }: { comps: MarketCompetitor[]; market: string |
       {comps.map((c, i) => {
         const on = open === c.bizno;
         const list = wins[key(c.bizno)];
-        const share = c.their_total ? `이 시장 비중 ${Math.round((c.shared / Math.max(c.their_total, c.shared)) * 100)}%` : null;
+        const h = hmap.get(c.bizno);
+        const cmp = h ? h.i_ahead + h.they_ahead : 0;
         return (
           <li key={`${c.bizno}-${i}`}>
-            <button type="button" onClick={() => toggle(c)} aria-expanded={on} className="-mx-2 block w-[calc(100%+1rem)] rounded-xl px-2 py-1.5 text-left hover:bg-fill">
-              <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px]">
+            <button type="button" onClick={() => toggle(c)} aria-expanded={on} className="-mx-2 block w-[calc(100%+1rem)] rounded-xl px-2 py-2 text-left hover:bg-fill">
+              <div className="flex items-baseline justify-between gap-3 text-[14px]">
                 <span className="flex min-w-0 items-center gap-1 font-medium"><span className="truncate">{c.name}</span><ChevronDown className={`h-3.5 w-3.5 shrink-0 text-mute transition ${on ? 'rotate-180' : ''}`} /></span>
-                <span className="shrink-0 tabular-nums text-sub"><b className="font-semibold text-ink">{c.shared.toLocaleString()}</b>건
-                  <span className="ml-1.5 text-[12px] text-mute">{[share, c.wins ? `낙찰 ${c.wins}번` : null].filter(Boolean).join(' · ')}</span></span>
+                <span className="shrink-0 text-[12px] tabular-nums text-mute">{c.shared.toLocaleString()}번 만남{c.wins ? ` · 그쪽 낙찰 ${c.wins}` : ''}</span>
               </div>
-              <div className="h-2.5 rounded-full bg-fill">
-                <div className="h-2.5 rounded-full" style={{ width: `${(c.shared / max) * 100}%`, background: SHADES[Math.min(SHADES.length - 1, Math.floor((1 - c.shared / max) * SHADES.length))] }} />
-              </div>
+              {h === undefined && h2h === undefined ? <div className="mt-1.5 h-2 animate-pulse rounded-full bg-fill" />
+                : cmp > 0 ? (
+                  <>
+                    <div className="mt-1.5 flex h-2 gap-0.5 overflow-hidden rounded-full">
+                      <div className="bg-brand" style={{ width: `${(h!.i_ahead / cmp) * 100}%` }} />
+                      <div className="flex-1 bg-[#E4E7EC]" />
+                    </div>
+                    <div className="mt-1 flex justify-between text-[12px] tabular-nums">
+                      <span className="text-brand">우리가 앞섬 {h!.i_ahead}</span>
+                      <span className="text-mute">그쪽이 앞섬 {h!.they_ahead}</span>
+                    </div>
+                  </>
+                ) : <p className="mt-1 text-[12px] text-mute">순위를 비교할 수 있는 공고가 아직 없어요</p>}
             </button>
             {on && (
               <div className="mb-2 mt-1 rounded-xl bg-fill px-3.5 py-3 text-[13px]">

@@ -199,3 +199,30 @@ export async function fetchOpeningDetail(id: number): Promise<OpeningDetail | nu
   if (error) return null;
   return data as OpeningDetail;
 }
+
+/* ---------- 시장 분석 개편 (030) ---------- */
+export interface H2H { bizno: number; name: string; met: number; i_ahead: number; they_ahead: number; their_wins: number; my_wins: number }
+
+/** 맞대결 전적 — 자주 만나는 회사(my_market 순위)마다. 030 실행 전이면 null */
+export async function fetchH2H(bizs: number[], market: string | null = null): Promise<H2H[] | null> {
+  if (!bizs.length) return [];
+  const r = await getSupabase().rpc('my_h2h', { p_bizs: bizs.slice(0, 10), p_years: 3, p_market: market });
+  if (r.error || !r.data?.verified) return null;
+  return (r.data.rivals ?? []) as H2H[];
+}
+
+export interface Missed {
+  days: number; total: number; joined: number; missed: number;
+  missed_avg_participants: number | null; joined_avg_participants: number | null;
+  missed_orgs: { org: string; n: number; avg_participants: number | null }[];
+  recent: { opening_id: number; title: string; org: string; opened_at: string; participants: number | null; winner: string | null }[];
+  open_now: number;
+  open_list: { id: number; title: string; org: string; closes_at: string }[];
+}
+
+/** 우리 시장인데 안 들어간 공고 + 지금 열린 우리 시장 공고 (030). 실행 전이면 null */
+export async function fetchMissed(market: string | null = null, days = 90): Promise<Missed | null> {
+  const r = await getSupabase().rpc('my_missed', { p_days: days, p_market: market });
+  if (r.error || !r.data?.verified) return null;
+  return { missed_orgs: [], recent: [], open_list: [], open_now: 0, joined: 0, missed: 0, total: 0, days, missed_avg_participants: null, joined_avg_participants: null, ...r.data } as Missed;
+}

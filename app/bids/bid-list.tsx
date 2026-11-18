@@ -83,7 +83,12 @@ export default function BidList() {
   const setTab = (t: Tab) => router.replace(t === 'match' ? '/bids' : `/bids?tab=${t}`, { scroll: false });
 
   const GROUPS = useMemo(() => buildGroups(notices ?? []), [notices]);
-  const [filters, setFilters] = useState<Filters>(() => ({ ...EMPTY, deadline: params.get('status') === 'imminent' ? '3일 이내' : null }));
+  // 주소로 필터를 받음 (예: 시장 분석 '우리가 이기는 판'에서 ?price=1억 미만, ?type=물품)
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...EMPTY,
+    ...Object.fromEntries((['type', 'price', 'award'] as const).map((k) => [k, params.get(k)]).filter(([, v]) => v)),
+    deadline: params.get('status') === 'imminent' ? '3일 이내' : null,
+  }));
   const [draft, setDraft] = useState<Filters>(filters);
   const [sheet, setSheet] = useState(false);
   const [q, setQ] = useState('');
