@@ -20,8 +20,26 @@ const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SECRET_KEY;
 const HOURS = Number(process.env.COLLECT_HOURS || 6);
 // 거슬러 받기 — 날짜 범위 (한국시간 0시 기준, 끝 날짜 하루 전체 포함)
-const RANGE_FROM = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_FROM ?? '') ? new Date(`${process.env.COLLECT_FROM}T00:00:00+09:00`) : null;
-const RANGE_TO = /^\d{4}-\d{2}-\d{2}$/.test(process.env.COLLECT_TO ?? '') ? new Date(new Date(`${process.env.COLLECT_TO}T00:00:00+09:00`).getTime() + 86400e3) : null;
+//  2026-10-27 · 20261027 · 2026.10.27 · 2026/10/27 모두 받음. 값이 있는데 날짜가 아니면 평소 수집으로 넘어가지 않고 멈춤
+//  (2026-11-18: from 칸에 '2', to 칸에 '20261027'이 들어가 조용히 평소 6시간 수집만 돈 일이 있었음)
+function parseDay(name) {
+  const raw = (process.env[name] ?? '').trim();
+  if (!raw) return null;
+  const m = /^(\d{4})[-./]?(\d{1,2})[-./]?(\d{1,2})$/.exec(raw);
+  const d = m && new Date(`${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00:00+09:00`);
+  if (!d || Number.isNaN(d.getTime()) || +m[2] < 1 || +m[2] > 12 || +m[3] < 1 || +m[3] > 31) {
+    console.error(`::error::${name === 'COLLECT_FROM' ? '거슬러 받기 시작일(from)' : '끝날(to)'} 칸의 '${raw}'은(는) 날짜가 아니에요. 2026-10-27처럼 넣어 주세요. 수집하지 않고 멈춥니다.`);
+    process.exit(1);
+  }
+  return d;
+}
+const RANGE_FROM = parseDay('COLLECT_FROM');
+const RANGE_TO_DAY = parseDay('COLLECT_TO');
+const RANGE_TO = RANGE_TO_DAY ? new Date(RANGE_TO_DAY.getTime() + 86400e3) : null;
+if (RANGE_TO && !RANGE_FROM) {
+  console.error('::error::끝날(to)만 있고 거슬러 받기 시작일(from)이 비어 있어요. 두 번째 칸(from)에 시작일을 넣어 주세요. 수집하지 않고 멈춥니다.');
+  process.exit(1);
+}
 const LONG = HOURS > 24 || !!RANGE_FROM;
 const CATCHUP_MAX_H = 48; // 빈틈 메우기 최대 시간
 // snapshot: 수집 없이 공고 목록 스냅샷만 다시 만듦 (수동 실행용)

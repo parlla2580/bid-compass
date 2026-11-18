@@ -8,15 +8,15 @@ on:
   workflow_dispatch:
     inputs:
       hours:
-        description: '수집 구간(시간) — 평소 6, 지난주 공고를 한 번에 받으려면 168'
+        description: '① 수집 구간(시간) — 평소 6 그대로 두세요. 날짜로 받을 때는 아래 ② 칸을 쓰세요'
         required: false
         default: '6'
       from:
-        description: '거슬러 받기 시작일 (YYYY-MM-DD, 한국시간). 넣으면 hours 대신 이 기간을 받음'
+        description: '② 거슬러 받기 시작일 — 예: 2026-10-27 (20261027도 됨). 넣으면 ① 대신 이 날부터 받음'
         required: false
         default: ''
       to:
-        description: '거슬러 받기 끝날 (YYYY-MM-DD, 그날 포함). 비우면 오늘까지'
+        description: '③ 끝날 — 예: 2026-11-01 (그날 포함). 비우면 오늘까지'
         required: false
         default: ''
       mode:
