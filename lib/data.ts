@@ -242,7 +242,8 @@ export function toNotice(r: NoticeRow, now = new Date()): Notice {
     basePrice: r.base_price === null ? null : Number(r.base_price),
     reserveMin: r.reserve_rate_min === null ? null : Number(r.reserve_rate_min),
     reserveMax: r.reserve_rate_max === null ? null : Number(r.reserve_rate_max),
-    floorRate: r.floor_rate === null ? null : Number(r.floor_rate),
+    // 1%·50% 같은 잘못 들어온 값(2026-11-18 공사 20여 건)은 없는 것으로 — 계산기에 그대로 넘어가 엉뚱한 금액이 나오지 않게
+    floorRate: r.floor_rate !== null && Number(r.floor_rate) > 50 && Number(r.floor_rate) < 100 ? Number(r.floor_rate) : null,
     closesAt,
     d: closesAt < now ? -1 : kstDay(closesAt) - kstDay(now),
     regionLimit: r.region_limit?.length ? r.region_limit.filter((x) => x !== '전국') : null,
