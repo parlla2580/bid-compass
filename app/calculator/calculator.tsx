@@ -7,7 +7,7 @@ import { CircleAlert, CircleCheck, CircleX, ChevronRight, TriangleAlert } from '
 import { PageTitle } from '@/components/layout';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
-import type { BidType, Notice } from '@/lib/data';
+import { isCatalog, type BidType, type Notice } from '@/lib/data';
 import { fetchNotice, fetchNoticeCost, type NoticeCost } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 import { fmtKorean, fmtNum, fmtShort, fmtWon, round1 } from '@/lib/format';
@@ -203,7 +203,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   const method = notice?.prearng ?? null;
   const noDraw = !!method && method !== '복수예가';
   // 추첨이 없고 하한율도 없는 공고(최저가·협상·규격가격동시 등) — '하한선에 붙여 쓰기' 계산이 맞지 않아 입력·결과를 숨김
-  const noCalc = !!notice && noDraw && !notice.floorRate && !notice.basePrice;
+  const noCalc = !!notice && ((noDraw && !notice.floorRate && !notice.basePrice) || isCatalog(notice));
 
   return (
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">

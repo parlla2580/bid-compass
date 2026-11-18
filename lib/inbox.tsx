@@ -7,7 +7,7 @@ import { useJudged, useStore } from './store';
 import { getSupabase, supabaseEnabled } from './supabase';
 import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
 import { fetchQualifyBy } from './briefing';
-import { calcHref } from './data';
+import { calcHref, isCatalog } from './data';
 import { fmtKorean } from './format';
 
 /*
@@ -242,7 +242,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       }
     }
     // 7) 오늘 새 맞춤 공고
-    const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew).length;
+    const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew && !isCatalog(j.notice)).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '맞춤 점수 높은 순으로 볼 수 있어요', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
   }, [account, firstRanks, notices, saved, savedChanges, qual, bids, judged, orgs, pre, profile, stats]);

@@ -20,7 +20,7 @@ import { prepareHistory, similarity } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
 import { productMatch } from '@/lib/match';
 import { useSeen } from '@/lib/seen';
-import { awardInfo as awardBadge, awardTone } from '@/lib/award';
+import { noticeAward, awardTone } from '@/lib/award';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
 
@@ -84,8 +84,8 @@ function Detail({ n }: { n: Notice }) {
   const calc = calcHref(n);
   const calcLabel = bst === 'pending' ? '기초금액 공개 전 · 미리 계산' : '투찰금액 계산하기';
   // 비예가는 사정률 계산 대상이 아님 → 공고문으로
-  const primary = bst === 'noDraw'
-    ? (n.url ? <a href={n.url} target="_blank" rel="noopener noreferrer" className={CTA_PRIMARY}>공고문에서 가격 평가 보기</a> : null)
+  const primary = bst === 'noDraw' || bst === 'catalog'
+    ? (n.url ? <a href={n.url} target="_blank" rel="noopener noreferrer" className={CTA_PRIMARY}>{bst === 'catalog' ? '공고문에서 계약 조건 보기' : '공고문에서 가격 평가 보기'}</a> : null)
     : <Link href={calc} className={CTA_PRIMARY}>{calcLabel}</Link>;
 
   return (
@@ -174,9 +174,9 @@ function SignupGate({ onSignup }: { onSignup: () => void }) {
 
 /* ---------- 상단 요약: 제목 + 큰 숫자 ---------- */
 function Hero({ n }: { n: Notice }) {
-  const award = awardBadge(n.award);
+  const award = noticeAward(n);
   const stats = [
-    { k: '마감까지', v: dday(n.d), tone: n.d >= 0 && n.d <= 3 ? 'text-bad' : 'text-ink', sub: fmtDateTime(n.closesAt) },
+    { k: '마감까지', v: n.d > 365 ? '장기 접수' : dday(n.d), tone: n.d >= 0 && n.d <= 3 ? 'text-bad' : 'text-ink', sub: fmtDateTime(n.closesAt) },
     { k: '추정가격', v: n.estPrice ? `${fmtShort(n.estPrice)}원` : '미공개', tone: 'text-ink', sub: n.estPrice ? fmtWon(n.estPrice) : '공고에서 공개하지 않음' },
     { k: '기초금액', v: n.basePrice ? `${fmtShort(n.basePrice)}원` : '–', tone: 'text-ink', sub: n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전', desk: true },
     { k: '낙찰하한율', v: n.floorRate ? `${n.floorRate}%` : '–', tone: 'text-ink', sub: n.reserveMax !== null ? `예비가격 ±${Math.abs(n.reserveMax)}%` : '', desk: true },
@@ -272,7 +272,17 @@ function FitBlock({ fit }: { fit: Fit }) {
 }
 
 /* ---------- 이 공고 브리핑 ---------- */
-const dt = (s: string | null) => (s ? s.slice(5, 16).replace('-', '.').replace(' ', ' ') : null);
+// 'YYYY-MM-DD HH:mm' → 'MM.DD HH:mm' (올해가 아니면 'YYYY.MM.DD HH:mm')
+const dt = (s: string | null) => {
+  if (!s) return null;
+  const sameYear = s.slice(0, 4) === String(new Date().getFullYear());
+  return (sameYear ? s.slice(5, 16) : s.slice(0, 16)).replace(/-/g, '.');
+};
+/** 공동수급 원문('(없음)공동수급불허', '()공동수급허용' 등) → '공동수급 불허' */
+const jointLabel = (raw: string | null) => {
+  const t = (raw ?? '').replace(/\([^)]*\)/g, '').replace(/\s+/g, '');
+  return t ? t.replace(/^공동수급(?=\S)/, '공동수급 ') : null;
+};
 const daysUntil = (s: string) => Math.ceil((new Date(s.replace(' ', 'T') + '+09:00').getTime() - Date.now()) / 86400e3);
 
 function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean; onSignup?: () => void }) {
@@ -304,7 +314,7 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
   if (extra?.openAt) lines.push({ k: '개찰', v: dt(extra.openAt) });
   const cond = [
     extra?.reNotice && '재공고',
-    extra?.joint && extra.joint.replace(/공동수급/, '공동수급 '),
+    jointLabel(extra?.joint ?? null),
     extra?.reserveTotal && extra.reserveDraw ? `예비가격 ${extra.reserveTotal}개 중 ${extra.reserveDraw}개 추첨` : n.prearng && n.prearng !== '복수예가' && n.prearng,
     looksUnitPrice(n) && '단가 입찰(추정)',
   ].filter(Boolean) as string[];
@@ -377,7 +387,9 @@ function Info({ n }: { n: Notice }) {
     ['참가자격', eligibilitySummary(n)],
     ...(n.demandOrg && n.demandOrg !== n.org ? [['수요기관', n.demandOrg] as [string, string]] : []),
     ['계약방식', CONTRACT_TERMS.includes(n.contract) ? <Term key="c" k={n.contract as TermKey} /> : n.contract],
-    ['낙찰방식', <Tip key="a" label={awardInfo(n.award).label} title={awardInfo(n.award).label}>{awardInfo(n.award).desc ? `${awardInfo(n.award).desc} ` : ''}원래 표기: {n.award}</Tip>],
+    // 제목 아래 배지와 같은 이름 (예: '규격가격동시입찰-…예가 내 최저가'가 '최저가'로 보이던 불일치, 2026-11-18)
+    ['낙찰방식', (() => { const b = noticeAward(n); const o = awardInfo(n.award); const label = b?.label ?? o.label; const desc = b?.desc ?? o.desc;
+      return <Tip key="a" label={label} title={label}>{desc ? `${desc}. ` : ''}원래 표기: {n.award}</Tip>; })()],
     ...(lawGuess(n) ? [['적용 법률', `${lawGuess(n)!.replace(/\(.*\)/, '').replace(' 적용', '')} (추정)`] as [string, string]] : []),
     ...(n.floorRate ? [[<Term key="f" k="낙찰하한율" />, `${n.floorRate}%`] as [React.ReactNode, string]] : []),
     ...(n.productName ? [['세부품명', n.productName] as [string, string]] : []),
@@ -385,11 +397,12 @@ function Info({ n }: { n: Notice }) {
   ];
   return (
     <Card title="공고 정보">
-      <dl className="grid lg:grid-cols-2 lg:gap-x-10">
+      {/* 두 칸은 넓은 화면(xl)에서만 — lg(1024~1279)에선 칸이 좁아 날짜·공고번호가 글자 단위로 꺾였음 */}
+      <dl className="grid xl:grid-cols-2 xl:gap-x-10">
         {rows.map(([k, v], i) => (
-          <div key={i} className={`flex justify-between gap-4 border-b border-line py-3 text-[15px] last:border-0 lg:[&:nth-last-child(2)]:border-0 `}>
+          <div key={i} className={`flex justify-between gap-4 border-b border-line py-3 text-[15px] last:border-0 xl:[&:nth-last-child(2)]:border-0`}>
             <dt className="shrink-0 text-mute">{k}</dt>
-            <dd className="break-all text-right font-medium">{v}</dd>
+            <dd className="min-w-0 break-words text-right font-medium [word-break:keep-all]">{v}</dd>
           </div>
         ))}
       </dl>
@@ -440,8 +453,8 @@ function Similar({ n }: { n: Notice }) {
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
       {items && items.length > 0 && (
         <>
-          {/* 모바일 */}
-          <ul className="lg:hidden">
+          {/* 모바일·좁은 데스크탑 — 표는 칸이 충분한 xl부터 (lg에선 계약명 칸이 0이 되어 넘쳤음) */}
+          <ul className="xl:hidden">
             {(all ? items : items.slice(0, 3)).map((c) => (
               <li key={c.id} className="border-b border-line py-3 last:border-0">
                 <div className="flex items-start justify-between gap-3">
@@ -453,12 +466,13 @@ function Similar({ n }: { n: Notice }) {
             ))}
           </ul>
           {items.length > 3 && (
-            <button type="button" onClick={() => setAll(!all)} className="mt-1 flex w-full items-center justify-center gap-1 py-2 text-[14px] font-medium text-sub lg:hidden">
+            <button type="button" onClick={() => setAll(!all)} className="mt-1 flex w-full items-center justify-center gap-1 py-2 text-[14px] font-medium text-sub xl:hidden">
               {all ? '접기' : `${items.length - 3}건 더 보기`}<ChevronDown className={`h-4 w-4 transition ${all ? 'rotate-180' : ''}`} />
             </button>
           )}
           {/* 데스크탑 */}
-          <table className="hidden w-full text-[14px] lg:table">
+          <table className="hidden w-full table-fixed text-[14px] xl:table">
+            <colgroup><col className="w-[92px]" /><col /><col className="w-[120px]" /><col className="w-[72px]" /><col className="w-[118px]" /></colgroup>
             <thead>
               <tr className="border-b border-line text-left text-[13px] text-mute">
                 <th className="pb-2.5 font-medium">계약일</th><th className="pb-2.5 font-medium">계약명</th>
@@ -469,9 +483,9 @@ function Similar({ n }: { n: Notice }) {
               {items.map((c) => (
                 <tr key={c.id} className="border-b border-line last:border-0">
                   <td className="whitespace-nowrap py-3 pr-4 text-sub">{c.contractDate ? fmtDate(new Date(c.contractDate)) : '–'}</td>
-                  <td className="max-w-[280px] truncate py-3 pr-4 font-medium" title={c.title}>{c.title}</td>
-                  <td className="max-w-[160px] truncate py-3 pr-4 text-sub">{corp(c)}</td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-sub">{c.method ?? '–'}</td>
+                  <td className="truncate py-3 pr-4 font-medium" title={c.title}>{c.title}</td>
+                  <td className="truncate py-3 pr-3 text-sub" title={corp(c) ?? undefined}>{corp(c)}</td>
+                  <td className="truncate py-3 pr-3 text-sub">{c.method ?? '–'}</td>
                   <td className="whitespace-nowrap py-3 text-right font-semibold">{c.amount ? fmtWon(c.amount) : '–'}</td>
                 </tr>
               ))}

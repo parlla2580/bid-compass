@@ -27,7 +27,7 @@ const RULES: [RegExp, AwardInfo][] = [
   [/^(설계공모|일괄입찰|실시설계기술제안)/, { kind: 'proposal', label: '설계·기술제안', desc: '설계안·기술제안 평가로 정함' }],
   [/^(규격가격동시입찰|2단계경쟁입찰)/, { kind: 'spec', label: '규격+가격', desc: '규격(제안)을 먼저 통과한 업체끼리 가격으로 겨룸' }],
   [/^수의시담/, { kind: 'direct', label: '수의 협의', desc: '경쟁 입찰 없이 가격을 협의해 계약' }],
-  [/^(다수공급자계약|카탈로그계약)/, { kind: 'catalog', label: '쇼핑몰 계약', desc: '종합쇼핑몰 등록 업체 대상 계약' }],
+  [/^(다수공급자계약|카탈로그계약)/, { kind: 'catalog', label: '쇼핑몰·단가계약', desc: '한 번의 입찰이 아니라, 계약 업체 제품을 종합쇼핑몰에서 기관들이 골라 사는 계약' }],
 ];
 
 export function awardInfo(award: string | null | undefined): AwardInfo | null {
@@ -47,3 +47,12 @@ export const AWARD_GROUPS: { label: string; kinds: AwardKind[] }[] = [
 /** 배지 색 — 가격 싸움은 파랑 계열, 제안서 싸움은 주황 계열, 그 밖은 회색 */
 export const awardTone = (k: AwardKind) =>
   k === 'price' || k === 'priceNoFloor' ? 'bg-brand-soft text-brand' : k === 'proposal' ? 'bg-[#FFF4E5] text-[#B45309]' : 'bg-fill text-sub';
+
+const CATALOG: AwardInfo = { kind: 'catalog', label: '쇼핑몰·단가계약', desc: '조달청이 여러 기관이 쓸 물품을 한꺼번에 계약 — 한 번의 입찰로 낙찰자를 정하는 공고가 아니에요' };
+
+/** 공고 배지 — 낙찰방법 + '각 수요기관' 단가계약까지 */
+export function noticeAward(n: { award: string | null; demandOrg?: string | null }): AwardInfo | null {
+  const a = awardInfo(n.award);
+  if (a) return a;
+  return /^각\s*수요기관/.test(n.demandOrg ?? '') ? CATALOG : null;
+}

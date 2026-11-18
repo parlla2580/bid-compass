@@ -5,7 +5,7 @@ import type { Notice } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import type { Judged } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
-import { awardInfo, awardTone } from '@/lib/award';
+import { noticeAward, awardTone } from '@/lib/award';
 import { STATUS_STYLE } from './ui';
 
 /*
@@ -16,7 +16,7 @@ import { STATUS_STYLE } from './ui';
  *  열어 본 공고는 제목이 회색, 파란 점은 지난 확인 이후 새로 들어온 공고(첫 방문이면 오늘 올라온 공고) — lib/seen
  */
 
-const dday = (d: number) => (d < 0 ? '마감' : d === 0 ? '오늘' : `D-${d}`);
+const dday = (d: number) => (d < 0 ? '마감' : d === 0 ? '오늘' : d > 365 ? '장기 접수' : `D-${d}`);
 
 export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   item: Judged | { notice: Notice; judgment?: undefined; fit?: undefined };
@@ -30,7 +30,7 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   const { isSeen, isFresh, markSeen } = useSeen();
   const seen = isSeen(n.id);
   const fresh = !seen && (isFresh(n.id) ?? n.isNew);
-  const award = awardInfo(n.award);
+  const award = noticeAward(n);
   const body = (
     <>
       {lead !== 'none' && (

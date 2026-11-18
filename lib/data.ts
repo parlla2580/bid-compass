@@ -142,8 +142,17 @@ export const SIZE_RANK: Record<CompanySize, number> = { '소기업·소상공인
  *  unknown 예정가격 방식도 기초금액도 없음
  * 실측(마감 전 14,375건): 용역의 55%가 비예가, 복수예가 중 기초금액 없음 물품 49%·용역 54%·공사 26%
  */
-export type BaseStatus = 'ok' | 'pending' | 'noDraw' | 'single' | 'unknown';
+export type BaseStatus = 'ok' | 'pending' | 'noDraw' | 'single' | 'catalog' | 'unknown';
+/**
+ * 쇼핑몰·단가계약 — 한 번의 입찰로 낙찰자를 정하는 일반 공고가 아님 (2026-11-18 실측)
+ *  · 낙찰방법이 다수공급자계약·카탈로그계약 (165건, 거의 모두 마감이 몇 년 뒤)
+ *  · 수요기관이 '각 수요기관' — 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약 (257건, 234건이 마감 1년 넘음,
+ *    낙찰방법 '공고서참조' 79건 포함). 추정가격이 수천억 원으로 나와 맞춤 공고 위쪽을 차지했음
+ */
+export const isCatalog = (n: Pick<Notice, 'award' | 'demandOrg'>) =>
+  /^(다수공급자|카탈로그)/.test(n.award ?? '') || /^각\s*수요기관/.test(n.demandOrg ?? '');
 export function baseStatus(n: Notice): BaseStatus {
+  if (isCatalog(n)) return 'catalog';
   if (n.basePrice) return 'ok';
   if (n.prearng === '비예가') return 'noDraw';
   if (n.prearng === '단일예가') return 'single';

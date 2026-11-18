@@ -8,13 +8,13 @@ import { Sheet, useToast } from '@/components/feedback';
 import { MuteSheet } from '@/components/mute';
 import { NoticeRow, RowList } from '@/components/notice-row';
 import { BTN_PRIMARY, CTA_PRIMARY, CTA_SOFT, NoticesState, ResultIcon, STATUS_STYLE, chipClass } from '@/components/ui';
-import type { Notice } from '@/lib/data';
+import { isCatalog, type Notice } from '@/lib/data';
 import { fmtDateTime, fmtWon } from '@/lib/format';
 import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
-import { AWARD_GROUPS, awardInfo } from '@/lib/award';
+import { AWARD_GROUPS, noticeAward } from '@/lib/award';
 import { HIST_STRONG } from '@/lib/fit';
 import { SoonList, useSoon } from './soon';
 import { Tip } from '@/components/tip';
@@ -60,7 +60,7 @@ function buildGroups(notices: Notice[]): Group[] {
       ['7일 이내', (n) => n.d <= 7],
       ['8일 이상', (n) => n.d > 7],
     ] },
-    { key: 'award', label: '무엇으로 겨루나', options: AWARD_GROUPS.map((g): [string, Pred] => [g.label, (n) => { const a = awardInfo(n.award); return !!a && g.kinds.includes(a.kind); }]) },
+    { key: 'award', label: '무엇으로 겨루나', options: AWARD_GROUPS.map((g): [string, Pred] => [g.label, (n) => { const a = noticeAward(n); return !!a && g.kinds.includes(a.kind); }]) },
     { key: 'contract', label: '계약방식', options: contracts.map((c): [string, Pred] => [c, (n) => n.contract === c]) },
   ];
 }
@@ -128,8 +128,10 @@ export default function BidList() {
   const base = useMemo(() => (judged ?? []).filter(pass).sort(SORTERS[sort]), [judged, filters, q, sort, GROUPS, orgOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   const all = useMemo(() => base.filter(seenOk), [base, hideIds, freshOnly, seen.prevMark]); // eslint-disable-line react-hooks/exhaustive-deps
   const isHist = (j: Judged) => !!j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG);
-  const matchedBase = base.filter((j) => j.matched);
-  const matchedAll = all.filter((j) => j.matched);
+  // 쇼핑몰·단가계약(다수공급자·각 수요기관)은 맞춤 목록에서 따로 접음 — 수천억 원·몇 년 뒤 마감으로 위쪽을 차지했음 (2026-11-18)
+  const matchedBase = base.filter((j) => j.matched && !isCatalog(j.notice));
+  const matchedAll = all.filter((j) => j.matched && !isCatalog(j.notice));
+  const catalogRows = all.filter((j) => j.matched && isCatalog(j.notice));
   const histCount = matchedBase.filter(isHist).length;
   const matched = histOnly ? matchedAll.filter(isHist) : matchedAll;
   const checkRows = all.filter((j) => j.judgment.status === 'check');
@@ -261,6 +263,7 @@ export default function BidList() {
                   <Paged rows={matched} lead="score" selected={selected} onSelect={setSelected}
                     empty={similarRows.length ? '우리 품목과 같은 공고는 지금 없어요. 아래 비슷한 품목 공고를 확인해 보세요' : '조건에 맞는 맞춤 공고가 없어요'} />
                   <Folded title="비슷한 품목 공고" hint="우리 품목과 분류가 가까운 공고예요. 같은 품목만 맞춤 공고에 넣었어요" rows={similarRows} lead="score" selected={selected} onSelect={setSelected} defaultOpen={!matched.length} />
+                  <Folded title="쇼핑몰·단가계약 공고" hint="조달청이 여러 기관 물품을 한꺼번에 계약하거나 종합쇼핑몰에 올리는 계약이에요. 한 번의 입찰로 낙찰자를 정하는 공고와 달라요" rows={catalogRows} lead="score" selected={selected} onSelect={setSelected} />
                   <Folded title="확인이 필요한 공고" hint="정보가 부족해 판정하지 못한 공고예요" rows={checkRows} lead="status" selected={selected} onSelect={setSelected} />
                   <Folded title="다른 참여 가능 공고" hint="흔한 품목·업종만 맞거나, 우리 회사 일과 거리가 있어 보여요" rows={otherRows} lead="score" selected={selected} onSelect={setSelected} />
                   <Folded title="빼고 싶은 단어로 뺀 공고" hint={`'${(profile.keywords?.minus ?? []).join("', '")}'이(가) 들어간 공고예요`} rows={excludedRows} lead="score" selected={selected} onSelect={setSelected} />
@@ -390,7 +393,7 @@ function Preview({ item, onMute }: { item: Judged | { notice: Notice; judgment?:
       <h2 className="mt-1 text-[18px] font-bold leading-snug">{n.title}</h2>
       <dl className="mt-4 grid grid-cols-2 gap-2">
         <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">추정가격</dt><dd className="mt-0.5 text-[16px] font-bold">{n.estPrice ? fmtWon(n.estPrice) : '미공개'}</dd></div>
-        <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">마감</dt><dd className={`mt-0.5 text-[16px] font-bold ${n.d >= 0 && n.d <= 3 ? 'text-bad' : ''}`}>{fmtDateTime(n.closesAt).slice(5)}</dd></div>
+        <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">마감</dt><dd className={`mt-0.5 text-[16px] font-bold ${n.d >= 0 && n.d <= 3 ? 'text-bad' : ''}`}>{n.closesAt.getFullYear() === new Date().getFullYear() ? fmtDateTime(n.closesAt).slice(5) : fmtDateTime(n.closesAt)}</dd></div>
       </dl>
       {item.judgment && (
         <div className="mt-5">

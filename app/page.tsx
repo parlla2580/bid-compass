@@ -10,6 +10,7 @@ import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
 import { useJudged, useStore } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
+import { isCatalog } from '@/lib/data';
 
 /** S2. 홈 — 오늘의 요약만. 공고 목록은 '공고' 탭 한 곳에서 */
 export default function HomePage() {
@@ -20,7 +21,8 @@ export default function HomePage() {
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
-  const matched = (judged ?? []).filter((j) => j.matched);
+  // 쇼핑몰·단가계약은 홈 요약·추천에서 뺌 (공고 탭에서 따로 접어 보여 줌)
+  const matched = (judged ?? []).filter((j) => j.matched && !isCatalog(j.notice));
   const newMatched = matched.filter((j) => j.notice.isNew).length;
   // 지난번 공고 목록을 확인한 뒤 새로 들어온 맞춤 공고 (안 연 것만) — lib/seen
   const freshMatched = prevMark === null ? null : matched.filter((j) => isFresh(j.notice.id) && !isSeen(j.notice.id)).length;

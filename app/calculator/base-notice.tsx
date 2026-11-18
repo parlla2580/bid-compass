@@ -46,6 +46,19 @@ export function BaseNotice({ notice, range, rate, budget = null, onEstimate }: {
         </div>
       )}
       {st === 'single' && <Single notice={notice} budget={budget} onEstimate={onEstimate} />}
+      {st === 'catalog' && (
+        <div className="flex gap-3">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
+          <div>
+            <p><b className="font-semibold text-ink">쇼핑몰·단가계약 공고라 투찰금액 계산 대상이 아니에요.</b></p>
+            <p className="mt-1">{/다수공급자|카탈로그/.test(notice.award)
+              ? `${/다수공급자/.test(notice.award) ? '다수공급자계약(MAS)' : '카탈로그계약'}은 한 번의 입찰로 낙찰자를 정하지 않고, 조건을 갖춘 업체와 계약해 제품을 나라장터 종합쇼핑몰에 올리면 수요기관이 골라 사는 방식이에요.`
+              : '수요기관이 ‘각 수요기관’인 공고는 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약하는 공고예요. 한 번의 입찰로 낙찰자를 정하는 일반 공고와 달라요.'} 계약 기간 동안 받는 공고라 마감이 먼 경우가 많아요.</p>
+            <p className="mt-1 text-[13px] text-mute">추정가격은 계약 전체 규모로 보여요. 한 업체가 받는 금액과는 달라요. 참여 조건은 공고문에서 확인하세요.</p>
+            <DocLink url={notice.url} />
+          </div>
+        </div>
+      )}
       {st === 'unknown' && <p><b className="font-semibold text-ink">공고에 기초금액이 없어요.</b> 공고문에서 확인한 값을 직접 넣어 주세요.</p>}
     </div>
   );
