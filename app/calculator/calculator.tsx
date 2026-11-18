@@ -225,7 +225,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
                 {cost.aParts && <span className="mt-1 block text-mute">{Object.entries(cost.aParts).map(([k, v]) => `${k} ${fmtShort(v)}`).join(' · ')}</span>}
               </div>
             ) : notice && type === '공사' && cost !== null ? (
-              <p className="mt-1.5 text-[13px] text-mute">나라장터에 이 공고의 A값 정보가 없어요. 공고문에 있으면 직접 넣어 주세요.</p>
+              <p className="mt-1.5 text-[13px] text-mute">{notice.basePrice ? '나라장터에 이 공고의 A값 정보가 없어요. 공고문에 있으면 직접 넣어 주세요.' : 'A값은 보통 기초금액과 함께 공개돼요. 공개되면 자동으로 채워 드려요.'}</p>
             ) : null}
           </div>
         )}
