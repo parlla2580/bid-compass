@@ -8,6 +8,7 @@ import { BidTracker } from '@/components/first-rank-card';
 import { fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { fetchOpeningDetail, type OpeningBidder, type OpeningDetail } from '@/lib/analysis';
 import { useStore } from '@/lib/store';
+import { Tip } from '@/components/tip';
 
 /*
  * 개찰 결과 요약 — 기초금액·예정가격·사정률·낙찰자, 참가업체 투찰률 분포(밀도 곡선 + 점)
@@ -101,34 +102,60 @@ function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDeta
   const P = o.planned_price ?? 0;
   if (!me || me.rate == null || !P) return null;
   const valid = bidders.filter((b) => b.note === null && b.rate != null).sort((a, b) => Number(a.rate) - Number(b.rate));
-  const won = (pp: number) => Math.round((pp / 100) * P); // 투찰률 %p → 원
+  const won = (pp: number) => fmtWon(Math.round((Math.abs(pp) / 100) * P));
   const myRate = Number(me.rate);
-  let head: string | null = null;
-  let sub: string | null = null;
-  if (me.note === 1 && floor) {
-    const gap = floor - myRate;
-    head = `하한선보다 약 ${fmtWon(won(gap))} 낮아서 빠졌어요`;
-    sub = `내 투찰률 ${myRate.toFixed(3)}% · 하한선 약 ${floor.toFixed(3)}%${o.sajeong ? ` · 사정률이 ${o.sajeong}%로 나왔어요` : ''}`;
-  } else if (me.note === null && valid.length) {
-    const first = valid[0];
-    const idx = valid.findIndex((b) => b.me);
-    if (idx === 0) {
-      const second = valid[1];
-      head = second ? `2순위보다 ${fmtWon(won(Number(second.rate) - myRate))} 낮게 써서 1순위였어요` : '유효 투찰 중 가장 낮아 1순위였어요';
-      sub = floor ? `하한선과는 약 ${fmtWon(won(myRate - floor))} 차이` : null;
-    } else if (idx > 0) {
-      const gap = myRate - Number(first.rate);
-      head = `1순위보다 ${fmtWon(won(gap))} 높았어요`;
-      sub = `${fmtWon(won(gap))}만 낮게 썼다면 1순위였어요 · 그 사이에 ${idx - 1 > 0 ? `${idx - 1}곳` : '아무도 없었어요'}${idx - 1 > 0 ? '이 있었어요' : ''}`;
-    }
-  }
-  if (!head) return null;
+  const idx = valid.findIndex((b) => b.me);
+  const first = valid[0];
+  const second = valid[1];
+
+  // 한 줄: 무엇과 얼마 차이였나
+  let lead: string, amount: string, tail: string;
+  if (me.note === 1 && floor) { lead = '하한선까지'; amount = won(floor - myRate); tail = '모자랐어요'; }
+  else if (idx === 0 && second) { lead = '2순위보다'; amount = won(Number(second.rate) - myRate); tail = '낮게 써서 1순위'; }
+  else if (idx > 0 && first) { lead = '1순위와'; amount = won(myRate - Number(first.rate)); tail = '차이'; }
+  else return null;
+
+  // 위치 막대 — 하한선 · 다른 업체 · 1순위 · 우리 (투찰률 기준)
+  const pts = [myRate, Number(first?.rate ?? myRate), ...(floor ? [floor] : []), ...(second ? [Number(second.rate)] : [])];
+  const near = valid.slice(0, Math.max(idx + 1, 2) + 3).map((b) => Number(b.rate));
+  const lo = Math.min(...pts, ...near), hi = Math.max(...pts, ...near);
+  const pad = (hi - lo) * 0.12 || 0.01;
+  const xn = (r: number) => ((r - (lo - pad)) / (hi - lo + 2 * pad)) * 100;
+  const x = (r: number) => `${xn(r)}%`;
+  const firstIsMe = idx === 0;
+  // 하한선 이름이 1순위·우리 이름과 겹치면 막대 위로
+  const floorUp = !!floor && [first && !firstIsMe ? Number(first.rate) : null, myRate].some((r) => r != null && Math.abs(xn(r) - xn(floor)) < 14);
+
   return (
-    <section className="rounded-box bg-white px-5 py-4">
-      <p className="text-[13px] font-semibold text-brand">한 줄 복기</p>
-      <p className="mt-1 text-[17px] font-bold leading-snug">{head}</p>
-      {sub && <p className="mt-0.5 text-[14px] text-sub">{sub}</p>}
-      <p className="mt-2 text-[12px] text-mute">예정가격은 추첨으로 정해져 개찰 전엔 이 차이를 알 수 없어요. 다음 입찰의 정답이 아니라 이번 결과의 거리예요.</p>
+    <section className="rounded-box bg-white px-5 pb-5 pt-4">
+      <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">
+        복기
+        <Tip title="개찰 뒤에야 아는 거리예요">투찰률 차이에 예정가격을 곱한 금액이에요. 예정가격은 추첨이라 투찰 전엔 알 수 없어요. 다음 입찰의 정답이 아니에요.</Tip>
+      </p>
+      <p className="mt-1 text-[16px] text-sub">{lead} <b className="text-[24px] font-bold tracking-tight text-ink">{amount}</b> {tail}</p>
+
+      <div className="relative mt-7 h-10">
+        <div className="absolute inset-x-0 top-[9px] h-0.5 rounded-full bg-line" />
+        {floor && (
+          <span className="absolute top-0 -translate-x-1/2" style={{ left: x(floor) }}>
+            <span className="mx-auto block h-5 w-0.5 bg-bad/70" />
+            <span className={`block whitespace-nowrap text-[11px] text-bad ${floorUp ? 'absolute -top-5 left-1/2 -translate-x-1/2' : 'mt-1'}`}>하한선</span>
+          </span>
+        )}
+        {near.filter((r, i) => i !== idx && i !== 0).map((r, i) => (
+          <span key={i} className="absolute top-[6px] h-2 w-2 -translate-x-1/2 rounded-full bg-[#C9CED6]" style={{ left: x(r) }} />
+        ))}
+        {!firstIsMe && first && (
+          <span className="absolute top-[3px] -translate-x-1/2 text-center" style={{ left: x(Number(first.rate)) }}>
+            <span className="mx-auto block h-3.5 w-3.5 rounded-full bg-ink ring-2 ring-white" />
+            <span className="mt-1 block whitespace-nowrap text-[11px] text-sub">1순위</span>
+          </span>
+        )}
+        <span className="absolute top-[2px] -translate-x-1/2 text-center" style={{ left: x(myRate) }}>
+          <span className="mx-auto block h-4 w-4 rounded-full bg-brand ring-2 ring-white" />
+          <span className="mt-1 block whitespace-nowrap text-[11px] font-semibold text-brand">우리{me.rank ? ` ${me.rank}위` : ''}</span>
+        </span>
+      </div>
     </section>
   );
 }

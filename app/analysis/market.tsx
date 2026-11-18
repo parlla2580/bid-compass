@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/layout';
+import { Tip } from '@/components/tip';
 import { fmtDate, fmtShort } from '@/lib/format';
 import { fetchH2H, fetchMissed, fetchMyBidList, fetchMyMarket, fetchRivalWins, type H2H, type MarketCompetitor, type Missed, type MyMarket, type RivalWin } from '@/lib/analysis';
 import { bucketPhrase, winPattern, type WinPattern } from '@/lib/win-pattern';
@@ -91,9 +92,8 @@ export function MarketSection() {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-        <Card title="자주 만나는 회사와의 전적" aside={<span className="text-[13px] text-mute">순위 비교</span>}>
+        <Card title="자주 만나는 회사와의 전적" aside={<Tip title="순위 비교예요">둘 다 순위가 나온 공고에서 누가 앞섰는지예요. 낙찰은 추첨 영향이 커서 참고만 하세요. 회사를 누르면 이 시장에서 낙찰한 공고가 보여요.</Tip>}>
           {comps.length ? <Rivals comps={comps} market={seg} h2h={h2h} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">둘 다 순위가 나온 공고에서 누가 앞섰는지예요. 낙찰은 추첨 영향이 커서 참고만 하세요. 누르면 그 회사가 이 시장에서 낙찰한 공고를 볼 수 있어요.</p>
         </Card>
         <MissedCard d={missed} />
       </div>
@@ -104,12 +104,11 @@ export function MarketSection() {
           <Share market={m.market} />
         </Card>
 
-        <Card title="경쟁사가 가는 다른 시장" aside={<span className="text-[13px] text-mute">최근 1년</span>}>
+        <Card title="경쟁사가 가는 다른 시장" aside={<Tip title="최근 1년">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가 본 기관만 보여 드려요.</Tip>}>
           {m.other_markets?.length
             ? <Bars rows={m.other_markets.map((o) => { const open = openByOrg.get(o.org) ?? 0; return { label: `${o.org}`, tag: o.type, value: o.firms, sub: `공고 ${o.openings}건`, unit: '곳',
                 link: open ? { href: `/bids?tab=all&org=${encodeURIComponent(o.org)}`, label: `지금 낸 공고 ${open}건 보기` } : undefined }; })} />
             : <Empty text="아직 찾은 다른 시장이 없어요" />}
-          <p className="mt-3 text-[12px] leading-relaxed text-mute">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가 본 기관만 보여 드려요.</p>
         </Card>
 
         <Card title="새로 들어온 회사" aside={<span className="text-[13px] text-mute">최근 90일</span>}>
@@ -138,7 +137,9 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
   const h = wp.headline;
   return (
     <div className="rounded-box bg-white p-5 lg:p-6">
-      <p className="text-[13px] font-semibold text-brand">우리가 이기는 판</p>
+      <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">우리가 이기는 판
+        <Tip title="어떻게 계산했나요">결과가 나온 투찰 {wp.n}건을 조건별로 나눈 낙찰률이에요. 세로 선은 우리 평균({pct(wp.rate)})이고, 5건 미만인 구간은 뺐어요. 맨 위 문장은 차이가 뚜렷할 때만 보여 드려요.</Tip>
+      </p>
       {h ? (
         <div className="mt-1.5 flex gap-2.5">
           <Lightbulb className="mt-1 h-5 w-5 shrink-0 text-brand" />
@@ -146,7 +147,6 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
             <p className="text-[18px] font-bold leading-snug tracking-tight">
               <span className="text-brand">{bucketPhrase(h.key, h.hi.label)}</span> 공고에서 낙찰률 {pct(h.hi.rate)},<br className="sm:hidden" /> {bucketPhrase(h.key, h.lo.label)}에선 {pct(h.lo.rate)}
             </p>
-            <p className="mt-0.5 text-[13px] text-mute">{h.dim}별로 나눠 본 결과 · 각 {h.hi.n}건 · {h.lo.n}건</p>
             {h.hi.href && <Link href={h.hi.href} className="mt-2 inline-flex items-center text-[14px] font-semibold text-brand">지금 열린 {h.hi.label} 공고 보기<ChevronRight className="h-4 w-4" /></Link>}
           </div>
         </div>
@@ -179,7 +179,6 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
           </div>
         ))}
       </div>
-      <p className="mt-4 text-[12px] text-mute">세로 선은 우리 평균 낙찰률 {pct(wp.rate)}(결과가 나온 {wp.n}건)이에요. 5건 미만인 구간은 뺐어요.</p>
     </div>
   );
 }
@@ -191,16 +190,12 @@ function MissedCard({ d }: { d: Missed | null | undefined }) {
   const share = d.joined / d.total;
   return (
     <Card title="우리 시장인데 놓친 공고" aside={<span className="text-[13px] text-mute">최근 {d.days}일</span>}>
-      <p className="text-[15px] leading-relaxed text-sub">
-        우리 시장 공고 <b className="text-ink">{d.total.toLocaleString()}건</b> 중 들어간 건 <b className="text-ink">{d.joined.toLocaleString()}건({pct(share)})</b>이에요.
-      </p>
+      <p className="text-[15px] text-sub">들어간 공고 <b className="text-[22px] font-bold tracking-tight text-ink">{pct(share)}</b> <span className="text-[13px] text-mute">{d.joined.toLocaleString()} / {d.total.toLocaleString()}건</span></p>
       <div className="mt-2 flex h-2.5 gap-0.5 overflow-hidden rounded-full">
         <div className="bg-brand" style={{ width: `${share * 100}%` }} />
         <div className="flex-1 bg-fill" />
       </div>
-      {d.missed_avg_participants != null && d.joined_avg_participants != null && (
-        <p className="mt-2 text-[13px] text-mute">평균 참가 — 놓친 공고 {d.missed_avg_participants}곳 · 들어간 공고 {d.joined_avg_participants}곳</p>
-      )}
+
 
       {d.missed_orgs.length > 0 && (
         <>
