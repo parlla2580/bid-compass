@@ -9,7 +9,7 @@ import { SIZE_RANK, canonicalRegion, hasSigungu, splitLocation, type CompanySize
 
 export type Status = 'eligible' | 'check' | 'ineligible';
 export type RuleResult = 'pass' | 'check' | 'fail';
-export type RuleId = 'region' | 'industry' | 'size';
+export type RuleId = 'region' | 'industry' | 'size' | 'designated';
 
 /** '확인 필요'를 풀기 위해 사용자가 입력할 프로필 항목 */
 export type ProfileNeed = 'location' | 'sigungu' | 'industries' | 'size';
@@ -129,7 +129,17 @@ function sizeRule(n: Notice, p: Profile): Reason | null {
   return { rule, result: 'check', text: `${what}. 우리 회사는 ${p.size}라 참여가 어려울 수 있어요. 공고문 참가자격을 확인하세요` };
 }
 
-const RULES: ((n: Notice, p: Profile) => Reason | null)[] = [regionRule, industryRule, sizeRule];
+/**
+ * 지명경쟁 — 발주처가 지명한 업체만 투찰할 수 있음 (국가계약법 시행령 제23·24조, 2026-11-18 사용자 확인)
+ *  나라장터 공고 API에는 지명업체 목록이 없어(지명경쟁 여부 dsgntCmptYn만 있음) 우리 회사가 지명됐는지 알 수 없음
+ *  → '확인 필요'로 두고 공고문의 지명업체 목록을 보게 함. 맞춤 공고에는 들어가지 않음
+ */
+function designatedRule(n: Notice): Reason | null {
+  if (n.contract !== '지명경쟁') return null;
+  return { rule: 'designated', result: 'check', text: '지명경쟁 — 발주처가 지명한 업체만 참여할 수 있어요. 공고문의 지명업체 목록에 우리 회사가 있는지 확인하세요' };
+}
+
+const RULES: ((n: Notice, p: Profile) => Reason | null)[] = [designatedRule, regionRule, industryRule, sizeRule];
 
 export function judge(n: Notice, p: Profile): Judgment {
   const reasons = RULES.map((r) => r(n, p)).filter((r): r is Reason => !!r);
