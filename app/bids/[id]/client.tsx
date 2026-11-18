@@ -20,6 +20,7 @@ import { prepareHistory, similarity } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
 import { productMatch } from '@/lib/match';
 import { useSeen } from '@/lib/seen';
+import { awardInfo as awardBadge, awardTone } from '@/lib/award';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
 
@@ -173,6 +174,7 @@ function SignupGate({ onSignup }: { onSignup: () => void }) {
 
 /* ---------- 상단 요약: 제목 + 큰 숫자 ---------- */
 function Hero({ n }: { n: Notice }) {
+  const award = awardBadge(n.award);
   const stats = [
     { k: '마감까지', v: dday(n.d), tone: n.d >= 0 && n.d <= 3 ? 'text-bad' : 'text-ink', sub: fmtDateTime(n.closesAt) },
     { k: '추정가격', v: n.estPrice ? `${fmtShort(n.estPrice)}원` : '미공개', tone: 'text-ink', sub: n.estPrice ? fmtWon(n.estPrice) : '공고에서 공개하지 않음' },
@@ -183,6 +185,12 @@ function Hero({ n }: { n: Notice }) {
     <section className="pt-1">
       <p className="text-[14px] text-mute">{n.type} · {n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org}{n.isNew && <span className="ml-1.5 font-semibold text-brand">새 공고</span>}</p>
       <h1 className="mt-1.5 text-[22px] font-bold leading-[1.4] tracking-[-0.01em] lg:text-[28px]">{n.title}</h1>
+      {award && (
+        <p className="mt-2 flex items-start gap-2 text-[14px] text-sub">
+          <span className={`shrink-0 rounded px-1.5 py-px text-[13px] font-semibold ${awardTone(award.kind)}`}>{award.label}</span>
+          <span>{award.desc}</span>
+        </p>
+      )}
       <div className="mt-5 grid grid-cols-2 gap-2 lg:mt-6 lg:grid-cols-4 lg:gap-3">
         {stats.map((s) => (
           <div key={s.k} className={`rounded-box bg-white px-4 py-4 lg:px-5 ${s.desk ? 'hidden lg:block' : ''}`}>

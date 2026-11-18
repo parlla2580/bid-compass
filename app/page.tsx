@@ -9,23 +9,29 @@ import { profileSummary } from '@/components/ui';
 import { fmtDate, weekdayKo, withEulReul } from '@/lib/format';
 import { NEED_LABEL, topNeed } from '@/lib/needs';
 import { useJudged, useStore } from '@/lib/store';
+import { useSeen } from '@/lib/seen';
 
 /** S2. 홈 — 오늘의 요약만. 공고 목록은 '공고' 탭 한 곳에서 */
 export default function HomePage() {
   const ready = useRequireStart();
   const { profile, saved, notices } = useStore();
   const judged = useJudged();
+  const { isSeen, isFresh, prevMark } = useSeen();
   if (!ready) return <Shell wide><Header /></Shell>;
 
   const now = new Date();
   const matched = (judged ?? []).filter((j) => j.matched);
   const newMatched = matched.filter((j) => j.notice.isNew).length;
+  // 지난번 공고 목록을 확인한 뒤 새로 들어온 맞춤 공고 (안 연 것만) — lib/seen
+  const freshMatched = prevMark === null ? null : matched.filter((j) => isFresh(j.notice.id) && !isSeen(j.notice.id)).length;
   const soon = (judged ?? []).filter((j) => saved.includes(j.notice.id) && j.notice.d >= 0 && j.notice.d <= 3).sort((a, b) => a.notice.d - b.notice.d);
   const need = topNeed(judged);
 
   const stats = [
     { href: '/bids', label: '맞춤 공고', value: judged ? matched.length : null, tone: 'text-brand' },
-    { href: '/bids?sort=latest', label: '오늘 새로 나온', value: judged ? newMatched : null, tone: 'text-ink' },
+    freshMatched !== null
+      ? { href: '/bids?new=1', label: '지난번 이후 새로', value: judged ? freshMatched : null, tone: freshMatched ? 'text-brand' : 'text-ink' }
+      : { href: '/bids?sort=latest', label: '오늘 새로 나온', value: judged ? newMatched : null, tone: 'text-ink' },
     { href: '/bids?tab=saved', label: '저장·마감 임박', value: judged ? soon.length : null, tone: soon.length ? 'text-bad' : 'text-ink' },
   ];
 
@@ -45,6 +51,14 @@ export default function HomePage() {
 
         {/* 기한 2일 이하 '해야 할 일'만 한 줄 — 전체는 알림함(🔔) (기획 16장 A1) */}
         <UrgentStrip />
+
+        {/* 지난번 확인 이후 새 맞춤 공고 — 한 번 눌러 새 것만 보기 (2026-11-18) */}
+        {!!freshMatched && (
+          <Link href="/bids?new=1" className="mt-4 flex items-center gap-3 rounded-box bg-brand px-5 py-4 text-white transition hover:bg-brand/90">
+            <span className="min-w-0 flex-1 text-[15px]">지난번 확인한 뒤 <b className="font-bold">맞춤 공고 {freshMatched.toLocaleString()}건</b>이 새로 들어왔어요</span>
+            <span className="flex shrink-0 items-center text-[14px] font-semibold">이어서 보기<ChevronRight className="h-4 w-4" /></span>
+          </Link>
+        )}
 
         <section aria-label="요약" className="mt-5 grid grid-cols-3 gap-2 lg:gap-3">
           {stats.map((s) => (

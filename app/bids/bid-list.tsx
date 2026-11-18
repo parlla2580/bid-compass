@@ -14,6 +14,7 @@ import { STATUS_LABEL, type Status } from '@/lib/judge';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useJudged, useStore, type Judged } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
+import { AWARD_GROUPS, awardInfo } from '@/lib/award';
 import { HIST_STRONG } from '@/lib/fit';
 import { SoonList, useSoon } from './soon';
 import { Tip } from '@/components/tip';
@@ -59,12 +60,13 @@ function buildGroups(notices: Notice[]): Group[] {
       ['7일 이내', (n) => n.d <= 7],
       ['8일 이상', (n) => n.d > 7],
     ] },
+    { key: 'award', label: '무엇으로 겨루나', options: AWARD_GROUPS.map((g): [string, Pred] => [g.label, (n) => { const a = awardInfo(n.award); return !!a && g.kinds.includes(a.kind); }]) },
     { key: 'contract', label: '계약방식', options: contracts.map((c): [string, Pred] => [c, (n) => n.contract === c]) },
   ];
 }
 
 type Filters = Record<string, string | null>;
-const EMPTY: Filters = { status: null, type: null, region: null, price: null, deadline: null, contract: null };
+const EMPTY: Filters = { status: null, type: null, region: null, price: null, deadline: null, award: null, contract: null };
 const PAGE = 30;
 
 /** 분석의 기관 기준과 같게 — 수요기관이 있으면 수요기관 */
@@ -100,7 +102,8 @@ export default function BidList() {
   // '안 본 공고만'을 켠 순간의 열어 본 공고 — 켠 뒤에 연 공고가 목록에서 바로 사라지지 않게
   const [hideIds, setHideIds] = useState<Set<number> | null>(null);
   const unseenOnly = hideIds !== null;
-  const [freshOnly, setFreshOnly] = useState(false);
+  // 홈 '이어서 보기'에서 ?new=1 로 들어오면 새 공고만
+  const [freshOnly, setFreshOnly] = useState(params.get('new') === '1');
   const setUnseenOnly = (on: boolean) => setHideIds(on ? new Set((judged ?? []).filter((j) => seen.isSeen(j.notice.id)).map((j) => j.notice.id)) : null);
   const maxId = useMemo(() => (notices ?? []).reduce((m, n) => Math.max(m, n.id), 0), [notices]);
   const { visitList } = seen;

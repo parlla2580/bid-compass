@@ -5,6 +5,7 @@ import type { Notice } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import type { Judged } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
+import { awardInfo, awardTone } from '@/lib/award';
 import { STATUS_STYLE } from './ui';
 
 /*
@@ -29,6 +30,7 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   const { isSeen, isFresh, markSeen } = useSeen();
   const seen = isSeen(n.id);
   const fresh = !seen && (isFresh(n.id) ?? n.isNew);
+  const award = awardInfo(n.award);
   const body = (
     <>
       {lead !== 'none' && (
@@ -45,7 +47,10 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
             {seen && <span className="sr-only">열어 본 공고, </span>}{n.title}
           </span>
         </span>
-        <span className="mt-1 block truncate text-[13px] text-mute">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org} · {n.type}</span>
+        <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-mute">
+          {award && <span className={`shrink-0 rounded px-1.5 py-px text-[12px] font-medium ${awardTone(award.kind)}`} title={award.desc}>{award.label}</span>}
+          <span className="truncate">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org} · {n.type}</span>
+        </span>
       </span>
       <span className="shrink-0 text-right">
         <span className="block text-[15px] font-semibold tabular-nums">{n.estPrice ? `${fmtShort(n.estPrice)}` : <span className="text-[13px] font-normal text-mute">미공개</span>}</span>
