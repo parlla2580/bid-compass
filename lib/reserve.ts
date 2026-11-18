@@ -53,7 +53,16 @@ export const quantile = (sorted: number[], q: number) =>
   sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))] : 100;
 
 /* ---------- 되돌려보기: 과거 개찰에 이 사정률로 썼다면 (Supabase 함수, 006) ---------- */
-export interface Backtest { n: number; below: number; first: number; top3: number }
+/** luck: 아무 데나 썼을 때 기대 1순위 수 (027 이후) */
+export interface Backtest { n: number; below: number; first: number; top3: number; luck?: number }
+export interface BacktestCurve { n: number; luck: number; points: { s: number; first: number; top3: number; below: number }[] }
+
+/** 사정률별 1순위·3위 안·하한 미달 (027) — 실행 전이면 null */
+export async function fetchBacktestCurve(type: BidType, floor: number, from = 98, to = 102, step = 0.25): Promise<BacktestCurve | null> {
+  const { data, error } = await getSupabase().rpc('bid_backtest_curve', { p_type: type, p_floor: floor, p_from: from, p_to: to, p_step: step });
+  if (error) return null;
+  return data as BacktestCurve;
+}
 
 export async function fetchBacktest(type: BidType, sajeong: number, floor: number): Promise<Backtest | null> {
   const { data, error } = await getSupabase().rpc('bid_backtest', { p_type: type, p_sajeong: sajeong, p_floor: floor });
