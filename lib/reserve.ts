@@ -65,7 +65,7 @@ export async function fetchBacktestCurve(type: BidType, floor: number, from = 98
 }
 
 export async function fetchBacktest(type: BidType, sajeong: number, floor: number): Promise<Backtest | null> {
-  const { data, error } = await getSupabase().rpc('bid_backtest', { p_type: type, p_sajeong: sajeong, p_floor: floor });
+  const { data, error } = await getSupabase().rpc('bid_backtest', { p_type: type, p_sajeong: sajeong, p_floor: floor, p_limit: 1000 });
   if (error) return null; // 006 실행 전이거나 오류 — 화면에서 숨김
   return data as Backtest;
 }

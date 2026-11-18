@@ -252,7 +252,9 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
         )}
       </div>
 
-      <div className="rounded-box bg-white p-5 lg:sticky lg:top-6 lg:row-span-2 lg:p-6">
+      {/* 감싸는 칸이 두 줄만 차지 → 결과 카드가 아래 사정률 패널 위로 겹쳐 따라오지 않게 */}
+      <div className="lg:row-span-2">
+      <div className="rounded-box bg-white p-5 lg:sticky lg:top-6 lg:p-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-[17px] font-bold">계산 결과</h2>
           {verified
@@ -285,6 +287,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {bid !== null && bid > 0 && <p className="text-right text-[12px] text-mute">검은 선: 내 투찰금액</p>}
         </div>
         </>}
+      </div>
       </div>
 
       {B > 0 && rate && !noDraw ? (

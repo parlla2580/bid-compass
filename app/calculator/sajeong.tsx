@@ -7,6 +7,7 @@ import { Tip } from '@/components/tip';
 import type { BidType } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
 import { bidAmount } from './rules';
+import { BacktestCurveChart } from './backtest-curve';
 import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type SajeongDist } from '@/lib/reserve';
 
 /*
@@ -19,7 +20,7 @@ import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type Saj
 const STRATEGIES = [
   { key: 'safe', label: '안정형', q: 0.85, desc: '하한 미달 위험이 낮은 대신 금액이 높아요' },
   { key: 'mid', label: '중심형', q: 0.5, desc: '가장 흔한 사정률에 맞춰요' },
-  { key: 'bold', label: '공격형', q: 0.3, desc: '금액을 낮춰 1순위를 노리지만 미달 위험이 커요' },
+  { key: 'bold', label: '공격형', q: 0.3, desc: '금액이 낮은 대신 하한 미달 위험이 커요' },
 ] as const;
 
 const BIN = 0.25;
@@ -125,6 +126,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
               })}
             </div>
             <p className="mt-2 text-[13px] text-mute">{STRATEGIES.find((st) => Math.abs(Math.round(quantile(sorted, st.q) * 100) / 100 - cur) < 0.005)?.desc ?? '슬라이더로 직접 골랐어요'}</p>
+            {floor > 0 && <BacktestCurveChart type={type} floor={floor} R={R} lo={lo} hi={hi} cur={cur} />}
           </div>
 
           {/* 결과 */}
