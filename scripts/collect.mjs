@@ -114,16 +114,36 @@ async function call(url) {
   }
 }
 
-async function fetchAll(base, params) {
+const MAX_PAGES = 50;
+class TooMany extends Error {}
+
+/** 페이지를 이어 받음. 전체 건수가 50쪽(49,950건)을 넘으면 strict일 때 첫 쪽에서 TooMany, 아니면 잘린다고 경고 */
+async function fetchAll(base, params, { strict = false } = {}) {
   const out = [];
-  for (let page = 1; page <= 50; page++) {
+  let total = 0;
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const qs = new URLSearchParams({ serviceKey: KEY, pageNo: page, numOfRows: ROWS, type: 'json', ...params });
     const body = await call(`${base}?${qs}`);
+    total = Number(body.totalCount ?? 0);
+    if (page === 1 && strict && total > MAX_PAGES * ROWS) throw new TooMany(String(total));
     const items = body.items ?? [];
     out.push(...(Array.isArray(items) ? items : items.item ? [].concat(items.item) : []));
-    if (out.length >= Number(body.totalCount ?? 0) || !items.length) break;
+    if (out.length >= total || !items.length) break;
   }
+  if (total > out.length + ROWS) console.log(`  ⚠ ${base.split('/').pop()}: ${total}건 중 ${out.length}건만 받음 (페이지 상한)`);
   return out;
+}
+
+/** 구간이 너무 크면(50쪽 초과) 반으로 나눠 받음 — 하루치 계약 세부 물품이 5만 행을 넘는 날이 있음 (2026-11-18 확인) */
+async function fetchAllSplit(base, extra, from, to) {
+  try {
+    return await fetchAll(base, { ...extra, inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) }, { strict: to - from > 3600e3 });
+  } catch (e) {
+    if (!(e instanceof TooMany)) throw e;
+    const mid = new Date(from.getTime() + Math.round((to - from) / 2 / 3600e3) * 3600e3);
+    console.log(`  ${base.split('/').pop()}: ${e.message}건이라 ${ymdhm(from)}~${ymdhm(mid)}~${ymdhm(to)}로 나눠 받음`);
+    return [...await fetchAllSplit(base, extra, from, mid), ...await fetchAllSplit(base, extra, mid, to)];
+  }
 }
 
 /* ---------- 공고 ---------- */
@@ -341,11 +361,10 @@ const LINE_OPS = [
 ];
 
 async function collectContractLines(from, to, dateOf, alias = new Map()) {
-  const period = { inqryDiv: '1', inqryBgnDt: ymdhm(from), inqryEndDt: ymdhm(to) };
   const rows = new Map();
   for (const l of LINE_OPS) {
     try {
-      const items = await fetchAll(`${CNT}/${l.op}`, period);
+      const items = await fetchAllSplit(`${CNT}/${l.op}`, { inqryDiv: '1' }, from, to);
       for (const it of items) {
         if (!it.untyCntrctNo) continue;
         const id = alias.get(it.untyCntrctNo) ?? it.untyCntrctNo;
