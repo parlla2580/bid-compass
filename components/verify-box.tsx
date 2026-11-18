@@ -1,9 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { useToast } from './feedback';
 import { INPUT_CLS } from './ui';
-import { verifyCompany } from '@/lib/verify-client';
+import { clearMyVerification, fetchMyVerification, verifyCompany, type MyVerification } from '@/lib/verify-client';
+
+/**
+ * 회사 확인 상태 — 서버 기록(입찰 분석이 열리는 기준)을 그대로 보여 줌 (2026-11-18)
+ *  예전엔 이 기기의 업체명으로 판단해, 서버는 확인됨인데 마이페이지는 '회사 확인하기'를 보여 주는 일이 있었음
+ *  확인됨이면 업체명·확인일 + '확인 해제'(029), 아니면 대표자명 입력
+ */
+export function VerifyStatus({ bizno, onVerified, onCleared }: {
+  bizno: string; onVerified: (corpName: string) => void; onCleared?: () => void;
+}) {
+  const toast = useToast();
+  const [v, setV] = useState<MyVerification | null | undefined>(undefined);
+  useEffect(() => { fetchMyVerification().then(setV).catch(() => setV(null)); }, [bizno]);
+  const same = !!v && v.bizno.replace(/\D/g, '') === bizno.replace(/\D/g, '');
+  if (v === undefined) return null;
+  if (!same) return <VerifyBox bizno={bizno} onVerified={(c) => { onVerified(c); fetchMyVerification().then(setV).catch(() => {}); }} />;
+  const clear = async () => {
+    if (!window.confirm('회사 확인을 해제할까요? 입찰 분석을 보려면 대표자명으로 다시 확인해야 해요.')) return;
+    if (await clearMyVerification()) { setV(null); onCleared?.(); toast('회사 확인을 해제했어요'); }
+    else toast('해제하지 못했어요. 잠시 뒤 다시 해 주세요');
+  };
+  return (
+    <div className="mt-4 flex items-start gap-3 rounded-2xl bg-fill p-4 text-[14px]">
+      <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-ok" />
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold text-ink">회사 확인됨 · {v!.corpName}</p>
+        <p className="mt-0.5 text-[13px] text-mute">{new Date(v!.verifiedAt).toLocaleDateString('ko-KR')} 확인 · 이 회사의 입찰 기록으로 분석해요</p>
+      </div>
+      <button type="button" onClick={clear} className="shrink-0 text-[13px] font-medium text-sub underline underline-offset-2">확인 해제</button>
+    </div>
+  );
+}
 
 /**
  * 회사 확인하기 — 대표자명을 나라장터와 대조, 서버가 확인을 기록해야 입찰 분석이 열림 (016)

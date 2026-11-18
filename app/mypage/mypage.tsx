@@ -8,7 +8,7 @@ import { Sheet, useToast } from '@/components/feedback';
 import { useRequireStart } from '@/components/layout';
 import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, ProductPicker, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
-import { VerifyBox } from '@/components/verify-box';
+import { VerifyStatus } from '@/components/verify-box';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
 import { SIZES, hasSigungu, keywordHit, type BidType, type Keywords, type Notice, type Product, type Profile } from '@/lib/data';
 import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
@@ -87,7 +87,7 @@ export default function MyPage() {
           ))}
         </dl>
         <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
-        {account && profile.bizno && !profile.corpName && <VerifyBox bizno={profile.bizno} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} />}
+        {account && profile.bizno && <VerifyStatus bizno={profile.bizno} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} />}
       </section>
 
       {/* 매칭 선호도 */}

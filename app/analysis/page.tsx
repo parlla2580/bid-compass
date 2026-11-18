@@ -98,13 +98,12 @@ export default function AnalysisPage() {
           <>
             {/* 한눈에: 낙찰률 도넛 + 핵심 숫자 */}
             <section className="grid gap-3 rounded-box bg-white p-5 lg:grid-cols-[220px_1fr] lg:items-center lg:gap-8 lg:p-7">
-              {/* 낙찰률은 투찰 순위를 받은 개찰 기준 (012). 012 실행 전이면 전체 기준 */}
-              {r.won_detailed !== undefined && r.detailed ? (
-                <div>
-                  <Donut value={r.won_detailed / r.detailed} label="낙찰률" />
-                  <p className="mt-1 text-center text-[12px] text-mute">투찰 순위를 받은 {r.detailed}건 기준{r.pending ? ` · 결정 전 ${r.pending}건 제외` : ''}</p>
-                </div>
-              ) : <Donut value={total ? won / total : 0} label="낙찰률" />}
+              {/* 낙찰률 = 낙찰 ÷ 결과가 난 투찰(투찰 − 결정 전) — 화면의 투찰·낙찰 숫자로 바로 검산되게 (2026-11-18 사용자 피드백)
+                  예전(012)엔 '투찰 순위를 받은 개찰'만 분모로 써서, 순위 없이 끝난 탈락 18건이 빠져 71%로 부풀려졌음 */}
+              <div>
+                <Donut value={total - (r.pending ?? 0) > 0 ? won / (total - (r.pending ?? 0)) : 0} label="낙찰률" />
+                <p className="mt-1 text-center text-[12px] text-mute">결과가 나온 {(total - (r.pending ?? 0)).toLocaleString()}건 중 낙찰 {won.toLocaleString()}건{r.pending ? ` · 결정 전 ${r.pending}건 제외` : ''}</p>
+              </div>
               <div>
                 <div className="grid grid-cols-3 gap-2">
                   <Mini label="투찰" value={total.toLocaleString()} unit="건" />
