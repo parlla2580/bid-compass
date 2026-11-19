@@ -34,7 +34,25 @@ export default function MyPage() {
   useEffect(() => {
     const edit = params.get('edit');
     if (edit === 'company' || edit === 'prefs') setSheet(edit);
-  }, [params]);
+    // 사이드바·상단바의 '가입하기' / '회사 확인'에서 들어옴
+    if (params.get('signup') === '1' && !account) setSignup(true);
+    // 회사 확인 상자는 서버 기록을 받은 뒤 그려지므로, 나타날 때까지 기다렸다가 이동·포커스 (최대 4초)
+    if (params.get('verify') === '1') {
+      let n = 0;
+      const t = setInterval(() => {
+        const el = document.getElementById('verify');
+        const input = el?.querySelector('input');
+        if (el && (input || el.childElementCount)) {
+          clearInterval(t);
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          input?.focus({ preventScroll: true });
+          el.classList.add('ring-2', 'ring-brand/40', 'rounded-2xl');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-brand/40'), 2000);
+        } else if (++n > 20) clearInterval(t);
+      }, 200);
+      return () => clearInterval(t);
+    }
+  }, [params, account]);
 
   // 저장 공고 — 마감된 공고도 보여야 하므로 id로 따로 불러옴
   useEffect(() => {
@@ -69,7 +87,12 @@ export default function MyPage() {
         <h1 className="text-[24px] font-bold tracking-tight lg:text-[28px]">마이페이지</h1>
         {account
           ? <span className="truncate text-sm text-mute">{account.email}</span>
-          : <button type="button" onClick={() => setSignup(true)} className="flex items-center gap-1 text-sm font-bold text-primary"><LogIn className="h-4 w-4" />이메일로 가입</button>}
+          : (
+            <span className="flex items-center gap-2">
+              <Link href="/login" className="flex h-9 items-center gap-1 rounded-full bg-ink px-3.5 text-[14px] font-semibold text-white"><LogIn className="h-4 w-4" />로그인</Link>
+              <button type="button" onClick={() => setSignup(true)} className="h-9 rounded-full bg-white px-3.5 text-[14px] font-semibold text-sub">가입</button>
+            </span>
+          )}
       </div>
 
       {/* 기업 정보 */}
@@ -87,7 +110,7 @@ export default function MyPage() {
           ))}
         </dl>
         <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
-        {account && profile.bizno && <VerifyStatus bizno={profile.bizno} corpName={profile.corpName} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} />}
+        {account && profile.bizno && <div id="verify" className="scroll-mt-24"><VerifyStatus bizno={profile.bizno} corpName={profile.corpName} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} /></div>}
       </section>
 
       {/* 매칭 선호도 */}

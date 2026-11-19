@@ -46,7 +46,7 @@ export function VerifyStatus({ bizno, corpName, onVerified, onCleared }: {
  * 회사 확인하기 — 대표자명을 나라장터와 대조, 서버가 확인을 기록해야 입찰 분석이 열림 (016)
  * 가입에는 대표자명이 필요 없고(2026-11-16 초심자 점검), 입찰 분석을 쓸 때 여기서 확인
  */
-export function VerifyBox({ bizno, onVerified, title = '회사 확인하기', className = 'mt-4' }: {
+export function VerifyBox({ bizno, onVerified, title = '회사 확인', className = 'mt-4' }: {
   bizno: string; onVerified: (corpName: string) => void; title?: string; className?: string;
 }) {
   const toast = useToast();
@@ -72,7 +72,7 @@ export function VerifyBox({ bizno, onVerified, title = '회사 확인하기', cl
   return (
     <div className={`rounded-2xl bg-brand-soft p-4 text-left ${className}`}>
       <p className="text-[14px] font-semibold">{title}</p>
-      <p className="mt-0.5 text-[13px] text-sub">사업자등록증의 대표자명을 나라장터 정보와 맞춰 보면 우리 회사 입찰 기록을 찾아 드려요. 대표자명은 저장하지 않아요.</p>
+      <p className="mt-0.5 text-[13px] text-sub">나라장터 등록 대표자명과 대조 · 확인되면 입찰 분석 열림 · 대표자명은 저장 안 함</p>
       <div className="mt-2.5 flex gap-2">
         <input value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="대표자명" aria-label="대표자명" className={`${INPUT_CLS} flex-1`} />
         <button type="button" onClick={run} disabled={busy || ceo.trim().length < 2}

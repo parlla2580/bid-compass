@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Bell, Calculator, CircleUserRound, Compass, FileText, House } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
 import { useInbox } from '@/lib/inbox';
@@ -46,9 +46,21 @@ function useCorpName() {
   return account && profile.corpName ? profile.corpName : null;
 }
 
+/**
+ * 계정 상태 — 로그인 전 / 회사 확인 전 / 확인됨 (2026-11-18 사용자: 로그인·회사 확인 위치가 눈에 띄지 않음)
+ *  로그인 버튼은 가입 시트 맨 아래 작은 글씨에만 있었고, 회사 확인은 마이페이지 기업 정보 카드 맨 아래에 있었음
+ */
+function useAccountState(): 'guest' | 'unverified' | 'verified' {
+  const { account, loaded } = useStore();
+  const corp = useCorpName();
+  if (!loaded || !account) return 'guest';
+  return corp ? 'verified' : 'unverified';
+}
+
 function SideMenu() {
   const path = usePathname();
   const corp = useCorpName();
+  const state = useAccountState();
   const item = (on: boolean) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-semibold transition ${on ? 'bg-fill text-ink' : 'text-mute hover:bg-fill hover:text-sub'}`;
   return (
@@ -65,13 +77,28 @@ function SideMenu() {
         })}
         <BellLink desk />
       </nav>
-      <Link href="/mypage" className={`mt-auto ${item(path.startsWith('/mypage'))}`}>
-        <CircleUserRound className="h-5 w-5 shrink-0" />
-        <span className="min-w-0">
-          <span className="block">마이페이지</span>
-          {corp && <span className="block truncate text-[13px] font-medium text-mute">{corp}</span>}
-        </span>
-      </Link>
+      <div className="mt-auto space-y-2">
+        {state === 'guest' && (
+          <div className="rounded-2xl bg-fill p-3">
+            <Link href="/login" className="flex h-10 items-center justify-center gap-1.5 rounded-btn bg-ink text-[14px] font-semibold text-white hover:bg-ink/90">
+              <LogIn className="h-4 w-4" />로그인
+            </Link>
+            <Link href="/mypage?signup=1" className="mt-1.5 block py-1 text-center text-[13px] font-medium text-sub hover:text-ink">처음이면 가입하기</Link>
+          </div>
+        )}
+        {state === 'unverified' && (
+          <Link href="/mypage?verify=1" className="flex items-center gap-2 rounded-2xl bg-[#FFF4E5] px-3 py-2.5 text-[14px] font-semibold text-[#B45309] hover:brightness-[.98]">
+            <ShieldAlert className="h-[18px] w-[18px] shrink-0" /><span className="flex-1">회사 확인</span><ChevronRight className="h-4 w-4" />
+          </Link>
+        )}
+        <Link href="/mypage" className={item(path.startsWith('/mypage'))}>
+          <CircleUserRound className="h-5 w-5 shrink-0" />
+          <span className="min-w-0">
+            <span className="block">마이페이지</span>
+            {corp && <span className="block truncate text-[13px] font-medium text-mute">{corp}</span>}
+          </span>
+        </Link>
+      </div>
     </aside>
   );
 }
@@ -100,10 +127,17 @@ function BellLink({ desk = false }: { desk?: boolean }) {
 
 function ProfileLink() {
   const corp = useCorpName();
+  const state = useAccountState();
+  if (state === 'guest') {
+    return (
+      <Link href="/login" className="ml-1 flex h-9 items-center rounded-full bg-ink px-3.5 text-[14px] font-semibold text-white active:scale-[.98]">로그인</Link>
+    );
+  }
   return (
-    <Link href="/mypage" aria-label={corp ? `마이페이지 (${corp})` : '마이페이지'}
+    <Link href={state === 'unverified' ? '/mypage?verify=1' : '/mypage'} aria-label={corp ? `마이페이지 (${corp})` : state === 'unverified' ? '회사 확인 필요' : '마이페이지'}
       className="flex h-10 max-w-[55vw] items-center gap-1.5 rounded-full px-2 text-sub active:bg-fill">
       {corp && <span className="truncate text-[14px] font-semibold">{corp}</span>}
+      {state === 'unverified' && <span className="rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[12px] font-semibold text-[#B45309]">회사 확인</span>}
       <CircleUserRound className="h-6 w-6 shrink-0" />
     </Link>
   );
