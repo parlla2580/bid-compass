@@ -13,7 +13,7 @@ import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcom
 import { MarketSection } from './market';
 import { PeersCard } from './peers';
 import { SalesSection } from './sales';
-import { fmtDate } from '@/lib/format';
+import { fmtDate, fmtRate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
 
@@ -120,7 +120,7 @@ export default function AnalysisPage() {
                   <Mini label="하한 미달" value={(r.below_floor ?? 0).toLocaleString()} unit="건" tone={r.below_floor ? 'text-bad' : 'text-ink'} />
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-2 text-[14px]">
-                  <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">평균 투찰률</dt><dd className="mt-0.5 font-semibold">{r.avg_rate ? `${r.avg_rate}%` : '–'}</dd></div>
+                  <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">평균 투찰률</dt><dd className="mt-0.5 font-semibold">{r.avg_rate ? fmtRate(r.avg_rate) : '–'}</dd></div>
                   <div className="rounded-2xl bg-fill px-4 py-3"><dt className="text-[12px] text-mute">참여 공고 평균 경쟁</dt><dd className="mt-0.5 font-semibold">{r.avg_participants ? `${r.avg_participants.toLocaleString()}개사` : '–'}</dd></div>
                 </dl>
                 <Coverage total={total} detailed={r.detailed} />
@@ -162,7 +162,7 @@ export default function AnalysisPage() {
                         <Link href={`/analysis/${m.id}`} className="flex items-center gap-2 py-3 hover:bg-fill/60">
                           <span className="min-w-0 flex-1">
                             <span className="line-clamp-1 block text-[15px] font-medium">{m.title}</span>
-                            <span className="mt-0.5 block text-[13px] text-mute">{m.org ?? ''} · {fmtDate(new Date(m.opened_at))} · 투찰률 {m.rate}%</span>
+                            <span className="mt-0.5 block text-[13px] text-mute">{m.org ?? ''} · {fmtDate(new Date(m.opened_at))} · 투찰률 {fmtRate(m.rate)}</span>
                           </span>
                           <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
                         </Link>
@@ -374,7 +374,7 @@ function MonthlyCard() {
     const now = new Date();
     const list = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-      return { key: `${d.getFullYear()}-${d.getMonth()}`, label: `${d.getMonth() + 1}월`, total: 0, won: 0 };
+      return { key: `${d.getFullYear()}-${d.getMonth()}`, label: `${d.getMonth() + 1}`, total: 0, won: 0 };
     });
     const idx = new Map(list.map((m, i) => [m.key, i]));
     for (const h of history) {
@@ -397,7 +397,7 @@ function MonthlyCard() {
             <div className="relative w-full max-w-[36px] rounded-t-md bg-line" style={{ height: `${(m.total / max) * 100}%` }}>
               <div className="absolute inset-x-0 bottom-0 rounded-t-md bg-brand" style={{ height: m.total ? `${(m.won / m.total) * 100}%` : 0 }} />
             </div>
-            <span className="text-[11px] text-mute">{m.label}</span>
+            <span className="whitespace-nowrap text-[11px] tabular-nums text-mute">{m.label}</span>
           </div>
         ))}
       </div>
@@ -416,7 +416,7 @@ function GapBars({ items }: { items: NearMiss[] }) {
           <p className="shrink-0 text-[15px] font-semibold tabular-nums text-warn">{m.gap}%p</p>
         </Link>
         <div className="mt-1.5 h-1.5 rounded-full bg-fill"><div className="h-1.5 rounded-full bg-warn/70" style={{ width: `${(Number(m.gap) / max) * 100}%` }} /></div>
-        <p className="mt-1 text-[12px] text-mute">{m.rank}위{m.participants ? `/${m.participants}개사` : ''} · 내 {m.rate}% · 1순위 {m.first_rate}% · {fmtDate(new Date(m.opened_at))}</p>
+        <p className="mt-1 text-[12px] text-mute">{m.rank}위{m.participants ? `/${m.participants}개사` : ''} · 내 {fmtRate(m.rate)} · 1순위 {fmtRate(m.first_rate)} · {fmtDate(new Date(m.opened_at))}</p>
       </li>
     )} />
   );
@@ -474,7 +474,7 @@ function HistoryCard() {
                     <span className="line-clamp-1 block text-[15px] font-medium">{i.title}</span>
                     <span className="mt-0.5 block truncate text-[12px] text-mute">{i.org ?? ''} · {fmtDate(new Date(i.opened_at))}{i.participants ? ` · ${i.participants}곳 참가` : ''}{!i.won && i.winner ? ` · 낙찰 ${i.winner}` : ''}</span>
                   </span>
-                  <span className="shrink-0 text-right text-[13px] tabular-nums text-sub">{i.rate ? `${i.rate}%` : ''}</span>
+                  <span className="shrink-0 text-right text-[13px] tabular-nums text-sub">{i.rate ? fmtRate(i.rate) : ''}</span>
                   <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
                 </Link>
               </li>

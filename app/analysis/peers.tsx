@@ -12,12 +12,23 @@ import { fetchPeers, type Peers } from '@/lib/analysis';
  *  화면: 낙찰률 순위(상위 ○%) 하나 + 분포 막대(가운데 50%·중앙·우리) + 투찰 건수 비교
  */
 
-const pct = (v: number) => `${Math.round(v * 100)}%`;
+// 10% 미만은 소수 한 자리 — 공사처럼 경쟁사 낙찰률이 0.2% 수준이면 '0%'로 뭉개짐 (2026-11-22 전체 테스트)
+const pct = (v: number) => (v < 0.1 ? `${(Math.round(v * 1000) / 10).toFixed(1)}%` : `${Math.round(v * 100)}%`);
+/** 우리 결과가 이보다 적으면 순위를 내지 않음 (5건 중 0건으로 '상위 55%'가 나오던 문제) */
+const MIN_MINE = 10;
 
 export function PeersCard() {
   const [p, setP] = useState<Peers | null | undefined>(undefined);
   useEffect(() => { fetchPeers(12).then(setP).catch(() => setP(null)); }, []);
   if (!p || !p.enough || !p.rate || p.below == null || p.me?.rate == null) return null;
+  if (p.me.settled < MIN_MINE) {
+    return (
+      <Card title="업계 비교" aside={<span className="text-[13px] text-mute">경쟁사 {p.n.toLocaleString()}곳</span>}>
+        <p className="text-[15px] font-semibold text-ink">표본 부족</p>
+        <p className="mt-0.5 text-[13px] tabular-nums text-mute">결과 난 투찰 {p.me.settled}건 · {MIN_MINE}건부터 순위 표시</p>
+      </Card>
+    );
+  }
 
   const top = Math.max(1, Math.round((1 - p.below) * 100));
   const myRate = p.me.rate;
@@ -34,7 +45,7 @@ export function PeersCard() {
       aside={<span className="text-[13px] text-mute">경쟁사 {p.n.toLocaleString()}곳 · 최근 {p.months}개월</span>}>
       <p className="text-[12px] text-mute">낙찰률 순위</p>
       <p className={`mt-0.5 text-[28px] font-bold tracking-tight ${tone}`}>상위 {top}%</p>
-      <p className="text-[13px] tabular-nums text-mute">우리 {pct(myRate)} · 경쟁사 보통 {pct(p.rate.p50)} (대부분 {pct(p.rate.p25)}~{pct(p.rate.p75)})</p>
+      <p className="text-[13px] tabular-nums text-mute">우리 {pct(myRate)} · 경쟁사 보통 {pct(p.rate.p50)} {p.rate.p75 < 0.01 ? '(대부분 1% 미만)' : `(대부분 ${pct(p.rate.p25)}~${pct(p.rate.p75)})`}</p>
 
       <div className="relative mb-6 mt-4 h-2 rounded-full bg-fill">
         <div className="absolute h-2 rounded-full bg-[#C9D7F9]" style={{ left: x(p.rate.p25), width: `calc(${x(p.rate.p75)} - ${x(p.rate.p25)})` }} />

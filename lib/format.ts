@@ -52,3 +52,6 @@ export function withEulReul(word: string) {
   const batchim = code >= 0 && code <= 11171 && code % 28 !== 0;
   return word + (batchim ? '을' : '를');
 }
+
+/** 투찰률·낙찰률 — 소수 셋째 자리까지 고정 (90.39% · 90.384%처럼 자릿수가 섞이던 문제, 2026-11-22) */
+export const fmtRate = (v: number | string | null | undefined) => (v == null || v === '' ? '–' : `${Number(v).toFixed(3)}%`);

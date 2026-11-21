@@ -5,7 +5,7 @@ import { COPY } from '@/lib/copy';
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/layout';
 import { BidTracker } from '@/components/first-rank-card';
-import { fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
+import { fmtDateTime, fmtShort, fmtWon, fmtRate } from '@/lib/format';
 import { fetchOpeningDetail, type OpeningBidder, type OpeningDetail } from '@/lib/analysis';
 import { useStore } from '@/lib/store';
 import { Tip } from '@/components/tip';
@@ -48,7 +48,7 @@ export default function OpeningView({ id }: { id: number }) {
         <h1 className="mt-1.5 text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{o.title}</h1>
         <p className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[15px] text-sub">
           <span className={`rounded-md px-2 py-0.5 text-[15px] font-bold ${verdict.c}`}>{verdict.t}</span>
-          {me?.rate ? <span className="tabular-nums">{me.rate}%{me.amount ? <span className="text-mute"> · {fmtWon(me.amount)}</span> : null}</span> : null}
+          {me?.rate ? <span className="tabular-nums">{fmtRate(me.rate)}{me.amount ? <span className="text-mute"> · {fmtWon(me.amount)}</span> : null}</span> : null}
         </p>
       </section>
 
@@ -61,7 +61,7 @@ export default function OpeningView({ id }: { id: number }) {
       {/* 핵심 숫자 */}
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-3">
         <Stat k="낙찰자" v={o.winner_is_me ? '우리 회사' : o.winner ?? '결정 전'} sub={pending ? `1순위 ${bidders.find((b) => b.rank === 1)?.name ?? '-'}` : undefined} small />
-        <Stat k="낙찰금액" v={o.winner_amount ? `${fmtShort(o.winner_amount)}원` : '–'} sub={o.winner_rate ? `낙찰률 ${o.winner_rate}%` : undefined} />
+        <Stat k="낙찰금액" v={o.winner_amount ? `${fmtShort(o.winner_amount)}원` : '–'} sub={o.winner_rate ? `낙찰률 ${fmtRate(o.winner_rate)}` : undefined} />
         <Stat k="사정률" v={o.sajeong ? `${o.sajeong}%` : '–'} sub={o.planned_price ? `예정가격 ${fmtShort(o.planned_price)}원` : undefined} />
         <Stat k="참가업체" v={o.participants ? `${o.participants.toLocaleString()}곳` : '–'} sub={o.base_amount ? `기초금액 ${fmtShort(o.base_amount)}원` : undefined} />
       </section>
@@ -302,7 +302,7 @@ function Ranking({ bidders }: { bidders: OpeningBidder[] }) {
             {k > 0 && rows[k - 1].i !== i - 1 && <span className="sr-only">…</span>}
             <span className="w-10 shrink-0 tabular-nums text-mute">{b.rank}위</span>
             <span className="min-w-0 flex-1 truncate">{b.me ? '우리 회사' : b.name}{b.winner && <span className="ml-1.5 text-[12px] font-semibold text-brand">낙찰</span>}</span>
-            <span className="shrink-0 tabular-nums text-sub">{b.rate}%</span>
+            <span className="shrink-0 tabular-nums text-sub">{fmtRate(b.rate)}</span>
             <span className="hidden w-28 shrink-0 text-right tabular-nums text-mute sm:block">{b.amount ? fmtWon(b.amount) : ''}</span>
           </li>
         ))}

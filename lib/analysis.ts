@@ -175,10 +175,20 @@ export const outcomeLabel = (i: MyBidItem, o = bidOutcome(i)) =>
   o === 'won' ? '낙찰' : o === 'below' ? '하한 미달' : o === 'pending' ? (i.rank === 1 ? '1위 · 심사 중' : i.rank ? `${i.rank}위 · 결정 전` : '결정 전')
     : o === 'unknown' ? '결과 없음' : i.rank ? `${i.rank}위` : '탈락';
 
+/** 같은 화면의 여러 카드가 동시에 부르면 한 번만 조회 (2026-11-22 전체 테스트: 입찰 분석 첫 화면에서 5번 호출) — 30초 · 로그인 사용자별 */
+let listCache: { key: string; at: number; p: Promise<MyBidItem[] | null> } | null = null;
 export async function fetchMyBidList(): Promise<MyBidItem[] | null> {
-  const { data, error } = await getSupabase().rpc('my_bid_list', { p_years: 3, p_limit: 500 });
-  if (error || !data?.verified) return null;
-  return data.items as MyBidItem[];
+  const sb = getSupabase();
+  const key = (await sb.auth.getSession()).data.session?.user.id ?? '';
+  if (listCache && listCache.key === key && Date.now() - listCache.at < 30_000) return listCache.p;
+  const p = (async () => {
+    const { data, error } = await sb.rpc('my_bid_list', { p_years: 3, p_limit: 500 });
+    if (error || !data?.verified) return null;
+    return data.items as MyBidItem[];
+  })();
+  listCache = { key, at: Date.now(), p };
+  p.then((r) => { if (r === null && listCache?.p === p) listCache = null; }, () => { if (listCache?.p === p) listCache = null; });
+  return p;
 }
 
 export interface OpeningBidder { rank: number | null; rate: number | null; amount: number | null; note: number | null; name: string; me: boolean; winner: boolean }
