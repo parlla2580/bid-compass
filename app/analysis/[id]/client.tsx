@@ -261,21 +261,26 @@ function Distribution({ bidders, value, cut, cutLabel }: { bidders: OpeningBidde
           <g>
             <line x1={x(lead.r)} x2={x(lead.r)} y1={18} y2={H - padB} stroke="#2563EB" strokeWidth={2} strokeDasharray={winP ? undefined : '5 3'} />
             <circle cx={x(lead.r)} cy={H - padB - 4} r={6} fill="#2563EB" stroke="#fff" strokeWidth={2} />
-            <text x={x(lead.r)} y={12} textAnchor={anchor(lead.r)} fontSize={12} fontWeight={700} fill="#2563EB">{winP ? '낙찰' : '1순위(낙찰자 결정 전)'} {fmt(lead.r)}</text>
+            <text x={x(lead.r)} y={12} textAnchor={anchor(lead.r)} fontSize={13} fontWeight={700} fill="#2563EB">{winP ? '낙찰' : '1위'}</text>
           </g>
         )}
         {meP && meP.r >= lo && meP.r <= hi && !meP.winner && (
           <g>
             <line x1={x(meP.r)} x2={x(meP.r)} y1={56} y2={H - padB} stroke="#191C21" strokeWidth={2} />
             <circle cx={x(meP.r)} cy={H - padB - 4} r={6} fill="#191C21" stroke="#fff" strokeWidth={2} />
-            <text x={x(meP.r)} y={52} textAnchor={anchor(meP.r)} fontSize={12} fontWeight={700} fill="#191C21">우리 {fmt(meP.r)}</text>
+            <text x={x(meP.r)} y={52} textAnchor={anchor(meP.r)} fontSize={13} fontWeight={700} fill="#191C21">우리</text>
           </g>
         )}
         <line x1={0} x2={W} y1={H - padB} y2={H - padB} stroke="#E8EAED" />
         {ticks.map((t, i) => <text key={t} x={x(t)} y={H - 8} textAnchor={i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle'} fontSize={12} fill="#8A929E">{t.toFixed(2)}%</text>)}
       </svg>
+      {/* U13(2026-11-22): 그래프 위 라벨은 '1위'·'우리'만 — 숫자는 여기 한 줄 (라벨이 겹쳐 읽기 어려웠음) */}
+      <div className="mt-2 grid grid-cols-2 gap-2 text-[13px]">
+        {lead && <p className="rounded-xl bg-brand-soft px-3 py-2"><span className="text-brand">{winP ? '낙찰' : '1위 · 낙찰자 결정 전'}</span><b className="mt-0.5 block tabular-nums text-ink">{fmt(lead.r)}</b></p>}
+        {meP && !meP.winner && <p className="rounded-xl bg-fill px-3 py-2"><span className="text-sub">우리</span><b className="mt-0.5 block tabular-nums text-ink">{fmt(meP.r)}</b></p>}
+      </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-mute">
-        <span><i className="mr-1 inline-block h-0.5 w-4 bg-brand align-middle" />{winP ? '낙찰자' : '1순위 (낙찰자 결정 전)'}</span>
+        <span><i className="mr-1 inline-block h-0.5 w-4 bg-brand align-middle" />{winP ? '낙찰자' : '1위'}</span>
         <span><i className="mr-1 inline-block h-0.5 w-4 bg-ink align-middle" />우리 회사</span>
         <span><i className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: '#93B4F5' }} />다른 업체</span>
         <span><i className="mr-1 inline-block h-2 w-2 rounded-full align-middle" style={{ background: '#C9CED6' }} />하한 미달</span>

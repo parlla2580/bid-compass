@@ -34,7 +34,7 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   const body = (
     <>
       {lead !== 'none' && (
-        <span className="flex w-11 shrink-0 justify-center">
+        <span className="flex w-12 shrink-0 justify-center">
           {lead === 'score'
             ? <ScoreRing score={item.fit?.score ?? null} />
             : item.judgment && <span className={`mt-2 h-2 w-2 rounded-full ${STATUS_STYLE[item.judgment.status].dot}`} aria-label={item.judgment.status} />}
@@ -69,7 +69,6 @@ export function RowList({ children }: { children: React.ReactNode }) {
   return <div className="divide-y divide-line overflow-hidden rounded-box bg-white">{children}</div>;
 }
 
-/** 맞춤 점수 — 순번처럼 보이지 않도록 원형 게이지 + % */
 /** 맞춤 점수 단계 — 80 이상 진한 파랑, 60~79 연한 파랑, 60 미만 회색 */
 export const fitTone = (score: number | null) =>
   score === null ? { stroke: '#E8EAED', text: 'text-mute' }
@@ -77,16 +76,19 @@ export const fitTone = (score: number | null) =>
       : score >= 60 ? { stroke: '#93B4F5', text: 'text-brand/70' }
         : { stroke: '#C9CED6', text: 'text-mute' };
 
+/**
+ * U2(2026-11-22): 목록에서는 % 대신 단계 배지 — 61%·57%가 '덜 맞아 보이던' 문제. 숫자는 상세 '우리 일과 맞는 정도'에서
+ *  70 이상 잘 맞음 / 50~69 맞음 / 50 미만 보통
+ */
+export const fitLevel = (score: number | null) =>
+  score === null ? null : score >= 70 ? { t: '잘 맞음', c: 'bg-brand text-white' } : score >= 50 ? { t: '맞음', c: 'bg-brand-soft text-brand' } : { t: '보통', c: 'bg-fill text-sub' };
+
 function ScoreRing({ score }: { score: number | null }) {
-  const r = 17, c = 2 * Math.PI * r;
-  const tone = fitTone(score);
+  const lv = fitLevel(score);
   return (
-    <span className="relative flex h-10 w-10 items-center justify-center" title="우리 회사와 맞는 정도" aria-label={score === null ? '맞춤 점수 없음' : `맞춤 ${score}%`}>
-      <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="#E8EAED" strokeWidth="3" />
-        {score !== null && <circle cx="20" cy="20" r={r} fill="none" stroke={tone.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />}
-      </svg>
-      <span className={`text-[12px] font-bold tabular-nums ${tone.text}`}>{score ?? '–'}<span className="text-[9px]">%</span></span>
+    <span className={`mt-0.5 inline-flex h-6 min-w-[44px] items-center justify-center rounded-md px-1.5 text-[12px] font-semibold ${lv ? lv.c : 'bg-fill text-mute'}`}
+      title={score === null ? undefined : `우리 일과 맞는 정도 ${score}%`} aria-label={score === null ? '맞는 정도 없음' : `우리 일과 맞는 정도 ${score}%`}>
+      {lv ? lv.t : '–'}
     </span>
   );
 }

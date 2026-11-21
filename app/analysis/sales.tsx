@@ -63,14 +63,15 @@ function pickable(o: SalesOrg) {
   return (d !== null && d <= SOON && recurring(o)) || o.count >= 2;
 }
 
-function reason(o: SalesOrg, term = '품목'): { text: string; tone: 'warn' | 'ink'; recur?: boolean } {
+/** U8(2026-11-22): 문장 대신 배지 + 계약명 한 줄 — '…계약이 11.30에 끝나요 (D-8)' 주황 문장이 카드를 채우던 문제 */
+function reason(o: SalesOrg, term = '품목'): { badge: string; title: string | null; tone: 'warn' | 'ink'; recur?: boolean } {
   const d = o.nextEnd ? daysTo(o.nextEnd) : null;
   const soon = d !== null && d <= SOON;
   const endC = soon ? o.contracts.find((x) => x.endDate === o.nextEnd)! : null;
-  if (endC && recurring(o)) return { text: `'${short(endC.title, 20)}' 계약이 ${md(o.nextEnd!)}에 끝나요 (D-${d})`, tone: 'warn', recur: true };
-  if (o.count >= 2) return { text: `우리 ${term}을 공고 없이 ${o.count}번 샀어요${endC ? ` · ${md(o.nextEnd!)}에 계약 끝` : ''}`, tone: 'ink' };
-  if (endC) return { text: `'${short(endC.title)}' 계약이 ${md(o.nextEnd!)}에 끝나요 (D-${d})`, tone: 'warn' };
-  return { text: `최근 '${short(o.contracts[0].title)}'을 공고 없이 샀어요`, tone: 'ink' };
+  if (endC && recurring(o)) return { badge: `계약 종료 D-${d}`, title: endC.title, tone: 'warn', recur: true };
+  if (o.count >= 2) return { badge: `공고 없이 ${o.count}번 구매`, title: endC ? `${md(o.nextEnd!)} 계약 종료 · ${endC.title}` : o.contracts[0]?.title ?? null, tone: 'ink' };
+  if (endC) return { badge: `계약 종료 D-${d}`, title: endC.title, tone: 'warn' };
+  return { badge: `공고 없이 ${term} 구매`, title: o.contracts[0]?.title ?? null, tone: 'ink' };
 }
 
 export function SalesSection({ focus }: { focus?: string | null }) {
@@ -296,14 +297,13 @@ function SaveBtn({ saved, onSave, label }: { saved: boolean; onSave: () => void;
   );
 }
 
-/** 추천 1곳 — 이유 한 문장 + 근거 한 줄 + [저장] [계약 보기] */
+/** 추천 1곳 — 배지 + 계약명 + 숫자 한 줄 + [저장] [계약 보기] */
 function Pick({ n, o, term, saved, onSave }: { n: number; o: SalesOrg; term: string; saved: boolean; onSave: () => void }) {
   const [open, setOpen] = useState(false);
   const r = reason(o, term);
   const facts = [
     `${o.count}건 · ${o.amount ? fmtShort(o.amount) : '금액 없음'}`,
     o.vendors[0] ? `지금 ${o.vendors[0].name}` : null,
-    o.depts[0] ?? null,
   ].filter(Boolean).join(' · ');
   return (
     <li className="py-3.5">
@@ -314,11 +314,12 @@ function Pick({ n, o, term, saved, onSave }: { n: number; o: SalesOrg; term: str
             <span className="truncate text-[16px] font-bold">{o.name}</span>
             {o.kind && <span className="shrink-0 rounded bg-fill px-1.5 py-0.5 text-[11px] text-mute">{o.kind}</span>}
           </p>
-          <p className={`mt-1 text-[15px] font-semibold leading-snug ${r.tone === 'warn' ? 'text-warn' : 'text-ink'}`}>{r.text}</p>
-          <p className="mt-1 flex items-center gap-1.5 text-[13px] text-mute">
-            {r.recur && <span className="shrink-0 rounded bg-warn/10 px-1.5 py-0.5 text-[11px] font-semibold text-warn">다시 맺는 계약</span>}
-            <span className="truncate">{facts}</span>
+          <p className="mt-1.5 flex min-w-0 items-center gap-1.5">
+            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[12px] font-semibold ${r.tone === 'warn' ? 'bg-warn/10 text-warn' : 'bg-brand-soft text-brand'}`}>{r.badge}</span>
+            {r.recur && <span className="shrink-0 rounded bg-fill px-1.5 py-0.5 text-[11px] font-medium text-sub">다시 맺는 계약</span>}
           </p>
+          {r.title && <p className="mt-1 truncate text-[14px] text-ink">{r.title}</p>}
+          <p className="mt-0.5 truncate text-[13px] tabular-nums text-mute">{facts}</p>
           <div className="mt-2.5 flex gap-2">
             <SaveBtn saved={saved} onSave={onSave} label />
             <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex h-9 items-center gap-1 rounded-btn bg-fill px-3 text-[14px] font-semibold text-sub">

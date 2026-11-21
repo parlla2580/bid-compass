@@ -9,6 +9,7 @@ import { VerifyBox } from '@/components/verify-box';
 import { fetchMyVerification } from '@/lib/verify-client';
 import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
+import { Tip } from '@/components/tip';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
 import { PeersCard } from './peers';
@@ -110,12 +111,18 @@ export default function AnalysisPage() {
               {/* 낙찰률 = 낙찰 ÷ 결과가 난 투찰(투찰 − 결정 전) — 화면의 투찰·낙찰 숫자로 바로 검산되게 (2026-11-18 사용자 피드백)
                   예전(012)엔 '투찰 순위를 받은 개찰'만 분모로 써서, 순위 없이 끝난 탈락 18건이 빠져 71%로 부풀려졌음 */}
               <div>
-                <Donut value={total - (r.pending ?? 0) > 0 ? won / (total - (r.pending ?? 0)) : 0} label="낙찰률" />
+                <Donut value={total - (r.pending ?? 0) > 0 ? won / (total - (r.pending ?? 0)) : 0} label={r.single != null ? '경쟁 입찰 낙찰률' : '낙찰률'} />
                 <p className="mt-1 text-center text-[12px] text-mute">결과가 나온 {(total - (r.pending ?? 0)).toLocaleString()}건 중 낙찰 {won.toLocaleString()}건{r.pending ? ` · 결정 전 ${r.pending}건 제외` : ''}</p>
+                {/* 038 U12: 1곳 참가(수의·견적)는 경쟁 입찰 실력과 달라 낙찰률에서 뺌 — 건수만 따로 */}
+                {!!r.single && (
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-center text-[12px] text-mute">1곳 참가 {r.single.toLocaleString()}건 · 낙찰 {(r.single_won ?? 0).toLocaleString()} 별도
+                    <Tip title="경쟁 입찰만 계산">참가 업체가 1곳인 개찰(수의계약·1인 견적·단가계약)은 경쟁 없이 낙찰되는 경우가 많아, 낙찰률·투찰·업계 비교에서 빼고 건수만 따로 표시. 투찰한 공고 목록에는 모두 포함.</Tip>
+                  </p>
+                )}
               </div>
               <div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Mini label="투찰" value={total.toLocaleString()} unit="건" />
+                  <Mini label={r.single != null ? '경쟁 입찰' : '투찰'} value={total.toLocaleString()} unit="건" />
                   <Mini label="낙찰" value={won.toLocaleString()} unit="건" tone="text-brand" />
                   <Mini label="하한 미달" value={(r.below_floor ?? 0).toLocaleString()} unit="건" tone={r.below_floor ? 'text-bad' : 'text-ink'} />
                 </div>

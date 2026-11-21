@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { CircleAlert, CircleCheck, CircleX, ChevronRight, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, CircleX, ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react';
 import { PageTitle } from '@/components/layout';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
@@ -130,8 +130,8 @@ export default function CalculatorTabs() {
         </div>
         {tab === 'bid'
           ? <BidPanel key={`bid-${type}-${rateOverride ?? ''}-${from?.id ?? ''}`} type={type} estPrice={from?.estPrice}
-              // 공고에서 왔는데 기초금액이 없으면 예시값을 채우지 않음 (단일예가·비예가 공고 등)
-              initialBase={Number(params.get('base')) || from?.basePrice || (fromId ? null : 132_000_000)}
+              // U1(2026-11-22): 예시 기초금액(1억 3,200만)을 채우지 않음 — 내 공고 값으로 오해. 빈 상태에서 공고 불러오기 안내
+              initialBase={Number(params.get('base')) || from?.basePrice || null}
               notice={from}
               initialRange={params.get('range') ? Number(params.get('range')) : null}
               initialRate={rateOverride ?? (params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null)}
@@ -172,6 +172,9 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
   const [range, setRange] = useState<number | null>(initialRange ?? EXAMPLE_RESERVE_RANGE * 100);
   const [rate, setRate] = useState<number | null>(initialRate ?? EXAMPLE_FLOOR_RATE[type]);
   const [verified, setVerified] = useState(false);
+  const [showRange, setShowRange] = useState(false);
+  const [showAParts, setShowAParts] = useState(false);
+  const [show98, setShow98] = useState(false);
   const [bid, setBid] = useState<number | null>(null);
   // 공사 A값 (026) — 공고에서 왔으면 기초금액 API 값, 아니면 직접 입력
   const [cost, setCostInfo] = useState<NoticeCost | null>(null);
@@ -229,7 +232,12 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
                 {cost.aApply === false
                   ? <><b className="font-semibold text-ink">A값 산식 대상 아님</b> · 나라장터 정보 기준, 공고문 확인 (항목 합계 {fmtWon(cost.aValue)})</>
                   : <><b className="font-semibold text-ink">공고 A값 {fmtWon(cost.aValue)} 적용</b>{cost.aApply === null ? ' · 적용 여부 공고문 확인' : ''}</>}
-                {cost.aParts && <span className="mt-1 block text-mute">{Object.entries(cost.aParts).map(([k, v]) => `${k} ${fmtShort(v)}`).join(' · ')}</span>}
+                {cost.aParts && (
+                  <button type="button" onClick={() => setShowAParts(!showAParts)} aria-expanded={showAParts} className="mt-1 flex items-center gap-0.5 text-[12px] font-medium text-mute">
+                    항목 {Object.keys(cost.aParts).length}개<ChevronDown className={`h-3.5 w-3.5 transition ${showAParts ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
+                {cost.aParts && showAParts && <span className="mt-1 block text-mute">{Object.entries(cost.aParts).map(([k, v]) => `${k} ${fmtShort(v)}`).join(' · ')}</span>}
               </div>
             ) : notice && type === '공사' && cost !== null ? (
               <p className="mt-1.5 text-[13px] text-mute">{notice.basePrice ? 'A값 정보 없음 · 공고문 값 직접 입력' : 'A값은 기초금액과 함께 공개 · 공개되면 자동 입력'}</p>
@@ -262,21 +270,32 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
       {/* 감싸는 칸이 두 줄만 차지 → 결과 카드가 아래 사정률 패널 위로 겹쳐 따라오지 않게 */}
       <div className="lg:row-span-2">
       <div className="rounded-box bg-white p-5 lg:sticky lg:top-6 lg:p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[17px] font-bold">계산 결과</h2>
-          {verified
+        {/* U1(2026-11-22): 큰 숫자는 아래 '사정률로 쓰면 ○원' 하나 — 이 카드는 가능한 범위만 작게, 자세히는 펼쳐서 */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-bold">가능 범위</h2>
+          {B > 0 && (verified
             ? <span className="text-[13px] font-semibold text-ok">공고값 기준</span>
-            : <span className="text-[13px] font-semibold text-warn">예시 계산</span>}
+            : <span className="text-[13px] font-semibold text-warn">{fromNotice ? '공고값 · 대조 전' : '직접 입력'}</span>)}
         </div>
-        {B <= 0 ? <p className="py-6 text-center text-[15px] text-mute">기초금액 입력 시 계산</p> : <>
-        <dl className="divide-y divide-line">
+        {B <= 0 ? (
+          <div className="py-5 text-center">
+            <p className="text-[15px] text-sub">기초금액 입력 또는 공고에서 불러오기</p>
+            <Link href="/bids" className="mt-3 inline-flex items-center rounded-btn bg-brand-soft px-4 py-2.5 text-[14px] font-semibold text-brand">공고 고르기<ChevronRight className="h-4 w-4" /></Link>
+          </div>
+        ) : <>
+        <p className="mt-2 text-[13px] text-mute">투찰 하한</p>
+        <p className="text-[17px] font-semibold tabular-nums">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</p>
+        <button type="button" onClick={() => setShowRange(!showRange)} aria-expanded={showRange}
+          className="mt-2 flex items-center gap-1 text-[13px] font-medium text-sub">자세히<ChevronDown className={`h-4 w-4 transition ${showRange ? 'rotate-180' : ''}`} /></button>
+        {showRange && <>
+        <dl className="mt-2 divide-y divide-line">
           <div className="flex flex-col gap-1 py-3">
             <dt className="text-[13px] text-mute"><Term k="예정가격" /> 범위 (<Term k="사정률" /> {round1(100 - (range ?? 0))}~{round1(100 + (range ?? 0))}%)</dt>
-            <dd className="text-[17px] font-semibold tabular-nums">{fmtWon(r.plan[0])} ~ {fmtWon(r.plan[1])}</dd>
+            <dd className="text-[15px] font-semibold tabular-nums">{fmtWon(r.plan[0])} ~ {fmtWon(r.plan[1])}</dd>
           </div>
           <div className="flex flex-col gap-1 py-3">
             <dt className="text-[13px] text-mute">투찰 하한 구간 ({A ? `(예정가격 − A) × 낙찰하한율 ${rate ?? 0}% + A` : `예정가격 × 낙찰하한율 ${rate ?? 0}%`})</dt>
-            <dd className="text-[20px] font-bold tabular-nums text-brand">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</dd>
+            <dd className="text-[15px] font-semibold tabular-nums">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</dd>
           </div>
         </dl>
 
@@ -293,6 +312,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           ))}
           {bid !== null && bid > 0 && <p className="text-right text-[12px] text-mute">검은 선: 내 투찰금액</p>}
         </div>
+        </>}
         </>}
       </div>
       </div>
@@ -312,8 +332,15 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
 
       {type === '공사' && (
         <div className="space-y-4 rounded-box bg-white p-5 lg:col-start-1 lg:p-6">
-          <h2 className="text-[17px] font-bold">공사 98% 하한 체크</h2>
-          <p className="-mt-2 text-[14px] text-mute">내역서 재료비·노무비·경비 입력 → 98% 미만 여부 확인</p>
+          {/* U9(2026-11-22): 처음엔 접어 둠 — 내역서가 있을 때만 펼쳐 입력 */}
+          <button type="button" onClick={() => setShow98(!show98)} aria-expanded={show98} className="flex w-full items-center justify-between text-left">
+            <span>
+              <span className="block text-[15px] font-bold">공사 98% 하한 체크</span>
+              <span className="block text-[13px] text-mute">내역서 재료비·노무비·경비 → 98% 미만 여부</span>
+            </span>
+            <ChevronDown className={`h-5 w-5 shrink-0 text-mute transition ${show98 ? 'rotate-180' : ''}`} />
+          </button>
+          {show98 && <>
           {cost?.netCost ? (
             <div className="rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">
               <b className="font-semibold text-ink">기초금액 순공사비 {fmtWon(cost.netCost)}</b> · 98% {fmtWon(Math.ceil(cost.netCost * CONSTRUCTION_FLOOR))}
@@ -338,6 +365,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
             </p>
           )}
           {type === '공사' && costSum > 0 && bid === null && <p className="text-[13px] text-mute">내 투찰금액 입력 시 경고 표시</p>}
+          </>}
         </div>
       )}
       </>}

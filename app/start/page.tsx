@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BadgeCheck, Compass, Loader2 } from 'lucide-react';
 import { IndustryPicker, LocationPicker, ProductPicker } from '@/components/inputs';
 import { BTN_PRIMARY } from '@/components/ui';
+import { Tip } from '@/components/tip';
 import type { Industry, Product } from '@/lib/data';
 import { suggestProducts } from '@/lib/match';
 import { maskBizNo } from '@/lib/format';
@@ -36,6 +37,7 @@ export default function StartPage() {
   const [found, setFound] = useState<Lookup | null>(null);
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [location, setLocation] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   // 이미 입력한 값이 있으면 직접 입력 화면에 채워 둠
   useEffect(() => {
@@ -207,14 +209,15 @@ export default function StartPage() {
           <div className="rounded-box bg-white p-5">
             <h2 className="text-[17px] font-bold">주로 어떤 품목을 다루세요?</h2>
             <p className="mt-1 text-[14px] text-mute">
-              {many ? `나라장터에 공급물품이 ${found!.products!.length}개 등록돼 있어요. 주로 납품하는 것만 골라 주세요(10개 이하 권장). 고른 품목과 같은 공고만 맞춤으로 보여 드려요.`
+              {many ? `등록 공급물품 ${found!.products!.length}개 · 주로 납품하는 것만 (10개 이하)`
                 : found?.products?.length ? '나라장터에 등록된 공급물품을 불러왔어요. 맞는지만 확인해 주세요.'
                 : found ? '나라장터에 등록된 공급물품이 없어요. 공사·용역 업체는 업종(면허)으로 이미 맞춰 드려요. 다루는 물품이 있을 때만 추가하세요.'
                 : '품목을 고르면 우리 회사 일과 맞는 공고만 골라 드려요.'}
             </p>
             {many && (
-              <div className="mt-4 flex max-h-[280px] flex-wrap gap-1.5 overflow-y-auto">
-                {manyList.map((p) => {
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {/* U4(2026-11-22): 처음엔 공고 많은 10개만 — 57개가 한 번에 펼쳐져 무거웠음 */}
+                {(showAll ? manyList : manyList.slice(0, 10)).map((p) => {
                   const on = products.some((x) => x.code === p.code);
                   return (
                     <button key={p.code} type="button" aria-pressed={on}
@@ -226,7 +229,12 @@ export default function StartPage() {
                 })}
               </div>
             )}
-            {many && <p className="mt-2 text-[12px] text-mute">숫자는 지금 열린 공고 중 그 품목이 나온 공고 수예요. 고른 품목 {products.length}개</p>}
+            {many && manyList.length > 10 && (
+              <button type="button" onClick={() => setShowAll(!showAll)} className="mt-2 text-[14px] font-semibold text-brand">
+                {showAll ? '접기' : `나머지 ${manyList.length - 10}개 더 보기`}
+              </button>
+            )}
+            {many && <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">고른 품목 {products.length}개<Tip title="품목 옆 숫자">지금 열린 공고 중 그 품목이 나온 공고 수. 고른 품목과 같은 공고만 맞춤으로 보여 줌.</Tip></p>}
             <div className="mt-4">
               <ProductPicker value={products} onChange={setProducts}
                 suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, many ? [...products, ...found!.products!] : products)} />
@@ -241,7 +249,7 @@ export default function StartPage() {
               <button type="button" onClick={() => finish(true)} disabled={!products.length} className={BTN_PRIMARY}>
                 이 품목으로 공고 보기<ArrowRight className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => finish(false)} className="w-full py-2 text-[15px] font-medium text-mute">나중에 할게요</button>
+              <button type="button" onClick={() => finish(false)} className="flex h-14 w-full items-center justify-center rounded-cta bg-white text-[16px] font-semibold text-sub ring-1 ring-line active:scale-[.98]">나중에 할게요</button>
             </>
           )}
         </section>

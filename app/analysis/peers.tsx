@@ -40,7 +40,7 @@ export function PeersCard() {
   return (
     <Card title={
       <span className="flex items-center gap-1">업계 비교
-        <Tip title="비교 대상">최근 {p.months}개월 우리가 들어간 공고에서 2번 이상 만난 경쟁사 중 결과가 난 투찰이 5건 이상인 회사 {p.n.toLocaleString()}곳. 같은 유형 공고만 · 개별 회사는 공개하지 않음 · 30곳 미만이면 표시 안 함. 낙찰은 추첨 영향이 커서 참고용.</Tip>
+        <Tip title="비교 대상">최근 {p.months}개월 우리가 들어간 공고에서 2번 이상 만난 경쟁사 중 결과가 난 투찰이 5건 이상인 회사 {p.n.toLocaleString()}곳. 같은 유형 · 경쟁 입찰(참가 2곳 이상)만 · 개별 회사는 공개하지 않음 · 하루 1번 계산 · 30곳 미만이면 표시 안 함. 낙찰은 추첨 영향이 커서 참고용.</Tip>
       </span>}
       aside={<span className="text-[13px] text-mute">경쟁사 {p.n.toLocaleString()}곳 · 최근 {p.months}개월</span>}>
       <p className="text-[12px] text-mute">낙찰률 순위</p>

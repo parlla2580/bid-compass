@@ -86,7 +86,8 @@ function Detail({ n }: { n: Notice }) {
   const onSave = () => { if (account) save(); else { setSaveAfter(true); setSignup(true); } };
 
   const calc = calcHref(n);
-  const calcLabel = bst === 'pending' ? '기초금액 공개 전 · 미리 계산' : '투찰금액 계산하기';
+  // U10(2026-11-22): 버튼은 동작만('미리 계산'), 상태(기초금액 공개 전)는 버튼 위 배지로
+  const calcLabel = bst === 'pending' ? '미리 계산' : '투찰금액 계산하기';
   // 비예가는 사정률 계산 대상이 아님 → 공고문으로
   const primary = order.cancelled
     ? <span className={`${CTA_PRIMARY} pointer-events-none !bg-fill !text-mute`}>취소된 공고</span>
@@ -136,12 +137,17 @@ function Detail({ n }: { n: Notice }) {
       </div>
 
       {/* 모바일 하단 고정 버튼 */}
-      {<div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-6 lg:hidden">
+      {<div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-5 pb-[calc(12px+env(safe-area-inset-bottom))] pt-6 lg:hidden">
+        {bst === 'pending' && !closed && (
+          <p className="mb-2 text-center"><span className="rounded-full bg-brand-soft px-3 py-1 text-[12px] font-semibold text-brand">기초금액 공개 전 · 저장하면 공개 시 알림</span></p>
+        )}
+        <div className="flex gap-2">
         <button type="button" onClick={onSave} aria-pressed={on} aria-label={on ? '저장됨' : '저장하기'}
           className="flex h-14 w-14 shrink-0 items-center justify-center rounded-cta bg-white text-sub active:scale-[.98]">
           <Bookmark className={`h-6 w-6 ${on ? 'fill-brand text-brand' : ''}`} />
         </button>
         {primary}
+        </div>
       </div>}
 
       <SignupSheet open={signup} onClose={() => { setSignup(false); setSaveAfter(false); }}
@@ -189,8 +195,9 @@ function Hero({ n }: { n: Notice }) {
   const award = noticeAward(n);
   const stats = [
     { k: '마감까지', v: n.d > 365 ? '장기 접수' : dday(n.d), tone: n.d >= 0 && n.d <= 3 ? 'text-bad' : 'text-ink', sub: fmtDateTime(n.closesAt) },
-    { k: '추정가격', v: n.estPrice ? `${fmtShort(n.estPrice)}원` : '미공개', tone: 'text-ink', sub: n.estPrice ? fmtWon(n.estPrice) : '공고에서 공개하지 않음' },
-    { k: '기초금액', v: n.basePrice ? `${fmtShort(n.basePrice)}원` : '–', tone: 'text-ink', sub: n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전', desk: true },
+    // U3(2026-11-22): 모바일 두 칸은 기초금액이 공개되면 '마감 · 기초금액' (공사·용역 실무자에게 가장 필요한 숫자)
+    { k: '추정가격', v: n.estPrice ? `${fmtShort(n.estPrice)}원` : '미공개', tone: 'text-ink', sub: n.estPrice ? fmtWon(n.estPrice) : '공고에서 공개하지 않음', desk: !!n.basePrice },
+    { k: '기초금액', v: n.basePrice ? `${fmtShort(n.basePrice)}원` : '–', tone: 'text-ink', sub: n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전', desk: !n.basePrice },
     { k: '낙찰하한율', v: n.floorRate ? `${n.floorRate}%` : '–', tone: 'text-ink', sub: n.reserveMax !== null ? `예비가격 ±${Math.abs(n.reserveMax)}%` : '', desk: true },
   ];
   return (
@@ -261,7 +268,7 @@ function FitBlock({ fit }: { fit: Fit }) {
   return (
     <div className="mt-5 rounded-2xl bg-fill p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1 text-[14px] text-sub">맞춤 점수<Tip title="맞춤 점수">{COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요.</Tip></p>
+        <p className="flex items-center gap-1 text-[14px] text-sub">우리 일과 맞는 정도<Tip title="우리 일과 맞는 정도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 배지: 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만.</Tip></p>
         <p className="text-[24px] font-bold text-brand">{fit.score}<span className="text-[15px]">%</span></p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-brand" style={{ width: `${fit.score}%` }} /></div>
@@ -463,7 +470,7 @@ function Similar({ n }: { n: Notice }) {
   if (items && !items.length) return null; // 관련 있는 지난 계약이 없으면 카드 자체를 숨김
 
   return (
-    <Card title={<span className="flex items-center gap-1">지난 계약<Tip title="지난 계약">{COPY.pastContracts}. 공고명의 핵심 낱말이 겹치는 계약만 보여드려요.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
+    <Card title={<span className="flex items-center gap-1">이 기관 최근 계약<Tip title="이 기관 최근 계약">이 공고의 지난 계약이 아니라, 같은 기관이 맺은 계약 중 공고명 핵심 낱말이 겹치는 것. 많이 겹치는 순.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
       {items && items.length > 0 && (
         <>

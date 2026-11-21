@@ -236,8 +236,11 @@ export default function BidList() {
               <SeenChips rows={tab === 'match' ? matchedBase : base} on={unseenOnly} setOn={setUnseenOnly} fresh={freshOnly} setFresh={setFreshOnly} />
             </div>
           )}
-          {/* 공사 면허만 있는 회사는 업종으로 이미 맞추므로 품목 안내를 띄우지 않음 */}
-          {tab === 'match' && !profile.products?.length && !(profile.industries?.length && profile.industries.every((i) => /공사업/.test(i.name))) && (
+          {/* 공사 면허만 있는 회사는 업종으로 이미 맞추므로 품목 안내를 띄우지 않음
+              U5(2026-11-22): '석면해체.제거업'처럼 이름에 '공사업'이 없는 면허도 있어, 맞춤 공고에 물품이 하나도 없으면 숨김 */}
+          {tab === 'match' && !profile.products?.length && !(profile.industries?.length && (
+            profile.industries.every((i) => /공사업|건설업/.test(i.name)) || (judged !== null && matchedAll.length > 0 && !matchedAll.some((j) => j.notice.type === '물품'))
+          )) && (
             <Link href="/mypage?edit=company" className="mb-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
               <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b> 입력 시 맞춤 정확도 향상</span>
               <ChevronRight className="h-5 w-5 text-mute" />
@@ -247,8 +250,8 @@ export default function BidList() {
           {tab === 'soon' ? <SoonList {...soon} /> : tab !== 'saved' ? (
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
-                <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '맞춤 점수 높은 순' : `총 ${all.length.toLocaleString()}건`}
-                  <Tip title="목록 보는 법">원 안의 숫자는 맞춤 점수예요. 우리 업종·품목·지역·지난 입찰과 얼마나 맞는지를 0~99%로 나타내요. 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
+                <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '우리 일과 맞는 순' : `총 ${all.length.toLocaleString()}건`}
+                  <Tip title="목록 보는 법">왼쪽 배지는 우리 업종·품목·지역·지난 입찰과 맞는 정도예요. 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만 (숫자는 공고 상세에서). 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
                 </p>
                 <label className="relative flex items-center">
                   <span className="sr-only">정렬</span>
@@ -265,7 +268,7 @@ export default function BidList() {
                   <Folded title="비슷한 품목 공고" hint="우리 품목과 분류가 가까운 공고예요. 같은 품목만 맞춤 공고에 넣었어요" rows={similarRows} lead="score" selected={selected} onSelect={setSelected} defaultOpen={!matched.length} />
                   <Folded title="쇼핑몰·단가계약 공고" hint="조달청이 여러 기관 물품을 한꺼번에 계약하거나 종합쇼핑몰에 올리는 계약이에요. 한 번의 입찰로 낙찰자를 정하는 공고와 달라요" rows={catalogRows} lead="score" selected={selected} onSelect={setSelected} />
                   <Folded title="확인이 필요한 공고" hint="정보가 부족해 판정하지 못한 공고예요" rows={checkRows} lead="status" selected={selected} onSelect={setSelected} />
-                  <Folded title="다른 참여 가능 공고" hint="흔한 품목·업종만 맞거나, 우리 회사 일과 거리가 있어 보여요" rows={otherRows} lead="score" selected={selected} onSelect={setSelected} />
+                  <Folded title="자격은 되지만 덜 맞는 공고" hint="흔한 품목·업종만 맞음 · 우리 일과 거리 있음" rows={otherRows} lead="score" selected={selected} onSelect={setSelected} />
                   <Folded title="빼고 싶은 단어로 뺀 공고" hint={`'${(profile.keywords?.minus ?? []).join("', '")}'이(가) 들어간 공고예요`} rows={excludedRows} lead="score" selected={selected} onSelect={setSelected} />
                 </>
               ) : (

@@ -37,6 +37,9 @@ export interface BidReport {
   won_detailed?: number;
   /** 낙찰자 결정 전 건수 (017) */
   pending?: number;
+  /** 038: 1곳 참가(수의·견적·단가계약) 투찰 건수와 그중 낙찰 — 위 값들에서는 빠져 있음 */
+  single?: number;
+  single_won?: number;
 }
 
 export async function fetchMyReport(years = 3): Promise<BidReport> {

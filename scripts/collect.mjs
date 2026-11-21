@@ -723,6 +723,18 @@ async function main() {
     try { result.bidRows = await collectBidDetails(sb); } catch (e) { result.errors.push(`투찰 순위: ${e.message}`); }
   }
 
+  // 업계 비교 미리 계산 (038, U11) — 회사 확인 회원 중 20시간 넘은 회사만. 실패해도 수집 결과에는 영향 없음
+  if (sb && MODE !== 'snapshot') {
+    try {
+      const { data, error } = await sb.rpc('refresh_peer_cache', { p_max: 20 });
+      if (error) throw error;
+      console.log(`업계 비교 미리 계산: ${data}곳`);
+    } catch (e) {
+      if (/refresh_peer_cache/.test(e.message ?? '')) console.log('  업계 비교 미리 계산 건너뜀 — SQL 038 실행 필요');
+      else console.log(`  업계 비교 미리 계산 실패(무시): ${e.message}`);
+    }
+  }
+
   // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
   try {
     let refresh = DRY || new Date().getUTCHours() === 15;
