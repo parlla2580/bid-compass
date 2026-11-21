@@ -108,8 +108,8 @@ function Row({ it, single, mark, locked, onSignup }: { it: ItemPrice; single: bo
           {it.recent.slice(0, 3).map((r, i) => (
             <li key={i} className="text-[13px]">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-ink"><span className="tabular-nums text-mute">{md(r.date)}</span> {r.org ?? '–'}</span>
-                <span className="shrink-0 tabular-nums"><span className="text-mute">{Number(r.qty).toLocaleString()} × </span><b className="font-semibold">{won(r.unit_price)}</b></span>
+                <span className="min-w-0 truncate text-ink"><span className="tabular-nums text-mute">{md(r.date)}</span> {r.org?.trim() || '기관 미상'}</span>
+                <span className="shrink-0 tabular-nums"><span className="text-mute">{Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 1 })} × </span><b className="font-semibold">{won(r.unit_price)}</b></span>
               </div>
               {(r.spec || r.corp) && <p className="truncate text-[12px] text-mute">{[r.spec, r.corp].filter(Boolean).join(' · ')}</p>}
             </li>
