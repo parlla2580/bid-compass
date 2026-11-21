@@ -11,6 +11,7 @@ import { Card, Header, PageTitle, Shell } from '@/components/layout';
 import { BTN_PRIMARY } from '@/components/ui';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
+import { PeersCard } from './peers';
 import { SalesSection } from './sales';
 import { fmtDate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
@@ -124,6 +125,9 @@ export default function AnalysisPage() {
                 <Coverage total={total} detailed={r.detailed} />
               </div>
             </section>
+
+            {/* 익명 업계 비교 (로드맵 3, 033) */}
+            <PeersCard />
 
             {fromHistory.length > 0 && (
               <Link href="/bids?hist=1" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">

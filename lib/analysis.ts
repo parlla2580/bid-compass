@@ -226,3 +226,21 @@ export async function fetchMissed(market: string | null = null, days = 90): Prom
   if (r.error || !r.data?.verified) return null;
   return { missed_orgs: [], recent: [], open_list: [], open_now: 0, joined: 0, missed: 0, total: 0, days, missed_avg_participants: null, joined_avg_participants: null, ...r.data } as Missed;
 }
+
+/* ---------- 익명 업계 비교 (033) ---------- */
+export interface Peers {
+  verified: boolean; months: number; n: number; enough: boolean;
+  me: { bids: number; settled: number; won: number; rate: number | null } | null;
+  rate: { p25: number; p50: number; p75: number } | null;
+  bids: { p25: number; p50: number; p75: number } | null;
+  /** 우리보다 낙찰률이 낮은 경쟁사 비율 (0~1) */
+  below: number | null;
+  bids_below: number | null;
+}
+
+/** 033 실행 전이거나 회사 확인 전이면 null */
+export async function fetchPeers(months = 12): Promise<Peers | null> {
+  const r = await getSupabase().rpc('my_peers', { p_months: months });
+  if (r.error || !r.data?.verified) return null;
+  return r.data as Peers;
+}
