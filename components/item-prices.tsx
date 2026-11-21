@@ -5,7 +5,7 @@ import { ChevronDown, Lock } from 'lucide-react';
 import { Card } from './layout';
 import { Tip } from './tip';
 import { isCatalog, type Notice } from '@/lib/data';
-import { fmtShort, fmtWon } from '@/lib/format';
+import { fmtKorean, fmtShort, fmtWon } from '@/lib/format';
 import { fetchItemPrices, fetchNoticeQty, type ItemPrice } from '@/lib/notices';
 
 /*
@@ -25,15 +25,19 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   const [items, setItems] = useState<ItemPrice[] | null | undefined>(undefined);
   // 이 공고 1개당 예산 (추정가격 × 1.1 ÷ 수량) + 단위('대' 등)
   const [perUnit, setPerUnit] = useState<{ v: number; unit: string } | null>(null);
+  // 이 공고가 사려는 수량 (품목이 하나일 때만 — 여러 품목이면 공고 수량이 어느 품목 것인지 알 수 없음)
+  const [want, setWant] = useState<{ qty: number; unit: string } | null>(null);
 
   useEffect(() => {
     if (!goods) return;
     let on = true;
     fetchItemPrices(codes).then((r) => on && setItems(r)).catch(() => on && setItems(null));
     // 이 공고 개당 금액 — 품목이 하나이고 개수 단위일 때만
-    if (codes.length === 1 && n.estPrice > 0) {
+    if (codes.length === 1) {
       fetchNoticeQty(n.id).then((q) => {
-        if (on && q?.qty && q.qty >= 2 && q.unit && COUNT_UNIT.test(q.unit)) setPerUnit({ v: Math.round((n.estPrice * 1.1) / q.qty), unit: q.unit });
+        if (!on || !q?.qty) return;
+        setWant({ qty: q.qty, unit: q.unit ?? '' });
+        if (n.estPrice > 0 && q.qty >= 2 && q.unit && COUNT_UNIT.test(q.unit)) setPerUnit({ v: Math.round((n.estPrice * 1.1) / q.qty), unit: q.unit });
       }).catch(() => {});
     }
     return () => { on = false; };
@@ -54,13 +58,20 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
       </span>}
       aside={<span className="text-[13px] tabular-nums text-mute">{period} · {total.toLocaleString()}건</span>}>
       <div className="divide-y divide-line">
-        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} mark={items.length === 1 ? perUnit?.v ?? null : null} unit={perUnit?.unit ?? null} locked={locked} onSignup={onSignup} />)}
+        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} mark={items.length === 1 ? perUnit?.v ?? null : null} unit={perUnit?.unit ?? null}
+          want={items.length === 1 ? want : null} total={n.estPrice > 0 ? Math.round(n.estPrice * 1.1) : null} locked={locked} onSignup={onSignup} />)}
       </div>
     </Card>
   );
 }
 
-function Row({ it, single, mark, unit, locked, onSignup }: { it: ItemPrice; single: boolean; mark: number | null; unit: string | null; locked: boolean; onSignup: () => void }) {
+function Row({ it, single, mark, unit, want, total, locked, onSignup }: {
+  it: ItemPrice; single: boolean; mark: number | null; unit: string | null;
+  /** 이 공고 구매 수량 */ want: { qty: number; unit: string } | null;
+  /** 이 공고 추정가격 × 1.1 */ total: number | null;
+  locked: boolean; onSignup: () => void;
+}) {
+  const qtyText = want ? `${want.qty.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}${want.unit}` : null;
   const ok = it.spread_ok && it.n >= 10;
   const [open, setOpen] = useState(!ok);
   // 막대 눈금 — 보통 범위와 이 공고 위치가 다 들어오게
@@ -73,6 +84,7 @@ function Row({ it, single, mark, unit, locked, onSignup }: { it: ItemPrice; sing
       <div className="flex items-baseline justify-between gap-3">
         <p className="min-w-0 truncate text-[14px] font-semibold text-sub">{it.name ?? it.code}{ok && <span className="ml-1.5 text-[12px] font-normal text-mute">1{unit && COUNT_UNIT.test(unit) && !/^(EA|ea|set|SET)$/.test(unit) ? unit : '개'} 기준</span>}</p>
         {!single && <p className="shrink-0 text-[12px] text-mute">{it.n.toLocaleString()}건</p>}
+        {single && qtyText && <p className="shrink-0 text-[13px] text-sub">이 공고 <b className="font-semibold tabular-nums text-ink">{qtyText}</b></p>}
       </div>
 
       {ok ? (
@@ -91,7 +103,7 @@ function Row({ it, single, mark, unit, locked, onSignup }: { it: ItemPrice; sing
                   <span className="text-[24px] font-bold tabular-nums tracking-tight text-brand">{won(sane)}</span>
                   <Diff v={sane} base={it.p50} />
                 </p>
-                <p className="text-[12px] text-mute">추정가격 ÷ 수량</p>
+                <p className="text-[12px] tabular-nums text-mute">{total && qtyText ? `${fmtKorean(total)} ÷ ${qtyText}` : '추정가격 ÷ 수량'}</p>
               </div>
             )}
           </div>
