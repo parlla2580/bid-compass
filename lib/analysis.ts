@@ -248,6 +248,8 @@ export async function fetchPeers(months = 12): Promise<Peers | null> {
 /* ---------- 발주기관 카드 (034) ---------- */
 export interface OrgProfile {
   org: string; notices: number; openings: number; decided: number;
+  /** 035: 통계에서 뺀 참가 1곳 이하 개찰(단가계약 등). 034만 실행했으면 없음 */
+  single?: number;
   d_from: string | null; d_to: string | null;
   months: { ym: string; n: number }[];
   by_type: Record<string, { n: number; participants: number | null }>;

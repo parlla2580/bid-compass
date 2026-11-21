@@ -13,8 +13,10 @@ import { useStore } from '@/lib/store';
  * 발주기관 카드 (로드맵 4, 034) — 이 기관은 언제·어떻게 사나
  *  발주 시기(월별 공고 수) · 보통 참가 업체 수 · 사정률 · 낙찰률 · 낙찰 많이 한 업체(가입 후) · 지금 열린 공고
  *  기간은 실제 수집 기간을 그대로 표시 (12개월이 안 될 수 있음)
+ *  035 보정: 참가 1곳 이하(단가계약) 개찰은 통계 제외 · 표본 10건 미만 숫자는 '표본 부족'으로
  */
 
+const MIN = 10;
 const ym = (d: string | null) => (d ? `${d.slice(2, 4)}.${d.slice(5, 7)}` : '');
 
 export default function OrgView() {
@@ -38,6 +40,11 @@ export default function OrgView() {
       <section>
         <h1 className="text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{org}</h1>
         <p className="mt-1 text-[14px] tabular-nums text-mute">{ym(p.d_from)}~{ym(p.d_to)} · 공고 {p.notices.toLocaleString()}건 · 개찰 {p.openings.toLocaleString()}건</p>
+        {!!p.single && (
+          <p className="mt-0.5 flex items-center gap-1 text-[13px] tabular-nums text-mute">단가계약 등 1곳 참가 {p.single.toLocaleString()}건 통계 제외
+            <Tip title="통계에서 뺀 개찰">제3자단가·우수조달·혁신제품 시범구매처럼 참가 업체가 1곳인 개찰은 낙찰률이 100% 가까이 나와 경쟁 입찰 통계를 왜곡해 제외. 월별 공고 수와 전체 개찰 수에는 포함.</Tip>
+          </p>
+        )}
         {open > 0 && (
           <Link href={`/bids?tab=all&org=${encodeURIComponent(org)}`} className="mt-3 flex items-center justify-between rounded-box bg-brand px-5 py-3.5 text-white">
             <span className="text-[15px] font-semibold">지금 열린 공고 {open}건</span><ChevronRight className="h-5 w-5" />
@@ -69,7 +76,9 @@ export default function OrgView() {
               {types.map(([t, v]) => (
                 <div key={t} className="rounded-2xl bg-fill px-3 py-3">
                   <p className="text-[12px] text-mute">{t} · {v.n}건</p>
-                  <p className="mt-0.5 text-[20px] font-bold tabular-nums">{v.participants != null ? `${Math.round(v.participants)}곳` : '–'}</p>
+                  {v.n >= MIN && v.participants != null
+                    ? <p className="mt-0.5 text-[20px] font-bold tabular-nums">{Math.round(v.participants).toLocaleString()}곳</p>
+                    : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>
               ))}
             </div>
@@ -83,15 +92,23 @@ export default function OrgView() {
               {p.sajeong && (
                 <div className="rounded-2xl bg-fill px-4 py-3">
                   <p className="text-[12px] text-mute">사정률 · {p.sajeong.n}건</p>
-                  <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.sajeong.p50.toFixed(2)}%</p>
-                  <p className="text-[12px] tabular-nums text-mute">{p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
+                  {p.sajeong.n >= MIN ? (
+                    <>
+                      <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.sajeong.p50.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">{p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
+                    </>
+                  ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>
               )}
               {p.win_rate && (
                 <div className="rounded-2xl bg-fill px-4 py-3">
                   <p className="text-[12px] text-mute">낙찰률 · {p.win_rate.n}건</p>
-                  <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.win_rate.p50.toFixed(2)}%</p>
-                  <p className="text-[12px] tabular-nums text-mute">{p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
+                  {p.win_rate.n >= MIN ? (
+                    <>
+                      <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.win_rate.p50.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">{p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
+                    </>
+                  ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>
               )}
             </div>
@@ -100,7 +117,7 @@ export default function OrgView() {
       </div>
 
       {/* 낙찰 많이 한 업체 */}
-      {p.winners.length > 0 && (
+      {p.winners.length > 0 && p.decided >= MIN && (
         <Card title="낙찰 많이 한 업체" aside={<span className="text-[13px] text-mute">낙찰자 정해진 {p.decided.toLocaleString()}건 중</span>}>
           {account ? (
             <ul className="space-y-2.5">
