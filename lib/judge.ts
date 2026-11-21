@@ -47,16 +47,16 @@ function regionRule(n: Notice, p: Profile): Reason {
   if (!n.regionLimit) return { rule, result: 'pass', text: '지역제한 없음' };
   const area = n.regionLimit.join(', ');
   const basis = n.regionBasis ? ` (판단기준: ${n.regionBasis})` : '';
-  if (!p.location) return { rule, result: 'check', text: `지역제한: ${area} — 소재지를 입력하면 판정됩니다`, need: 'location' };
+  if (!p.location) return { rule, result: 'check', text: `지역제한 ${area} · 소재지 입력 필요`, need: 'location' };
 
   const hit = n.regionLimit.find((r) => within(p.location!, r));
   if (hit) return { rule, result: 'pass', text: `지역 조건 충족 (${hit})${basis}` };
 
   // 회사 소재지가 시도까지만 있고, 공고 제한이 그 시도 안의 시군구인 경우
   if (!hasSigungu(p.location) && n.regionLimit.some((r) => canonicalRegion(r).startsWith(canonicalRegion(p.location!) + ' '))) {
-    return { rule, result: 'check', text: `지역제한: ${area} — 시군구를 입력하면 판정됩니다`, need: 'sigungu' };
+    return { rule, result: 'check', text: `지역제한 ${area} · 시군구 입력 필요`, need: 'sigungu' };
   }
-  return { rule, result: 'fail', text: `지역제한: ${area} 소재 업체만 / 귀사 소재지 ${p.location}${basis}` };
+  return { rule, result: 'fail', text: `지역제한 ${area} 소재 업체만 · 우리 ${p.location}${basis}` };
 }
 
 /* ---------- 2. 업종(면허)제한 ---------- */
@@ -75,17 +75,17 @@ function industryRule(n: Notice, p: Profile): Reason {
   const rule = 'industry';
   if (!n.licenseLimits) {
     // 공고 원본은 '업종 제한 있음'인데 제한 내용을 아직 못 받은 경우 — '제한 없음'으로 오판하지 않음
-    if (n.industryLimited) return { rule, result: 'check', text: '업종(면허) 제한이 있는 공고예요. 제한 내용을 받는 중이라 원문에서 확인해 주세요' };
+    if (n.industryLimited) return { rule, result: 'check', text: '업종(면허) 제한 있음 · 내용은 원문 확인' };
     return { rule, result: 'pass', text: '업종(면허) 제한 없음' };
   }
   const label = (l: LicenseLimit) => `${l.name}${l.code ? `(${l.code})` : ''}`;
   const required = n.licenseLimits.map(label).join(', ');
   // 사업자번호로 조회했는데 등록 업종이 없는 회사(물품 공급업체 등)는 면허 제한 공고에 참여할 수 없음
   if (p.industries?.length === 0 && p.bizno) {
-    return { rule, result: 'fail', text: `업종 제한: ${required} — 나라장터에 등록된 우리 업종이 없어요` };
+    return { rule, result: 'fail', text: `업종 제한 ${required} · 나라장터 등록 업종 없음` };
   }
   if (p.industries === null || p.industries.length === 0) {
-    return { rule, result: 'check', text: `업종 제한: ${required} — 업종을 입력하면 판정됩니다`, need: 'industries' };
+    return { rule, result: 'check', text: `업종 제한 ${required} · 업종 입력 필요`, need: 'industries' };
   }
   const codes = new Set(p.industries.map((i) => i.code));
   // 제한그룹별로 묶어서 한 그룹이라도 전부 충족하면 통과
@@ -122,11 +122,11 @@ function sizeRule(n: Notice, p: Profile): Reason | null {
   const lim = sizeLimitOf(n);
   if (!lim) return null;
   const rule = 'size';
-  const what = `추정가격 ${n.estPrice < 1e8 ? '1억 원' : '2.3억 원'} 미만 제한경쟁 — ${lim.label}만 참여하는 공고일 가능성이 높아요(추정)`;
-  if (!p.size) return { rule, result: 'pass', text: `${what}. 기업규모를 넣으면 맞춰 드려요`, need: 'size' };
+  const what = `${lim.label} 한정 추정 · 추정가격 ${n.estPrice < 1e8 ? '1억' : '2.3억'} 미만 제한경쟁`;
+  if (!p.size) return { rule, result: 'pass', text: `${what} · 기업규모 입력 필요`, need: 'size' };
   if (SIZE_RANK[p.size] <= SIZE_RANK[lim.need]) return { rule, result: 'pass', text: `${lim.label} 제한 추정 공고 — 우리 회사(${p.size}) 해당` };
   // 이미 입력한 규모와 안 맞는 경우 — 입력 요청(need)이 아니라 공고문 확인 안내 (홈 '입력하면 판정' 배너에 세지 않음)
-  return { rule, result: 'check', text: `${what}. 우리 회사는 ${p.size}라 참여가 어려울 수 있어요. 공고문 참가자격을 확인하세요` };
+  return { rule, result: 'check', text: `${what} · 우리 ${p.size} — 공고문 참가자격 확인` };
 }
 
 /**
@@ -136,7 +136,7 @@ function sizeRule(n: Notice, p: Profile): Reason | null {
  */
 function designatedRule(n: Notice): Reason | null {
   if (n.contract !== '지명경쟁') return null;
-  return { rule: 'designated', result: 'check', text: '지명경쟁 — 발주처가 지명한 업체만 참여할 수 있어요. 공고문의 지명업체 목록에 우리 회사가 있는지 확인하세요' };
+  return { rule: 'designated', result: 'check', text: '지명경쟁 · 지명된 업체만 참여 — 공고문 지명업체 목록 확인' };
 }
 
 const RULES: ((n: Notice, p: Profile) => Reason | null)[] = [designatedRule, regionRule, industryRule, sizeRule];

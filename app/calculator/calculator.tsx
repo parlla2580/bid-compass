@@ -118,7 +118,7 @@ export default function CalculatorTabs() {
       <main className="space-y-3 px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
         {from && (
           <Link href={`/bids/${from.id}`} className="flex items-center gap-2 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-            <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{from.title}</b> 공고 값을 불러왔어요</span>
+            <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{from.title}</b> · 공고 값 적용</span>
             <ChevronRight className="h-5 w-5 shrink-0 text-mute" />
           </Link>
         )}
@@ -133,7 +133,7 @@ export default function CalculatorTabs() {
               notice={from}
               initialRange={params.get('range') ? Number(params.get('range')) : null}
               initialRate={rateOverride ?? (params.get('rate') && type === params.get('type') ? Number(params.get('rate')) : null)}
-              rateNote={rateOverride ? `우리 회사 점수로 찾은 최저 투찰률 ${rateOverride.toFixed(3)}%를 넣었어요` : null}
+              rateNote={rateOverride ? `우리 회사 점수 기준 최저 투찰률 ${rateOverride.toFixed(3)}% 적용` : null}
               onQualify={type === '공사' ? () => selectTab('score') : undefined}
               fromNotice={(fromParams && type === params.get('type')) || (!!from && from.type === type)}
               org={from?.org} demandOrg={from?.demandOrg} />
@@ -221,38 +221,38 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           <div>
             <NumField id="aval" label={<span className="inline-flex items-center gap-1">A값 <span className="font-normal text-mute">(공사)</span>
               <Tip title="A값">국민연금·건강보험·퇴직공제부금·노인장기요양보험료·산업안전보건관리비·안전관리비·품질관리비를 더한 금액이에요. A값 대상 공고는 투찰 하한이 (예정가격 − A) × 낙찰하한율 + A라서, A값을 빼먹으면 하한보다 낮게 써 탈락할 수 있어요. 공고문에 적힌 A값을 그대로 넣으세요.</Tip></span>}
-              value={a} onChange={setA} unit="원" hint={a ? fmtKorean(a) : '대상이 아니면 비워 두세요'} />
+              value={a} onChange={setA} unit="원" hint={a ? fmtKorean(a) : '대상 아니면 비움'} />
             {cost?.aValue ? (
               <div className="mt-2 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">
                 {cost.aApply === false
-                  ? <>나라장터 정보로는 <b className="font-semibold text-ink">A값 산식 대상이 아니에요.</b> 공고문에서 한 번 더 확인하세요. (항목 합계 {fmtWon(cost.aValue)})</>
-                  : <><b className="font-semibold text-ink">공고의 A값 {fmtWon(cost.aValue)}을 넣었어요.</b>{cost.aApply === null ? ' 적용 여부는 공고문에서 확인하세요.' : ''}</>}
+                  ? <><b className="font-semibold text-ink">A값 산식 대상 아님</b> · 나라장터 정보 기준, 공고문 확인 (항목 합계 {fmtWon(cost.aValue)})</>
+                  : <><b className="font-semibold text-ink">공고 A값 {fmtWon(cost.aValue)} 적용</b>{cost.aApply === null ? ' · 적용 여부 공고문 확인' : ''}</>}
                 {cost.aParts && <span className="mt-1 block text-mute">{Object.entries(cost.aParts).map(([k, v]) => `${k} ${fmtShort(v)}`).join(' · ')}</span>}
               </div>
             ) : notice && type === '공사' && cost !== null ? (
-              <p className="mt-1.5 text-[13px] text-mute">{notice.basePrice ? '나라장터에 이 공고의 A값 정보가 없어요. 공고문에 있으면 직접 넣어 주세요.' : 'A값은 보통 기초금액과 함께 공개돼요. 공개되면 자동으로 채워 드려요.'}</p>
+              <p className="mt-1.5 text-[13px] text-mute">{notice.basePrice ? 'A값 정보 없음 · 공고문 값 직접 입력' : 'A값은 기초금액과 함께 공개 · 공개되면 자동 입력'}</p>
             ) : null}
           </div>
         )}
         {rateNote && <p className="-mt-2 text-[13px] font-medium text-brand">{rateNote}</p>}
         {onQualify && !rateNote && (
           <button type="button" onClick={onQualify} className="-mt-2 flex w-full items-center justify-between gap-2 rounded-xl bg-brand-soft px-3.5 py-3 text-left text-[14px] text-brand">
-            <span><b className="font-semibold">우리 회사 점수로는 몇 %부터 통과할까요?</b><span className="block text-[13px] text-sub">경영상태·실적이 만점이 아니면 하한율로 써도 탈락할 수 있어요</span></span>
+            <span><b className="font-semibold">우리 회사 점수로는 몇 %부터 통과할까요?</b><span className="block text-[13px] text-sub">경영상태·실적이 만점이 아니면 하한율로도 탈락 가능</span></span>
             <ChevronRight className="h-5 w-5 shrink-0" />
           </button>
         )}
         <label className="flex cursor-pointer items-start gap-3 rounded-btn bg-fill px-4 py-3.5 text-[15px]">
           <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-0.5 h-5 w-5 accent-blue-600" />
           <span>
-            <span className="font-medium">공고 세부기준표 값과 대조했어요</span>
+            <span className="font-medium">세부기준표와 대조 완료</span>
             <span className="mt-0.5 block text-[13px] text-mute">
-              {fromNotice ? '공고에서 불러온 값이에요. 세부기준표와 대조해 주세요.' : '지금 값은 예시값이에요. 공고마다 달라요.'}
+              {fromNotice ? '공고 값 · 세부기준표 대조 필요' : '예시값 · 공고마다 다름'}
             </span>
           </span>
         </label>
         {estPrice && (
           <p className="text-[13px] text-mute">
-            이 공고의 <Term k="추정가격" />은 {fmtWon(estPrice)}이에요 (부가가치세 제외)
+            <Term k="추정가격" /> {fmtWon(estPrice)} (부가세 제외)
           </p>
         )}
       </div>
@@ -266,7 +266,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
             ? <span className="text-[13px] font-semibold text-ok">공고값 기준</span>
             : <span className="text-[13px] font-semibold text-warn">예시 계산</span>}
         </div>
-        {B <= 0 ? <p className="py-6 text-center text-[15px] text-mute">기초금액을 넣으면 계산해 드려요</p> : <>
+        {B <= 0 ? <p className="py-6 text-center text-[15px] text-mute">기초금액 입력 시 계산</p> : <>
         <dl className="divide-y divide-line">
           <div className="flex flex-col gap-1 py-3">
             <dt className="text-[13px] text-mute"><Term k="예정가격" /> 범위 (<Term k="사정률" /> {round1(100 - (range ?? 0))}~{round1(100 + (range ?? 0))}%)</dt>
@@ -311,12 +311,12 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
       {type === '공사' && (
         <div className="space-y-4 rounded-box bg-white p-5 lg:col-start-1 lg:p-6">
           <h2 className="text-[17px] font-bold">공사 98% 하한 체크</h2>
-          <p className="-mt-2 text-[14px] text-mute">내역서의 재료비·노무비·경비를 넣으면 98% 미만인지 확인해요</p>
+          <p className="-mt-2 text-[14px] text-mute">내역서 재료비·노무비·경비 입력 → 98% 미만 여부 확인</p>
           {cost?.netCost ? (
             <div className="rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">
-              나라장터에 올라온 이 공고의 <b className="font-semibold text-ink">기초금액 순공사비는 {fmtWon(cost.netCost)}</b>이에요. 98%는 {fmtWon(Math.ceil(cost.netCost * CONSTRUCTION_FLOOR))}이에요.
-              <span className="mt-1 block text-mute">순공사원가는 예정가격이 정해지면 그에 맞춰 달라질 수 있고, 부가가치세 포함 여부도 공고마다 달라요. 공고문·내역서로 확인하세요.</span>
-              {bid !== null && bid > 0 && bid < cost.netCost * CONSTRUCTION_FLOOR && <b className="mt-1 block font-semibold text-bad">내 투찰금액이 이 98%보다 낮아요.</b>}
+              <b className="font-semibold text-ink">기초금액 순공사비 {fmtWon(cost.netCost)}</b> · 98% {fmtWon(Math.ceil(cost.netCost * CONSTRUCTION_FLOOR))}
+              <span className="mt-1 block text-mute">예정가격·부가세 포함 여부에 따라 달라질 수 있음 · 공고문·내역서 확인</span>
+              {bid !== null && bid > 0 && bid < cost.netCost * CONSTRUCTION_FLOOR && <b className="mt-1 block font-semibold text-bad">내 투찰금액 98% 미만</b>}
             </div>
           ) : null}
           <div className="grid grid-cols-2 gap-3">
@@ -332,16 +332,16 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {constructionWarn && (
             <p className="flex gap-2 text-[15px] font-medium text-bad">
               <TriangleAlert className="mt-0.5 h-[18px] w-[18px] shrink-0" />
-              원가 합계의 98%보다 낮아요. 공고에 이 기준이 있는지 확인하세요.
+              원가 합계 98% 미만 · 공고 기준 확인
             </p>
           )}
-          {type === '공사' && costSum > 0 && bid === null && <p className="text-[13px] text-mute">내 투찰금액을 넣으면 경고 여부를 알려드려요</p>}
+          {type === '공사' && costSum > 0 && bid === null && <p className="text-[13px] text-mute">내 투찰금액 입력 시 경고 표시</p>}
         </div>
       )}
       </>}
 
       <p className="px-1 text-[13px] leading-relaxed text-mute lg:col-span-2">
-        계산 결과는 참고용이에요. 공고 세부기준표로 꼭 확인하세요.
+        참고용 계산 · 공고 세부기준표 확인 필수
       </p>
     </section>
   );
@@ -429,7 +429,7 @@ function ScorePanel({ type }: { type: BidType }) {
       </div>
 
       <p className="px-1 text-[13px] leading-relaxed text-mute lg:col-span-2">
-        배점과 기준점은 일반 예시예요. 공고 세부기준표로 확인하세요.
+        배점·기준점은 일반 예시 · 공고 세부기준표 확인
       </p>
     </section>
   );

@@ -127,7 +127,7 @@ export default function AnalysisPage() {
 
             {fromHistory.length > 0 && (
               <Link href="/bids?hist=1" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-                <span className="flex-1 text-sub">맞춤 공고 {matched.length.toLocaleString()}건 중 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b>은 우리가 참여·낙찰했던 공고와 비슷해요</span>
+                <span className="flex-1 text-sub">지난 참여·낙찰과 비슷한 공고 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b> <span className="text-mute">/ 맞춤 {matched.length.toLocaleString()}건</span></span>
                 <ChevronRight className="h-5 w-5 text-mute" />
               </Link>
             )}
@@ -141,14 +141,14 @@ export default function AnalysisPage() {
 
               {/* F7-2 아깝게 놓친 공고 — 1순위와 차이를 막대로 */}
               <Card title="아깝게 놓친 공고" aside={<span className="text-[13px] text-mute">1순위와 차이</span>}>
-                {r.near_misses?.length ? <GapBars items={r.near_misses} /> : <p className="py-6 text-center text-[14px] text-mute">해당하는 공고가 없어요</p>}
+                {r.near_misses?.length ? <GapBars items={r.near_misses} /> : <p className="py-6 text-center text-[14px] text-mute">해당 공고 없음</p>}
               </Card>
 
               {/* F7-3 하한선 미달 */}
               <Card title="낙찰하한선 미달" aside={<span className="text-[13px] text-mute">하한율보다 낮게 투찰</span>}>
                 {r.below_floor_list?.length ? (
                   <>
-                    <p className="text-[15px] text-sub">투찰 {total}건 중 <b className="text-[20px] font-bold text-bad">{r.below_floor ?? 0}건</b>이 하한 미달로 빠졌어요</p>
+                    <p className="text-[15px] text-sub">하한 미달 <b className="text-[20px] font-bold text-bad">{r.below_floor ?? 0}건</b> <span className="text-mute">/ 투찰 {total}건</span></p>
                     <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-fill">
                       <div className="bg-bad" style={{ width: `${total ? ((r.below_floor ?? 0) / total) * 100 : 0}%` }} />
                     </div>
@@ -165,7 +165,7 @@ export default function AnalysisPage() {
                     )} />
                     <Link href="/calculator" className="mt-2 inline-flex items-center text-[15px] font-semibold text-brand">투찰 전에 하한 구간 계산하기<ChevronRight className="h-4 w-4" /></Link>
                   </>
-                ) : <p className="py-6 text-center text-[14px] text-mute">하한선 미달로 빠진 공고가 없어요</p>}
+                ) : <p className="py-6 text-center text-[14px] text-mute">하한 미달 없음</p>}
               </Card>
             </div>
           </>
@@ -272,7 +272,7 @@ function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total:
                     const href = `/bids?${op.matched ? '' : 'tab=all&'}org=${encodeURIComponent(o.org)}`;
                     return (
                       <Link href={href} className="mt-1.5 inline-flex items-center gap-0.5 text-[13px] font-semibold text-brand">
-                        이 기관 공고, 지금 {op.all}건 열려 있어요{op.matched ? ` (맞춤 ${op.matched}건)` : ''}<ChevronRight className="h-4 w-4" />
+                        이 기관 지금 공고 {op.all}건{op.matched ? ` · 맞춤 ${op.matched}` : ''}<ChevronRight className="h-4 w-4" />
                       </Link>
                     );
                   })()}
@@ -280,9 +280,9 @@ function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total:
               );
             })}
           </ul>
-          <p className="mt-3 text-[12px] text-mute">파란 막대는 우리 평균보다 낙찰률이 높은 기관이에요. 투찰이 적은 기관은 우연일 수 있어요.</p>
+          <p className="mt-3 text-[12px] text-mute">파란 막대 = 우리 평균보다 낙찰률 높은 기관 · 투찰 적은 기관은 우연 가능</p>
         </>
-      ) : <p className="py-6 text-center text-[14px] text-mute">아직 기관별로 볼 만큼 투찰이 없어요</p>}
+      ) : <p className="py-6 text-center text-[14px] text-mute">기관별로 볼 만큼 투찰 부족</p>}
     </Card>
   );
 }
@@ -476,7 +476,7 @@ function HistoryCard() {
             );
           })}
         </ul>
-      ) : <p className="py-6 text-center text-[14px] text-mute">해당하는 공고가 없어요</p>}
+      ) : <p className="py-6 text-center text-[14px] text-mute">해당 공고 없음</p>}
       {rows.length > n && <button type="button" onClick={() => setN(n + 20)} className="w-full py-2 text-[14px] font-medium text-sub">{Math.min(20, rows.length - n)}건 더 보기</button>}
     </Card>
   );

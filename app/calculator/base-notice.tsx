@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Bell, BellRing, Calculator, FileSearch, Info } from 'lucide-react';
 import { Term } from '@/components/term';
+import { Tip } from '@/components/tip';
 import { useToast } from '@/components/feedback';
 import { baseStatus, looksUnitPrice, previewBase, type Notice } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
@@ -37,9 +38,9 @@ export function BaseNotice({ notice, range, rate, budget = null, onEstimate }: {
         <div className="flex gap-3">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
           <div>
-            <p><b className="font-semibold text-ink">이 공고는 <Term k="비예가">비예가</Term> 방식이라 투찰금액 계산 대상이 아니에요.</b></p>
-            <p className="mt-1">예정가격을 추첨하지 않아서 기초금액·<Term k="사정률" />로 금액을 정하지 않아요.
-              {/협상/.test(notice.award) ? ' 협상에 의한 계약이라 제안서의 기술·가격 평가로 낙찰자를 정해요.' : ''} 가격 평가 방법은 공고문에서 확인하세요.</p>
+            <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="비예가">비예가</Term> · 투찰금액 계산 대상 아님</b>
+              <Tip title="비예가">예정가격을 추첨하지 않아 기초금액·사정률로 금액을 정하지 않음. 가격 평가 방법은 공고문 확인.</Tip></p>
+            <p className="mt-1">{howWins(notice.award ?? '')}</p>
             <RefPrices notice={notice} budget={budget} />
             <DocLink url={notice.url} />
           </div>
@@ -50,16 +51,16 @@ export function BaseNotice({ notice, range, rate, budget = null, onEstimate }: {
         <div className="flex gap-3">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
           <div>
-            <p><b className="font-semibold text-ink">쇼핑몰·단가계약 공고라 투찰금액 계산 대상이 아니에요.</b></p>
-            <p className="mt-1">{/다수공급자|카탈로그/.test(notice.award)
-              ? `${/다수공급자/.test(notice.award) ? '다수공급자계약(MAS)' : '카탈로그계약'}은 한 번의 입찰로 낙찰자를 정하지 않고, 조건을 갖춘 업체와 계약해 제품을 나라장터 종합쇼핑몰에 올리면 수요기관이 골라 사는 방식이에요.`
-              : '수요기관이 ‘각 수요기관’인 공고는 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약하는 공고예요. 한 번의 입찰로 낙찰자를 정하는 일반 공고와 달라요.'} 계약 기간 동안 받는 공고라 마감이 먼 경우가 많아요.</p>
-            <p className="mt-1 text-[13px] text-mute">추정가격은 계약 전체 규모로 보여요. 한 업체가 받는 금액과는 달라요. 참여 조건은 공고문에서 확인하세요.</p>
+            <p className="flex items-center gap-1"><b className="font-semibold text-ink">쇼핑몰·단가계약 · 투찰금액 계산 대상 아님</b>
+              <Tip title="쇼핑몰·단가계약">{/다수공급자|카탈로그/.test(notice.award)
+                ? `${/다수공급자/.test(notice.award) ? '다수공급자계약(MAS)' : '카탈로그계약'}: 한 번의 입찰이 아니라, 조건을 갖춘 업체와 계약해 종합쇼핑몰에 올리면 수요기관이 골라 사는 방식.`
+                : '‘각 수요기관’ 공고: 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약.'} 계약 기간 동안 받는 공고라 마감이 먼 경우가 많음.</Tip></p>
+            <p className="mt-1 text-[13px] text-mute">추정가격 = 계약 전체 규모 (업체별 금액 아님) · 참여 조건은 공고문</p>
             <DocLink url={notice.url} />
           </div>
         </div>
       )}
-      {st === 'unknown' && <p><b className="font-semibold text-ink">공고에 기초금액이 없어요.</b> 공고문에서 확인한 값을 직접 넣어 주세요.</p>}
+      {st === 'unknown' && <p><b className="font-semibold text-ink">기초금액 없음</b> · 공고문 값 직접 입력</p>}
     </div>
   );
 }
@@ -75,10 +76,11 @@ function Pending({ notice, range, rate }: { notice: Notice; range: number; rate:
       <div className="flex gap-3">
         <Bell className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
         <div className="min-w-0 flex-1">
-          <p><b className="font-semibold text-ink"><Term k="기초금액" />은 아직 공개 전이에요.</b></p>
-          <p className="mt-1">이 공고는 기초금액이 공고보다 늦게, 보통 마감 며칠 전에 공개돼요. 공개되면 알림함으로 바로 알려 드릴게요.</p>
+          <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="기초금액" /> 공개 전</b>
+            <Tip title="기초금액 공개 전">이 공고는 기초금액이 공고보다 늦게, 보통 마감 며칠 전에 공개됨.</Tip></p>
+          <p className="mt-1">공개 시 알림함으로 알림</p>
           {on ? (
-            <p className="mt-2 inline-flex items-center gap-1 font-semibold text-ok"><BellRing className="h-4 w-4" />저장했어요 — 공개되면 알려 드려요</p>
+            <p className="mt-2 inline-flex items-center gap-1 font-semibold text-ok"><BellRing className="h-4 w-4" />저장됨 · 공개 시 알림</p>
           ) : account ? (
             <button type="button" onClick={() => { toggleSaved(notice.id); toast('저장했어요. 기초금액이 나오면 알려 드릴게요'); }}
               className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white active:scale-[.98]">
@@ -95,11 +97,9 @@ function Pending({ notice, range, rate }: { notice: Notice; range: number; rate:
         <div className="mt-4 rounded-xl bg-fill px-4 py-3.5">
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-warn">미리보기 · 추정</p>
           <p className="mt-1 text-ink"><Term k="추정가격" /> {fmtWon(notice.estPrice)} × 1.1(부가세) ≒ 기초금액 <b className="tabular-nums">{fmtWon(pre)}</b></p>
-          <p className="mt-0.5 text-ink">그렇다면 투찰 하한은 대략 <b className="tabular-nums">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</b></p>
-          <p className="mt-2 text-[12px] leading-relaxed text-mute">
-            지금 올라온 공고로 보면 실제 기초금액이 이 값의 ±2% 안에 든 비율이 공사 96%·용역 85%·물품 78%예요(2026-11-18 실측). 단가 입찰은 맞지 않아요.
-            예산을 가늠하는 용도로만 쓰고, 투찰은 실제 기초금액이 나온 뒤 다시 계산하세요.
-          </p>
+          <p className="mt-0.5 text-ink">투찰 하한 약 <b className="tabular-nums">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</b></p>
+          <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">±2% 안 적중: 공사 96% · 용역 85% · 물품 78%
+            <Tip title="미리보기 정확도">2026-11-18 실측: 실제 기초금액이 이 추정의 ±2% 안에 든 비율. 단가 입찰은 맞지 않음. 예산 가늠용 — 투찰은 실제 기초금액 공개 후 다시 계산.</Tip></p>
         </div>
       )}
     </div>
@@ -125,11 +125,11 @@ function RefPrices({ notice, budget }: { notice: Notice; budget: number | null }
 }
 
 function howWins(award: string): string {
-  if (/협상/.test(award)) return '제안서의 기술·가격 평가로 순위를 정하고 협상해서 계약해요.';
-  if (/수의/.test(award)) return '경쟁 입찰 없이 가격을 협의해 계약하는 방식이에요.';
-  if (/규격가격|2단계/.test(award)) return '규격(제안)을 먼저 통과한 업체 중 예정가격 이하로 가장 낮게 쓴 업체가 낙찰돼요.';
-  if (/최저가/.test(award)) return '예정가격 이하로 쓴 업체 중 가장 낮은 금액이 낙찰돼요. 하한선이 없어요.';
-  return '낙찰 방법은 공고문에서 확인하세요.';
+  if (/협상/.test(award)) return '낙찰: 제안서 기술·가격 평가 후 협상';
+  if (/수의/.test(award)) return '낙찰: 경쟁 없이 가격 협의';
+  if (/규격가격|2단계/.test(award)) return '낙찰: 규격 통과 업체 중 예정가격 이하 최저가';
+  if (/최저가/.test(award)) return '낙찰: 예정가격 이하 최저가 · 하한선 없음';
+  return '낙찰 방법: 공고문 확인';
 }
 
 function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number | null; onEstimate?: (plan: number) => void }) {
@@ -139,10 +139,11 @@ function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number
     <div className="flex gap-3">
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
       <div className="min-w-0 flex-1">
-        <p><b className="font-semibold text-ink"><Term k="단일예가">단일예가</Term> 공고예요.</b> 예정가격을 추첨 없이 하나로 정해서 기초금액·<Term k="사정률" />이 없어요. 예정가격은 보통 개찰 전까지 공개되지 않아요.</p>
+        <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="단일예가">단일예가</Term> · 기초금액·사정률 없음</b>
+          <Tip title="단일예가">예정가격을 추첨 없이 하나로 정함. 예정가격은 보통 개찰 전까지 비공개.</Tip></p>
         {rate ? (
           <>
-            <p className="mt-1">이 공고는 <Term k="낙찰하한율" /> {rate}%가 있어요. 예정가격을 아래 예산 금액으로 가정하면 하한선은 약 <b className="tabular-nums text-ink">{ref ? fmtWon(Math.ceil(ref * rate / 100)) : '—'}</b>이에요. (추정)</p>
+            <p className="mt-1"><Term k="낙찰하한율" /> {rate}% · 예산 기준 하한선 약 <b className="tabular-nums text-ink">{ref ? fmtWon(Math.ceil(ref * rate / 100)) : '—'}</b> <span className="text-mute">(추정)</span></p>
             <RefPrices notice={notice} budget={budget} />
             {ref && onEstimate && (
               <button type="button" onClick={() => onEstimate(ref)}
@@ -150,13 +151,14 @@ function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number
                 <Calculator className="h-4 w-4" />이 금액을 예정가격으로 보고 계산하기
               </button>
             )}
-            <p className="mt-2 text-[12px] text-mute">실제 예정가격은 예산보다 낮을 수 있어요. 그러면 하한선도 내려가요. 공고문에 금액이 있으면 그 값을 넣으세요.</p>
+            <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">예산 = 예정가격 가정
+              <Tip title="예산 기준 추정">실제 예정가격은 예산보다 낮을 수 있고, 그러면 하한선도 내려감. 공고문에 금액이 있으면 그 값 입력.</Tip></p>
           </>
         ) : (
           <>
-            <p className="mt-1">{howWins(notice.award ?? '')} 그래서 ‘하한선에 붙여 쓰는’ 투찰금액 계산은 이 공고에 맞지 않아요.</p>
+            <p className="mt-1">{howWins(notice.award ?? '')} · 투찰금액 계산 대상 아님</p>
             <RefPrices notice={notice} budget={budget} />
-            <p className="mt-2 text-[12px] text-mute">예산은 발주처가 이 계약에 잡아 둔 금액이에요. 예정가격을 가늠하는 참고로만 쓰세요.</p>
+            <p className="mt-2 text-[12px] text-mute">예산 = 발주처 배정 금액 · 참고용</p>
           </>
         )}
         <DocLink url={notice.url} />

@@ -215,7 +215,7 @@ export default function BidList() {
         <main className="min-w-0">
           {orgOnly && tab !== 'soon' && (
             <div className="mb-3 flex items-center gap-2 rounded-box bg-brand-soft px-4 py-3 text-[14px]">
-              <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{orgOnly}</b> 공고만 보고 있어요</span>
+              <span className="min-w-0 flex-1 truncate text-sub"><b className="font-semibold text-ink">{orgOnly}</b> 공고만</span>
               <button type="button" onClick={() => { setOrgOnly(null); router.replace(tab === 'match' ? '/bids' : `/bids?tab=${tab}`, { scroll: false }); }}
                 className="shrink-0 rounded-full bg-white px-3 py-1 text-[13px] font-medium text-sub">전체 보기 ×</button>
             </div>
@@ -239,7 +239,7 @@ export default function BidList() {
           {/* 공사 면허만 있는 회사는 업종으로 이미 맞추므로 품목 안내를 띄우지 않음 */}
           {tab === 'match' && !profile.products?.length && !(profile.industries?.length && profile.industries.every((i) => /공사업/.test(i.name))) && (
             <Link href="/mypage?edit=company" className="mb-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-              <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b>을 넣으면 우리 회사 일과 맞는 공고만 골라 드려요</span>
+              <span className="flex-1 text-sub"><b className="font-semibold text-ink">주요 품목</b> 입력 시 맞춤 정확도 향상</span>
               <ChevronRight className="h-5 w-5 text-mute" />
             </Link>
           )}

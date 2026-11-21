@@ -80,7 +80,7 @@ export function MarketSection() {
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
         <h2 className="text-[20px] font-bold">시장 분석</h2>
-        <p className="mt-0.5 text-[14px] text-mute">우리 투찰 기록으로 본, 우리가 이기는 판과 놓친 기회예요</p>
+        <p className="mt-0.5 text-[14px] text-mute">우리 투찰 기록 기준 · 이기는 판과 놓친 기회</p>
       </div>
 
       <WinPatternCard wp={wp} />
@@ -88,12 +88,12 @@ export function MarketSection() {
       <div className="px-1 pt-2">
         <h3 className="text-[17px] font-bold">{segName ? `'${segName}' 시장` : '우리 시장'}</h3>
         {chips}
-        <p className="mt-1 text-[13px] text-mute">우리가 투찰한 개찰 {n.toLocaleString()}건 기준{thin ? ' · 아직 근거가 적어요' : ''}</p>
+        <p className="mt-1 text-[13px] text-mute">우리가 투찰한 개찰 {n.toLocaleString()}건 기준{thin ? ' · 근거 적음' : ''}</p>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
         <Card title="자주 만나는 회사와의 전적" aside={<Tip title="순위 비교예요">둘 다 순위가 나온 공고에서 누가 앞섰는지예요. 낙찰은 추첨 영향이 커서 참고만 하세요. 회사를 누르면 이 시장에서 낙찰한 공고가 보여요.</Tip>}>
-          {comps.length ? <Rivals comps={comps} market={seg} h2h={h2h} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사가 아직 없어요`} />}
+          {comps.length ? <Rivals comps={comps} market={seg} h2h={h2h} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사 없음`} />}
         </Card>
         <MissedCard d={missed} />
       </div>
@@ -108,7 +108,7 @@ export function MarketSection() {
           {m.other_markets?.length
             ? <Bars rows={m.other_markets.map((o) => { const open = openByOrg.get(o.org) ?? 0; return { label: `${o.org}`, tag: o.type, value: o.firms, sub: `공고 ${o.openings}건`, unit: '곳',
                 link: open ? { href: `/bids?tab=all&org=${encodeURIComponent(o.org)}`, label: `지금 낸 공고 ${open}건 보기` } : undefined }; })} />
-            : <Empty text="아직 찾은 다른 시장이 없어요" />}
+            : <Empty text="찾은 다른 시장 없음" />}
         </Card>
 
         <Card title="새로 들어온 회사" aside={<span className="text-[13px] text-mute">최근 90일</span>}>
@@ -121,7 +121,7 @@ export function MarketSection() {
                 </li>
               ))}
             </ul>
-          ) : <Empty text="최근 새로 들어온 회사가 없어요" />}
+          ) : <Empty text="최근 새로 들어온 회사 없음" />}
         </Card>
       </div>
     </section>
@@ -145,13 +145,13 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
           <Lightbulb className="mt-1 h-5 w-5 shrink-0 text-brand" />
           <div className="min-w-0">
             <p className="text-[18px] font-bold leading-snug tracking-tight">
-              <span className="text-brand">{bucketPhrase(h.key, h.hi.label)}</span> 공고에서 낙찰률 {pct(h.hi.rate)},<br className="sm:hidden" /> {bucketPhrase(h.key, h.lo.label)}에선 {pct(h.lo.rate)}
+              <span className="text-brand">{bucketPhrase(h.key, h.hi.label)}</span> 낙찰률 {pct(h.hi.rate)}<span className="mx-1.5 font-medium text-mute">vs</span><br className="sm:hidden" />{bucketPhrase(h.key, h.lo.label)} {pct(h.lo.rate)}
             </p>
             {h.hi.href && <Link href={h.hi.href} className="mt-2 inline-flex items-center text-[14px] font-semibold text-brand">지금 열린 {h.hi.label} 공고 보기<ChevronRight className="h-4 w-4" /></Link>}
           </div>
         </div>
       ) : (
-        <p className="mt-1.5 text-[16px] font-bold leading-snug">아직 어느 조건에서도 낙찰률이 뚜렷하게 갈리지 않아요</p>
+        <p className="mt-1.5 text-[16px] font-bold leading-snug">조건별 낙찰률 차이 뚜렷하지 않음</p>
       )}
 
       <div className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">
@@ -293,14 +293,14 @@ function Rivals({ comps, market, h2h }: { comps: MarketCompetitor[]; market: str
                       <span className="text-mute">그쪽이 앞섬 {h!.they_ahead}</span>
                     </div>
                   </>
-                ) : <p className="mt-1 text-[12px] text-mute">순위를 비교할 수 있는 공고가 아직 없어요</p>}
+                ) : <p className="mt-1 text-[12px] text-mute">순위 비교 가능한 공고 없음</p>}
             </button>
             {on && (
               <div className="mb-2 mt-1 rounded-xl bg-fill px-3.5 py-3 text-[13px]">
-                {!c.wins ? <p className="text-sub">함께 {c.shared}건 들어갔지만 이 시장에서 낙찰한 적은 없어요.</p>
-                  : list === undefined ? <p className="text-mute">낙찰한 공고를 찾는 중이에요</p>
-                  : list === null ? <p className="text-mute">아직 준비 중이에요. 잠시 뒤 다시 눌러 주세요.</p>
-                  : !list.length ? <p className="text-sub">낙찰한 공고를 찾지 못했어요.</p>
+                {!c.wins ? <p className="text-sub">함께 {c.shared}건 · 이 시장 낙찰 없음</p>
+                  : list === undefined ? <p className="text-mute">낙찰 공고 찾는 중</p>
+                  : list === null ? <p className="text-mute">준비 중 · 잠시 뒤 다시</p>
+                  : !list.length ? <p className="text-sub">낙찰 공고 없음</p>
                   : (
                     <>
                       <p className="mb-2 font-semibold text-ink">이 시장에서 낙찰한 공고 {list.length}건{c.wins > list.length ? ` (최근 ${list.length}건)` : ''}</p>
@@ -327,7 +327,7 @@ function Rivals({ comps, market, h2h }: { comps: MarketCompetitor[]; market: str
 
 /** 100% 막대 — 상위 회사·우리·그 외 */
 function Share({ market }: { market: MyMarket['market'] }) {
-  if (!market || !market.total_amount) return <Empty text="낙찰 금액이 있는 개찰이 아직 없어요" />;
+  if (!market || !market.total_amount) return <Empty text="낙찰 금액 있는 개찰 없음" />;
   const total = market.total_amount;
   const leaders = market.leaders.filter((l) => !l.me);
   const segs = [
@@ -339,7 +339,7 @@ function Share({ market }: { market: MyMarket['market'] }) {
   const top3 = leaders.slice(0, 3).reduce((s, x) => s + x.amount, 0);
   return (
     <div>
-      <p className="text-[15px] text-sub">상위 3곳이 <b className="text-[20px] font-bold text-ink">{Math.round((top3 / total) * 100)}%</b>를 가져갔어요</p>
+      <p className="text-[15px] text-sub">상위 3곳 점유 <b className="text-[20px] font-bold text-ink">{Math.round((top3 / total) * 100)}%</b></p>
       <div className="mt-3 flex h-4 overflow-hidden rounded-full">
         {all.map((s) => <div key={s.name} title={`${s.name} ${Math.round((s.amount / total) * 100)}%`} style={{ width: `${(s.amount / total) * 100}%`, background: s.color }} />)}
       </div>

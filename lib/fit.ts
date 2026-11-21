@@ -173,7 +173,7 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   } else cond += 4;
 
   // 마감 여유 — 오늘·내일 마감은 준비가 빠듯
-  if (n.d >= 0 && n.d <= 1) { cond -= 10; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감 — 준비가 빠듯해요' : '내일 마감 — 준비가 빠듯해요'); }
+  if (n.d >= 0 && n.d <= 1) { cond -= 10; push('deadline', '마감', 0.3, n.d === 0 ? '오늘 마감 · 준비 기간 짧음' : '내일 마감 · 준비 기간 짧음'); }
   else if (n.d === 2) cond -= 4;
   else if (n.d > 30) cond -= 2;
 
@@ -195,9 +195,9 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   const typical = comp?.byType.get(n.type);
   if (c && typical) {
     const ratio = c.median / typical;
-    if (ratio <= 0.5) { cond += 6; push('competition', '경쟁', 1, `경쟁이 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
-    else if (ratio <= 0.8) { cond += 3; push('competition', '경쟁', 0.8, `경쟁이 조금 적은 편이에요 (보통 ${c.median}곳, 참고)`); }
-    else if (ratio >= 2) { cond -= 4; push('competition', '경쟁', 0.3, `경쟁이 많은 편이에요 (보통 ${c.median}곳, 참고)`); }
+    if (ratio <= 0.5) { cond += 6; push('competition', '경쟁', 1, `경쟁 적은 편 · 보통 ${c.median}곳`); }
+    else if (ratio <= 0.8) { cond += 3; push('competition', '경쟁', 0.8, `경쟁 조금 적은 편 · 보통 ${c.median}곳`); }
+    else if (ratio >= 2) { cond -= 4; push('competition', '경쟁', 0.3, `경쟁 많은 편 · 보통 ${c.median}곳`); }
   }
 
   // 기관 — 선호하거나 참여해 본 기관

@@ -18,9 +18,9 @@ import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type Saj
  */
 
 const STRATEGIES = [
-  { key: 'safe', label: '안정형', q: 0.85, desc: '하한 미달 위험이 낮은 대신 금액이 높아요' },
-  { key: 'mid', label: '중심형', q: 0.5, desc: '가장 흔한 사정률에 맞춰요' },
-  { key: 'bold', label: '공격형', q: 0.3, desc: '금액이 낮은 대신 하한 미달 위험이 커요' },
+  { key: 'safe', label: '안정형', q: 0.85, desc: '미달 위험 낮음 · 금액 높음' },
+  { key: 'mid', label: '중심형', q: 0.5, desc: '가장 흔한 사정률' },
+  { key: 'bold', label: '공격형', q: 0.3, desc: '금액 낮음 · 미달 위험 큼' },
 ] as const;
 
 const BIN = 0.25;
@@ -78,13 +78,13 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
 
   return (
     <div className="rounded-box bg-white p-5 lg:col-span-2 lg:p-6">
-      <h2 className="text-[17px] font-bold">사정률로 투찰금액 정하기</h2>
-      <p className="mt-1 text-[14px] leading-relaxed text-mute">
-        <Term k="예정가격" />은 예비가격 여러 개 중 추첨된 몇 개의 평균이라 <b className="font-semibold text-sub">100% 근처에 몰려요.</b> 지난 {type} 개찰 {sorted.length.toLocaleString()}건의 <Term k="사정률" /> 분포예요.
-      </p>
+      <h2 className="flex items-center gap-1 text-[17px] font-bold">사정률로 투찰금액 정하기
+        <Tip title="사정률 분포"><Term k="예정가격" />은 예비가격 여러 개 중 추첨된 몇 개의 평균이라 100% 근처에 몰림. 아래는 지난 개찰의 실제 사정률 분포.</Tip>
+      </h2>
+      <p className="mt-1 text-[14px] text-mute">지난 {type} 개찰 {sorted.length.toLocaleString()}건 · <Term k="사정률" /> 분포</p>
 
       {!dist ? <div className="mt-4 h-40 animate-pulse rounded-2xl bg-fill" /> : sorted.length < 30 ? (
-        <p className="mt-4 text-[15px] text-mute">비교할 과거 개찰이 아직 적어요. 데이터가 쌓이면 보여드릴게요.</p>
+        <p className="mt-4 text-[15px] text-mute">비교할 과거 개찰 부족</p>
       ) : (
         <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
           <div>
@@ -125,7 +125,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
                 );
               })}
             </div>
-            <p className="mt-2 text-[13px] text-mute">{STRATEGIES.find((st) => Math.abs(Math.round(quantile(sorted, st.q) * 100) / 100 - cur) < 0.005)?.desc ?? '슬라이더로 직접 골랐어요'}</p>
+            <p className="mt-2 text-[13px] text-mute">{STRATEGIES.find((st) => Math.abs(Math.round(quantile(sorted, st.q) * 100) / 100 - cur) < 0.005)?.desc ?? '직접 선택'}</p>
             {floor > 0 && <BacktestCurveChart type={type} floor={floor} R={R} lo={lo} hi={hi} cur={cur} />}
           </div>
 

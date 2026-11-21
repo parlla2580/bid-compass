@@ -65,9 +65,9 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
 
   // 한 줄 판단
   let msg: string;
-  if (same(at)) msg = `${pct2(flat[0].s)}~${pct2(flat[flat.length - 1].s)}는 어디에 써도 1순위 비율이 비슷해요.`;
-  else if (cur < peak.s) msg = `낮게 쓴다고 1순위가 늘지 않았어요. ${pct2(peak.s)} 쪽이 더 많았어요.`;
-  else msg = `높일수록 1순위가 줄었어요. ${pct2(peak.s)} 쪽이 더 많았어요.`;
+  if (same(at)) msg = `${pct2(flat[0].s)}~${pct2(flat[flat.length - 1].s)} 구간 1순위 비율 비슷`;
+  else if (cur < peak.s) msg = `낮춰도 1순위 증가 없음 · 최다 ${pct2(peak.s)}`;
+  else msg = `높일수록 1순위 감소 · 최다 ${pct2(peak.s)}`;
 
   return (
     <div className="mt-7">

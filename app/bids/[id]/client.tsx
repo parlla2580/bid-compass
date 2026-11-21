@@ -32,9 +32,9 @@ import type { TermKey } from '@/lib/terms';
  */
 
 const HEADLINE: Record<Status, { text: string; dot: string; tone: string }> = {
-  eligible: { text: '참여할 수 있어요', dot: 'bg-ok', tone: 'text-ok' },
-  check: { text: '확인이 필요해요', dot: 'bg-warn', tone: 'text-warn' },
-  ineligible: { text: '참여할 수 없어요', dot: 'bg-bad', tone: 'text-bad' },
+  eligible: { text: '참여 가능', dot: 'bg-ok', tone: 'text-ok' },
+  check: { text: '확인 필요', dot: 'bg-warn', tone: 'text-warn' },
+  ineligible: { text: '참여 불가', dot: 'bg-bad', tone: 'text-bad' },
 };
 
 const CONTRACT_TERMS = ['일반경쟁', '제한경쟁', '지명경쟁', '수의계약'];
@@ -116,8 +116,8 @@ function Detail({ n }: { n: Notice }) {
               <Row k="추정가격" v={n.estPrice ? fmtWon(n.estPrice) : '미공개'} />
               <Row k="낙찰하한율" v={n.floorRate ? `${n.floorRate}%` : '–'} />
             </dl>
-            {bst === 'pending' && !closed && <p className="mt-4 rounded-xl bg-brand-soft px-3.5 py-3 text-[13px] leading-relaxed text-sub"><b className="font-semibold text-ink">기초금액은 아직 공개 전이에요.</b> 저장해 두면 공개될 때 알려 드려요.</p>}
-            {bst === 'noDraw' && <p className="mt-4 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">예정가격을 추첨하지 않는 <b className="font-semibold text-ink">비예가</b> 공고라 투찰금액 계산 대상이 아니에요.</p>}
+            {bst === 'pending' && !closed && <p className="mt-4 rounded-xl bg-brand-soft px-3.5 py-3 text-[13px] leading-relaxed text-sub"><b className="font-semibold text-ink">기초금액 공개 전</b> · 저장하면 공개 시 알림</p>}
+            {bst === 'noDraw' && <p className="mt-4 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub"><b className="font-semibold text-ink">비예가</b> · 예정가격 추첨 없음 · 투찰금액 계산 대상 아님</p>}
             <div className="mt-6 space-y-2">
               {primary}
               <button type="button" onClick={onSave} aria-pressed={on} className={CTA_SOFT}>
@@ -155,8 +155,8 @@ function OrderNotice({ n }: { n: Notice }) {
   return (
     <div className="mt-4 rounded-box bg-white px-5 py-4 text-[15px]">
       {cancelled
-        ? <p><b className="font-semibold text-bad">취소된 공고예요.</b> <span className="text-sub">나라장터에서 취소공고가 올라왔어요. 입찰에 참여할 수 없어요.</span></p>
-        : <p className="text-sub"><b className="font-semibold text-ink">변경된 공고가 있어요.</b> <Link href={`/bids/${latest!.id}`} className="font-semibold text-brand">최신 공고 보기 →</Link></p>}
+        ? <p><b className="font-semibold text-bad">취소 공고</b> <span className="text-sub">· 입찰 참여 불가</span></p>
+        : <p className="text-sub"><b className="font-semibold text-ink">변경 공고 있음</b> <Link href={`/bids/${latest!.id}`} className="font-semibold text-brand">최신 공고 보기 →</Link></p>}
     </div>
   );
 }
@@ -333,7 +333,7 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
               </li>
             ))}
           </ul>
-          {past === null && !locked && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰이 아직 적어요</p>}
+          {past === null && !locked && <p className="mt-3 text-[13px] text-mute">비교할 지난 개찰 부족</p>}
         </>
       )}
     </Card>
@@ -414,7 +414,7 @@ function Info({ n }: { n: Notice }) {
 }
 
 function OriginalLink({ n }: { n: Notice }) {
-  if (!n.url) return <p className="text-center text-[14px] text-mute">원문 링크가 없는 공고예요</p>;
+  if (!n.url) return <p className="text-center text-[14px] text-mute">원문 링크 없음</p>;
   return (
     <a href={n.url} target="_blank" rel="noopener noreferrer"
       onClick={(e) => {
@@ -436,7 +436,7 @@ function Original({ n }: { n: Notice }) {
   return (
     <Card>
       <p className="text-[15px] font-semibold">공고 원문</p>
-      <p className="mt-1 text-[13px] leading-relaxed text-mute">팝업으로 열려요. 첨부파일은 원문에서 받으세요.</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-mute">팝업 · 첨부파일은 원문에서</p>
       <div className="mt-4"><OriginalLink n={n} /></div>
     </Card>
   );

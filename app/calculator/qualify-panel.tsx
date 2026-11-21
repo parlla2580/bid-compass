@@ -50,10 +50,9 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
     <section className="fade-up space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0" role="tabpanel">
       <div className="space-y-5 rounded-box bg-white p-5 lg:p-6">
         <div>
-          <h2 className="text-[17px] font-bold">우리 회사 점수로 통과선 찾기</h2>
-          <p className="mt-1 text-[14px] leading-relaxed text-mute">
-            <Term k="낙찰하한율" />은 가격 외 점수가 만점인 회사 기준이에요. 점수가 모자라면 하한율로 써도 95점이 안 돼 탈락할 수 있어요.
-          </p>
+          <h2 className="flex items-center gap-1 text-[17px] font-bold">우리 회사 통과선
+            <Tip title="왜 필요한가요"><Term k="낙찰하한율" />은 가격 외 점수 만점 회사 기준. 점수가 모자라면 하한율로 써도 95점 미달로 탈락할 수 있음.</Tip>
+          </h2>
         </div>
 
         <div>
@@ -78,26 +77,26 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
           <Num id="q-other" label={`그 밖의 점수 (최대 ${otherMax})`} value={other ?? otherMax} onChange={setOther} />
           <Num id="q-adj" label="가점·감점" value={adj} onChange={setAdj} signed />
         </div>
-        <p className="-mt-2 text-[13px] text-mute">시공경험 등 가격 외 나머지 점수예요. 공고 세부기준표·관련협회 실적으로 확인하세요.</p>
+        <p className="-mt-2 text-[13px] text-mute">시공경험 등 가격 외 나머지 · 세부기준표·협회 실적 확인</p>
       </div>
 
       <div className="rounded-box bg-white p-5 lg:sticky lg:top-6 lg:row-span-2 lg:p-6">
         <p className="text-[14px] text-mute">가격 외 {nonPrice}점 → 가격점수 {range.need}점 필요</p>
         {range.low === null ? (
           <>
-            <p className="mt-1 text-[22px] font-bold text-bad">가격점수로는 95점을 넘을 수 없어요</p>
-            <p className="mt-1 text-[14px] text-sub">가격점수는 최고 {tier.price.max}점이라 가격 외 점수가 {Math.round((tier.pass - tier.price.max - nonPrice) * 1000) / 1000}점 더 필요해요.</p>
+            <p className="mt-1 text-[22px] font-bold text-bad">통과 불가</p>
+            <p className="mt-1 text-[14px] text-sub">가격점수 최고 {tier.price.max}점 · 가격 외 점수 {Math.round((tier.pass - tier.price.max - nonPrice) * 1000) / 1000}점 부족</p>
           </>
         ) : (
           <>
-            <p className="mt-1 text-[14px] text-sub">통과하려면 <Tip label="투찰 비율" title="(입찰가격 − A) ÷ (예정가격 − A)">A값이 없는 공고는 입찰가격 ÷ 예정가격이에요. 소수점 다섯째 자리에서 반올림해 평가해요.</Tip>을</p>
+            <p className="mt-1 text-[14px] text-sub">통과 <Tip label="투찰 비율" title="(입찰가격 − A) ÷ (예정가격 − A)">A값이 없는 공고는 입찰가격 ÷ 예정가격. 소수점 다섯째 자리에서 반올림해 평가.</Tip></p>
             <p className="mt-0.5 text-[28px] font-bold tabular-nums tracking-tight text-brand">{range.wide ? `${pctS(range.low)} 이상` : `${pctS(range.low)} 이상 ${pctS(range.high!)} 미만`}</p>
             <p className={`mt-2 inline-flex rounded-full px-3 py-1.5 text-[14px] font-semibold ${gap && gap > 0 ? 'bg-bad/10 text-bad' : 'bg-fill text-ok'}`}>
-              {gap && gap > 0 ? `하한율 ${pctS(floor)}보다 ${gap.toFixed(3)}%p 높게 써야 해요` : `하한율 ${pctS(floor)}로 써도 통과해요`}
+              {gap && gap > 0 ? `하한율 ${pctS(floor)} + ${gap.toFixed(3)}%p 이상` : `하한율 ${pctS(floor)}로 통과`}
             </p>
-            {!range.wide && <p className="mt-2 text-[13px] leading-relaxed text-mute">{pctS(range.high!)} 이상이면 가격점수가 {tier.price.fixed}점 이하로 내려가 다시 모자라요. 이 좁은 구간 안에 써야 해요.</p>}
+            {!range.wide && <p className="mt-2 text-[13px] text-mute">{pctS(range.high!)} 이상은 가격점수 {tier.price.fixed}점 이하 → 다시 미달</p>}
             {base && range.low !== null && (
-              <p className="mt-3 text-[14px] text-sub">예정가격이 기초금액과 같다면(사정률 100%) <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low, a))}</b>{range.wide ? ' 이상' : ` 이상 ${fmtWon(amountAt(base, range.high!, a))} 미만`}{a ? ' (A값 반영)' : ''}</p>
+              <p className="mt-3 text-[14px] text-sub">사정률 100% 가정 <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low, a))}</b>{range.wide ? ' 이상' : ` 이상 ${fmtWon(amountAt(base, range.high!, a))} 미만`}{a ? ' (A값 반영)' : ''}</p>
             )}
             <button type="button" onClick={() => onUseRate(range.low!)}
               className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-cta bg-ink text-[15px] font-semibold text-white active:scale-[.98]">
@@ -110,8 +109,8 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
 
       <div className="rounded-box bg-white px-5 py-4 text-[13px] leading-relaxed text-mute lg:col-span-2">
         <p><b className="font-semibold text-sub">근거</b> 행정안전부 「지방자치단체 입찰시 낙찰자 결정기준」 시설공사 적격심사 세부기준 [별표 {tier.table}] (2025.7.1 시행) — 가격점수 = {tier.price.max} − {tier.price.k} × |90 − 투찰 비율| , {pctS(tier.price.t * 100)}~100%는 {tier.price.fixed}점, 적격통과 {tier.pass}점.</p>
-        {!local && <p className="mt-1 font-medium text-warn">이 공고는 지자체가 아닌 기관 공고로 보여요. 조달청·국가기관 시설공사 기준표는 아직 원문을 확인하지 못했어요. 하한율이 같은 구간이면 산식이 같을 가능성이 크지만, 공고 세부기준으로 꼭 확인하세요.</p>}
-        <p className="mt-1">공동수급·신인도·결격 감점 등 공고마다 다른 항목은 가점·감점에 넣어 주세요. 참고용 계산이에요.</p>
+        {!local && <p className="mt-1 font-medium text-warn">국가기관 공고로 보임 · 조달청 기준표 원문 미확인 (하한율 같으면 산식 같을 가능성 큼) · 공고 세부기준 확인</p>}
+        <p className="mt-1">공동수급·신인도·결격 감점 등은 가점·감점 칸에 · 참고용 계산</p>
       </div>
     </section>
   );

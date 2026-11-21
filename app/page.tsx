@@ -44,7 +44,7 @@ export default function HomePage() {
         <section className="pt-3 lg:pt-6">
           <p className="text-[14px] text-mute">{fmtDate(now)} ({weekdayKo(now)})</p>
           <h1 className="mt-1 text-[24px] font-bold leading-snug tracking-tight lg:text-[28px]">
-            {judged ? <>공고 {judged.length.toLocaleString()}건 중<br className="lg:hidden" /> 우리 회사 맞춤 공고는 <span className="text-brand">{matched.length}건</span>이에요</> : '맞춤 공고를 고르는 중이에요'}
+            {judged ? <>맞춤 공고 <span className="text-brand">{matched.length.toLocaleString()}건</span><span className="ml-2 text-[16px] font-medium text-mute lg:text-[18px]">전체 {judged.length.toLocaleString()}건 중</span></> : '맞춤 공고 고르는 중'}
           </h1>
           <Link href="/mypage?edit=company" className="mt-1.5 inline-flex items-center text-[15px] text-sub">
             {profileSummary(profile)} 기준<ChevronRight className="h-4 w-4 text-mute" />
@@ -57,7 +57,7 @@ export default function HomePage() {
         {/* 지난번 확인 이후 새 맞춤 공고 — 한 번 눌러 새 것만 보기 (2026-11-18) */}
         {!!freshMatched && (
           <Link href="/bids?new=1" className="mt-4 flex items-center gap-3 rounded-box bg-brand px-5 py-4 text-white transition hover:bg-brand/90">
-            <span className="min-w-0 flex-1 text-[15px]">지난번 확인한 뒤 <b className="font-bold">맞춤 공고 {freshMatched.toLocaleString()}건</b>이 새로 들어왔어요</span>
+            <span className="min-w-0 flex-1 text-[15px]"><b className="font-bold">새 맞춤 공고 {freshMatched.toLocaleString()}건</b><span className="ml-1.5 text-white/80">지난번 확인 이후</span></span>
             <span className="flex shrink-0 items-center text-[14px] font-semibold">이어서 보기<ChevronRight className="h-4 w-4" /></span>
           </Link>
         )}
@@ -87,7 +87,7 @@ export default function HomePage() {
 
         {need && (
           <Link href="/mypage?edit=company" className="mt-3 flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-            <span className="flex-1 text-sub"><b className="font-semibold text-ink">{withEulReul(NEED_LABEL[need.need])}</b> 입력하면 공고 <b className="font-semibold text-ink">{need.count}건</b>을 더 판정할 수 있어요</span>
+            <span className="flex-1 text-sub"><b className="font-semibold text-ink">{withEulReul(NEED_LABEL[need.need])}</b> 입력 시 <b className="font-semibold text-ink">{need.count}건</b> 추가 판정</span>
             <ChevronRight className="h-5 w-5 shrink-0 text-mute" />
           </Link>
         )}
@@ -103,14 +103,14 @@ export default function HomePage() {
           <Link href="/analysis" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">우리 회사 입찰 성적표</span>
-              <span className="mt-0.5 block text-[14px] text-mute">지난 3년 투찰·낙찰 결과를 분석해요</span>
+              <span className="mt-0.5 block text-[14px] text-mute">지난 3년 투찰·낙찰 결과 분석</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
           <Link href="/calculator" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">투찰금액 계산기</span>
-              <span className="mt-0.5 block text-[14px] text-mute">사정률 분포로 투찰금액을 정해요</span>
+              <span className="mt-0.5 block text-[14px] text-mute">사정률 분포로 투찰금액 계산</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
