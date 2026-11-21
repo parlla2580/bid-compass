@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { COPY } from '@/lib/copy';
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Bookmark, Check, ChevronDown, CircleAlert, Lock, X } from 'lucide-react';
+import { ArrowUpRight, Bookmark, Check, ChevronDown, ChevronRight, CircleAlert, Lock, X } from 'lucide-react';
 import { useToast } from '@/components/feedback';
 import { Card } from '@/components/layout';
 import { CTA_PRIMARY, CTA_SOFT } from '@/components/ui';
@@ -187,7 +187,7 @@ function Hero({ n }: { n: Notice }) {
   ];
   return (
     <section className="pt-1">
-      <p className="text-[14px] text-mute">{n.type} · {n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org}{n.isNew && <span className="ml-1.5 font-semibold text-brand">새 공고</span>}</p>
+      <p className="text-[14px] text-mute">{n.type} · <Link href={`/orgs?name=${encodeURIComponent(n.demandOrg ?? n.org)}`} className="underline decoration-line underline-offset-2 hover:text-ink">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org}</Link>{n.isNew && <span className="ml-1.5 font-semibold text-brand">새 공고</span>}</p>
       <h1 className="mt-1.5 text-[22px] font-bold leading-[1.4] tracking-[-0.01em] lg:text-[28px]">{n.title}</h1>
       {award && (
         <p className="mt-2 flex items-start gap-2 text-[14px] text-sub">
@@ -384,7 +384,7 @@ function InlineInput({ need }: { need: ProfileNeed }) {
 /* ---------- 공고 정보: 모바일 1열 / 데스크탑 2열, 모두 표시 ---------- */
 function Info({ n }: { n: Notice }) {
   const rows: [React.ReactNode, React.ReactNode][] = [
-    ['공고기관', n.org],
+    ['공고기관', <Link key="org" href={`/orgs?name=${encodeURIComponent(n.demandOrg ?? n.org)}`} className="inline-flex items-center text-brand">{n.org}<ChevronRight className="h-4 w-4" /></Link>],
     ['입찰마감', fmtDateTime(n.closesAt)],
     [<Term key="e" k="추정가격" />, n.estPrice ? fmtWon(n.estPrice) : '미공개'],
     [<Term key="b" k="기초금액" />, n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전'],

@@ -244,3 +244,21 @@ export async function fetchPeers(months = 12): Promise<Peers | null> {
   if (r.error || !r.data?.verified) return null;
   return r.data as Peers;
 }
+
+/* ---------- 발주기관 카드 (034) ---------- */
+export interface OrgProfile {
+  org: string; notices: number; openings: number; decided: number;
+  d_from: string | null; d_to: string | null;
+  months: { ym: string; n: number }[];
+  by_type: Record<string, { n: number; participants: number | null }>;
+  sajeong: { n: number; p25: number; p50: number; p75: number } | null;
+  win_rate: { n: number; p25: number; p50: number; p75: number } | null;
+  winners: { name: string; wins: number }[];
+}
+
+/** 034 실행 전이면 null */
+export async function fetchOrgProfile(org: string, months = 12): Promise<OrgProfile | null> {
+  const r = await getSupabase().rpc('org_profile', { p_org: org, p_months: months });
+  if (r.error || !r.data) return null;
+  return r.data as OrgProfile;
+}

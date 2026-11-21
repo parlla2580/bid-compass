@@ -203,7 +203,7 @@ function MissedCard({ d }: { d: Missed | null | undefined }) {
           <ul className="divide-y divide-line">
             {d.missed_orgs.slice(0, 3).map((o) => (
               <li key={o.org}>
-                <Link href={`/bids?tab=all&org=${encodeURIComponent(o.org)}`} className="flex items-center justify-between gap-3 py-2 text-[14px] hover:opacity-80">
+                <Link href={`/orgs?name=${encodeURIComponent(o.org)}`} className="flex items-center justify-between gap-3 py-2 text-[14px] hover:opacity-80">
                   <span className="min-w-0 truncate font-medium">{o.org}</span>
                   <span className="flex shrink-0 items-center text-[13px] text-mute">{o.n}건{o.avg_participants != null ? ` · 평균 ${o.avg_participants}곳` : ''}<ChevronRight className="h-4 w-4" /></span>
                 </Link>
