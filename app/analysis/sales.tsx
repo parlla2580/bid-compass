@@ -184,7 +184,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
       <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">수의계약으로 우리 {term}을 산 기관 중 ① 유지보수·임차처럼 다시 맺는 계약이 곧 끝나는 곳 ② 여러 번 산 곳만 골랐어요. 우리 지역과 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 한 번 하고 끝나는 계약은 추천하지 않아요.</Tip>}>
         {picks.length ? (
           <ol className="-my-1 divide-y divide-line">
-            {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} term={term} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
+            {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
           </ol>
         ) : <p className="py-6 text-center text-[14px] text-mute">{base.some((o) => !isSavedOrg(o.name)) ? '아직 다시 맺는 계약이나 여러 번 산 기관이 없어요. 아래 전체 목록에서 찾아보세요' : '추천할 기관을 모두 저장했어요'}</p>}
       </Card>
