@@ -303,3 +303,28 @@ export async function fetchCompetition(): Promise<Competition | null> {
   }
   return { byOrg, byType };
 }
+
+/* ---------- 공공 계약 단가 (031) ---------- */
+export interface ItemPrice {
+  code: string; name: string | null; n: number;
+  p25: number; p50: number; p75: number; from: string | null; to: string | null;
+  /** 흩어짐 3배 이내 — 아니면 화면은 숫자 대신 최근 계약 실례만 */
+  spread_ok: boolean;
+  recent: { date: string | null; org: string | null; spec: string | null; qty: number; unit_price: number; corp: string | null }[];
+}
+
+/** 공고 품목번호(앞 8자리로 연결)별 최근 12개월 공공 계약 단가. 031 실행 전이면 null */
+export async function fetchItemPrices(codes: string[]): Promise<ItemPrice[] | null> {
+  if (!codes.length) return [];
+  const { data, error } = await getSupabase().rpc('item_prices', { p_codes: codes.slice(0, 5) });
+  if (error) return null;
+  return (data ?? []) as ItemPrice[];
+}
+
+/** 공고 수량·단위 (원본) — 이 공고 개당 금액 추정용 */
+export async function fetchNoticeQty(id: number): Promise<{ qty: number | null; unit: string | null } | null> {
+  const { data, error } = await getSupabase().from('notices').select('qty:raw->>prdctQty,unit:raw->>prdctUnit').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  const q = Number(data.qty);
+  return { qty: q > 0 ? q : null, unit: data.unit || null };
+}
