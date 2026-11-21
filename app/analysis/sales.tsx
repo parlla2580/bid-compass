@@ -298,7 +298,7 @@ function SaveBtn({ saved, onSave, label }: { saved: boolean; onSave: () => void;
 }
 
 /** 추천 1곳 — 배지 + 계약명 + 숫자 한 줄 + [저장] [계약 보기] */
-function Pick({ n, o, term, saved, onSave }: { n: number; o: SalesOrg; term: string; saved: boolean; onSave: () => void }) {
+function Pick({ n, o, saved, onSave }: { n: number; o: SalesOrg; saved: boolean; onSave: () => void }) {
   const [open, setOpen] = useState(false);
   const r = reason(o);
   const facts = [
