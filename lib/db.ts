@@ -1,4 +1,4 @@
-import { EMPTY_PROFILE, type BidType, type CompanySize, type Industry, type Keywords, type MuteItem, type Product, type Profile } from './data';
+import { EMPTY_PROFILE, type BidType, type CompanySize, type Industry, type Keywords, type MuteItem, type Product, type Profile, type QualifyProfile } from './data';
 import { getSupabase } from './supabase';
 
 /* =========================================================
@@ -21,6 +21,7 @@ interface ProfileRow {
   products?: Product[] | null;
   muted?: MuteItem[] | null;
   keywords?: Keywords | null;
+  qualify?: QualifyProfile | null;
 }
 
 function toRow(userId: string, p: Profile): ProfileRow {
@@ -40,6 +41,7 @@ function toRow(userId: string, p: Profile): ProfileRow {
     products: p.products,
     muted: p.muted,
     keywords: p.keywords,
+    qualify: p.qualify ?? null,
   };
 }
 
@@ -59,6 +61,7 @@ function fromRow(r: ProfileRow): Profile {
     products: r.products ?? null,
     muted: r.muted ?? [],
     keywords: r.keywords ?? {},
+    qualify: r.qualify ?? null,
   };
 }
 

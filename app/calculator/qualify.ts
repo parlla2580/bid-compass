@@ -146,3 +146,39 @@ export function passRange(tier: Tier, nonPrice: number): PassRange {
 export function amountAt(plan: number, ratioPct: number, a = 0) {
   return Math.ceil((plan - a) * (ratioPct / 100) + a - 1e-6);
 }
+
+/* ---------- 공고마다 '우리 회사 통과선' (로드맵 2, 2026-11-21) ---------- */
+
+/** 지자체 공고로 보이는 기관 (행안부 기준표 적용) */
+// '경기도 양평군 양서면'처럼 읍·면·동으로 끝나는 지자체 기관도 (2026-11-21)
+export const LOCAL_ORG = /(특별시|광역시|특별자치|도청|시청|군청|구청|교육청|교육지원청|[시군구도]$|[시군구]의회|도의회|\S[시군구]\s\S+[읍면동]$|^(경기|강원|충청북|충청남|전라북|전라남|경상북|경상남)도\s)/;
+
+/** 저장한 점수 프로필로 이 구간의 가격 외 점수 */
+export function nonPriceOf(tier: Tier, q: { credit: number; otherRatio: number; adj: number }) {
+  const otherMax = tier.nonPrice - tier.credit[0];
+  const c = tier.credit[Math.min(Math.max(q.credit, 0), tier.credit.length - 1)];
+  return Math.round((c + otherMax * Math.min(Math.max(q.otherRatio, 0), 1) + q.adj) * 1000) / 1000;
+}
+
+export type PassStatus = 'floor' | 'above' | 'fail';
+export interface NoticePass {
+  tier: Tier; nonPrice: number; range: PassRange; floor: number;
+  /** 하한율보다 더 써야 하는 폭 (%p) */
+  gap: number | null; status: PassStatus; local: boolean;
+}
+
+/** 공사 적격심사 공고 + 저장한 점수 → 통과 투찰 비율. 대상이 아니면 null */
+export function noticePass(
+  n: { type: string; award: string | null; estPrice: number; floorRate: number | null; org: string; demandOrg: string | null },
+  q: { credit: number; otherRatio: number; adj: number } | null | undefined,
+): NoticePass | null {
+  if (!q || n.type !== '공사' || !/적격심사/.test(n.award ?? '')) return null;
+  const tier = tierOf(n.estPrice);
+  if (!tier) return null;
+  const nonPrice = nonPriceOf(tier, q);
+  const range = passRange(tier, nonPrice);
+  const floor = n.floorRate ?? impliedFloor(tier);
+  const gap = range.low !== null ? Math.round((range.low - floor) * 1000) / 1000 : null;
+  const status: PassStatus = range.low === null ? 'fail' : gap !== null && gap > 0 ? 'above' : 'floor';
+  return { tier, nonPrice, range, floor, gap, status, local: LOCAL_ORG.test(n.demandOrg ?? n.org ?? '') };
+}

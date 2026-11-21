@@ -82,6 +82,8 @@ export default function CalculatorTabs() {
   const fromParams = !!params.get('base') || !!params.get('rate');
   const initType = params.get('type') as BidType | null;
   const [type, setType] = useState<BidType>(initType && TYPES.includes(initType) ? initType : (from?.type ?? '물품'));
+  // 주소에 유형이 없으면 불러온 공고의 유형으로 (공고는 늦게 불러와짐 — ?from=만 있는 링크에서 '물품'에 머물던 문제)
+  useEffect(() => { if (from && !(initType && TYPES.includes(initType))) setType(from.type); }, [from?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // 공고에서 오지 않았으면 우리 회사 유형으로 시작 (공사 면허만 있으면 공사, 관심 유형이 하나면 그 유형)
   const [guessed, setGuessed] = useState(false);
   useEffect(() => {

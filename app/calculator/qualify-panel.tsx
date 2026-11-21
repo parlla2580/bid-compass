@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
 import type { Notice } from '@/lib/data';
 import { fmtKorean, fmtWon } from '@/lib/format';
 import { fetchNoticeCost } from '@/lib/notices';
-import { CREDIT, TIERS, amountAt, impliedFloor, passRange, priceScore, tierOf, type Tier } from './qualify';
+import { useStore } from '@/lib/store';
+import { useToast } from '@/components/feedback';
+import { CREDIT, LOCAL_ORG, TIERS, amountAt, impliedFloor, passRange, priceScore, tierOf, type Tier } from './qualify';
 
 /*
  * 공사 적격심사 — 우리 회사 점수로 '통과하려면 몇 %로 써야 하나' (기획 3단계, 2026-11-17)
@@ -16,7 +18,7 @@ import { CREDIT, TIERS, amountAt, impliedFloor, passRange, priceScore, tierOf, t
 
 const SEL = 'h-12 w-full rounded-btn bg-fill px-4 text-[16px] font-semibold focus:outline-none focus:ring-2 focus:ring-brand';
 const pctS = (v: number) => `${v.toFixed(3)}%`;
-const LOCAL = /(특별시|광역시|특별자치|도청|시청|군청|구청|교육청|교육지원청|[시군구도]$|[시군구]의회|도의회)/;
+const LOCAL = LOCAL_ORG;
 
 export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onUseRate: (rate: number) => void }) {
   const auto = tierOf(notice?.estPrice);
@@ -26,11 +28,23 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
   const creditMax = tier.credit[0];
   const otherMax = Math.round((tier.nonPrice - creditMax) * 1000) / 1000;
 
-  const [credit, setCredit] = useState(0);
+  // 저장한 점수 프로필(032)이 있으면 그 값으로 시작
+  const { profile, updateProfile } = useStore();
+  const toast = useToast();
+  const saved = profile.qualify ?? null;
+  const [credit, setCredit] = useState(saved?.credit ?? 0);
   const [other, setOther] = useState<number | null>(null);
-  const [adj, setAdj] = useState<number | null>(0);
+  const [adj, setAdj] = useState<number | null>(saved?.adj ?? 0);
   useEffect(() => { setOther(null); }, [tierKey]);
-  const otherV = Math.min(other ?? otherMax, otherMax);
+  useEffect(() => { if (saved) { setCredit(saved.credit); setAdj(saved.adj); setOther(null); } }, [saved?.savedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const otherDefault = saved ? Math.round(otherMax * saved.otherRatio * 1000) / 1000 : otherMax;
+  const otherV = Math.min(other ?? otherDefault, otherMax);
+  const ratio = otherMax > 0 ? Math.round((otherV / otherMax) * 1000) / 1000 : 1;
+  const same = !!saved && saved.credit === credit && Math.abs(saved.otherRatio - ratio) < 0.001 && saved.adj === (adj ?? 0);
+  const save = () => {
+    updateProfile({ qualify: { credit, otherRatio: ratio, adj: adj ?? 0, savedAt: new Date().toISOString() } });
+    toast('저장됨 · 공사 적격심사 공고마다 통과선 자동 계산');
+  };
   const nonPrice = Math.round((tier.credit[credit] + otherV + (adj ?? 0)) * 1000) / 1000;
   const range = passRange(tier, nonPrice);
   const floor = notice?.floorRate ?? impliedFloor(tier);
@@ -70,14 +84,23 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
           <select id="q-credit" value={credit} onChange={(e) => setCredit(Number(e.target.value))} className={SEL}>
             {CREDIT.map((c, i) => <option key={c.key} value={i}>{c.label} — {tier.credit[i]}점</option>)}
           </select>
-          <p className="mt-1.5 text-[13px] text-mute">{CREDIT[credit].hint} · 우리 회사 등급은 저장하지 않아요</p>
+          <p className="mt-1.5 text-[13px] text-mute">{CREDIT[credit].hint}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Num id="q-other" label={`그 밖의 점수 (최대 ${otherMax})`} value={other ?? otherMax} onChange={setOther} />
+          <Num id="q-other" label={`그 밖의 점수 (최대 ${otherMax})`} value={other ?? otherDefault} onChange={setOther} />
           <Num id="q-adj" label="가점·감점" value={adj} onChange={setAdj} signed />
         </div>
         <p className="-mt-2 text-[13px] text-mute">시공경험 등 가격 외 나머지 · 세부기준표·협회 실적 확인</p>
+        {/* 우리 회사 점수로 저장 → 공고 상세마다 통과선 자동 (로드맵 2) */}
+        {same ? (
+          <p className="flex items-center gap-1.5 rounded-xl bg-fill px-3.5 py-3 text-[14px] font-semibold text-ok"><Check className="h-4 w-4" />저장됨 · 공사 공고마다 자동 계산</p>
+        ) : (
+          <button type="button" onClick={save} className="flex h-12 w-full items-center justify-center gap-1.5 rounded-btn bg-brand-soft text-[15px] font-semibold text-brand active:scale-[.98]">
+            {saved ? '바꾼 점수로 다시 저장' : '우리 회사 점수로 저장'}
+          </button>
+        )}
+        {!same && <p className="-mt-3 text-[12px] text-mute">저장하면 공사 적격심사 공고 상세에 통과선 자동 표시 · 그 밖의 점수는 만점 대비 비율({Math.round(ratio * 100)}%)로 저장</p>}
       </div>
 
       <div className="rounded-box bg-white p-5 lg:sticky lg:top-6 lg:row-span-2 lg:p-6">

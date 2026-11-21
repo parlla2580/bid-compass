@@ -9,6 +9,7 @@ import { useRequireStart } from '@/components/layout';
 import { ChoiceChips, IndustryPicker, LocationPicker, PriceRange, ProductPicker, TagInput } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { VerifyStatus } from '@/components/verify-box';
+import { CREDIT } from '@/app/calculator/qualify';
 import { BTN_PRIMARY, DdayBadge, INPUT_CLS, StatusBadge, TypeTag, chipClass } from '@/components/ui';
 import { SIZES, hasSigungu, keywordHit, type BidType, type Keywords, type Notice, type Product, type Profile } from '@/lib/data';
 import { fmtDateTime, fmtRange, fmtShort } from '@/lib/format';
@@ -73,6 +74,10 @@ export default function MyPage() {
     ['소재지', profile.location ? `${profile.location}${hasSigungu(profile.location) ? '' : ' (시군구 미입력)'}` : null],
     ['기업규모', profile.size],
     ['수행실적', profile.records || null],
+    // 적격심사 점수 (032) — 계산기에서 저장, 공사 공고마다 통과선 자동
+    ['적격 점수', profile.qualify
+      ? <Link href="/calculator?tab=score" className="text-ink underline decoration-line underline-offset-2">{CREDIT[profile.qualify.credit]?.label ?? '–'} · 그 밖 {Math.round(profile.qualify.otherRatio * 100)}%{profile.qualify.adj ? ` · 가감 ${profile.qualify.adj > 0 ? '+' : ''}${profile.qualify.adj}` : ''}</Link>
+      : <Link href="/calculator?tab=score" className="text-brand">입력하기</Link>],
   ];
 
   const onSave = (p: Profile, msg: string) => {

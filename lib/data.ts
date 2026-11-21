@@ -95,6 +95,19 @@ export interface Profile {
   muted: MuteItem[];
   /** 꼭 볼 단어 / 빼고 싶은 단어 */
   keywords: Keywords;
+  /** 적격심사 점수 (032) — 계산기에서 저장, 공사 공고마다 통과선 자동 계산. null: 저장 안 함 */
+  qualify?: QualifyProfile | null;
+}
+
+/** 적격심사 점수 프로필 — 구간(추정가격)마다 배점이 달라 '그 밖의 점수'는 만점 대비 비율로 저장 */
+export interface QualifyProfile {
+  /** 신용평가등급 묶음 (app/calculator/qualify.ts CREDIT 순서) */
+  credit: number;
+  /** 시공경험 등 그 밖의 점수 — 만점 대비 0~1 */
+  otherRatio: number;
+  /** 가점·감점 */
+  adj: number;
+  savedAt: string;
 }
 
 export interface Keywords { plus?: string[]; minus?: string[] }
@@ -127,6 +140,7 @@ export const EMPTY_PROFILE: Profile = {
   products: null,
   muted: [],
   keywords: {},
+  qualify: null,
 };
 
 export const SIZES: CompanySize[] = ['소기업·소상공인', '중소기업', '중견기업', '대기업'];

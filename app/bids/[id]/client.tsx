@@ -21,6 +21,7 @@ import { fitScore, type Fit } from '@/lib/fit';
 import { productMatch } from '@/lib/match';
 import { useSeen } from '@/lib/seen';
 import { ItemPrices } from '@/components/item-prices';
+import { QualifyCard } from '@/components/qualify-card';
 import { noticeAward, awardTone } from '@/lib/award';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
@@ -98,6 +99,7 @@ function Detail({ n }: { n: Notice }) {
         <div className="space-y-3 lg:space-y-4">
           {!closed && <Judgment reasons={j.reasons} status={j.status} fit={fit} />}
           <Briefing n={n} locked={gated} onSignup={() => setSignup(true)} />
+          <QualifyCard n={n} />
           <ItemPrices n={n} locked={gated} onSignup={() => setSignup(true)} />
           <Info n={n} />
           {gated ? <SignupGate onSignup={() => setSignup(true)} /> : <Similar n={n} />}
