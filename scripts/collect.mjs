@@ -447,13 +447,19 @@ async function collectBidDetails(sb) {
   const first = memberNos.length
     ? (await pick(sb.from('openings').select('id,bid_no,bid_ord,clsfc_no,rbid_no')).in('winner_bizno', memberNos).limit(DETAIL_CAP)).data ?? []
     : [];
-  const { data: rest, error } = await pick(sb.from('openings').select('id,bid_no,bid_ord,clsfc_no,rbid_no'))
-    .order('opened_at', { ascending: false }).limit(DETAIL_CAP);
-  if (error) throw new Error(`개찰 대기 목록 조회 실패: ${error.message}`);
+  // 서버가 한 번에 1,000행까지만 돌려줘서(.limit(3000)도 1,000에서 잘림 — 2026-11-22 실측) 1,000행씩 나눠 받음
+  const rest = [];
+  for (let off = 0; off < DETAIL_CAP; off += 1000) {
+    const { data, error } = await pick(sb.from('openings').select('id,bid_no,bid_ord,clsfc_no,rbid_no'))
+      .order('opened_at', { ascending: false }).order('id', { ascending: false }).range(off, Math.min(off + 999, DETAIL_CAP - 1));
+    if (error) throw new Error(`개찰 대기 목록 조회 실패: ${error.message}`);
+    rest.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
 
   // 같은 공고번호(차수·분류·재입찰이 다른 개찰)는 한 번 조회로 함께 채움
   const groups = new Map();
-  for (const o of [...first, ...(rest ?? [])]) {
+  for (const o of [...first, ...rest]) {
     const g = groups.get(o.bid_no) ?? new Map();
     g.set(o.id, o);
     groups.set(o.bid_no, g);
