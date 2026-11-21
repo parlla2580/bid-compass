@@ -64,7 +64,7 @@ function pickable(o: SalesOrg) {
 }
 
 /** U8(2026-11-22): 문장 대신 배지 + 계약명 한 줄 — '…계약이 11.30에 끝나요 (D-8)' 주황 문장이 카드를 채우던 문제 */
-function reason(o: SalesOrg, term = '품목'): { badge: string; title: string | null; tone: 'warn' | 'ink'; recur?: boolean } {
+function reason(o: SalesOrg): { badge: string; title: string | null; tone: 'warn' | 'ink'; recur?: boolean } {
   const d = o.nextEnd ? daysTo(o.nextEnd) : null;
   const soon = d !== null && d <= SOON;
   const endC = soon ? o.contracts.find((x) => x.endDate === o.nextEnd)! : null;
@@ -300,7 +300,7 @@ function SaveBtn({ saved, onSave, label }: { saved: boolean; onSave: () => void;
 /** 추천 1곳 — 배지 + 계약명 + 숫자 한 줄 + [저장] [계약 보기] */
 function Pick({ n, o, term, saved, onSave }: { n: number; o: SalesOrg; term: string; saved: boolean; onSave: () => void }) {
   const [open, setOpen] = useState(false);
-  const r = reason(o, term);
+  const r = reason(o);
   const facts = [
     `${o.count}건 · ${o.amount ? fmtShort(o.amount) : '금액 없음'}`,
     o.vendors[0] ? `지금 ${o.vendors[0].name}` : null,
