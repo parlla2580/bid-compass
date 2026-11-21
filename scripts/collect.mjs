@@ -50,8 +50,9 @@ const BID = 'https://apis.data.go.kr/1230000/ad/BidPublicInfoService02';
 const CNT = 'https://apis.data.go.kr/1230000/ao/CntrctInfoService';
 const SCS = 'https://apis.data.go.kr/1230000/as/ScsbidInfoService';
 // 개찰순위 상세 조회는 공고번호마다 1회 — 낙찰정보서비스 운영계정 전환(2026-11-09) 후 상한 상향
-// 실행 8회/일 × 1,500 = 최대 12,000회/일 (운영계정 하루 최대 10만 건 안)
-const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 1500);
+// 2026-11-22: 모든 API 운영계정 전환(사용자 확인) + 039 매시 실행 → 실행당 3,000
+//   매시 24회 × 3,000 = 최대 72,000회/일 + 목록 조회 (운영계정 하루 최대 10만 건 안) · 밀린 순위 약 15만 건을 2~3일에
+const DETAIL_CAP = Number(process.env.BID_DETAIL_CAP || 3000);
 const DETAIL_PARALLEL = 4;
 // 실행 시간 제한(150분) 안에서 여유 있게 멈춤. 예약 실행은 매시라 40분에서 끊고 다음 실행이 이어 받음
 const DETAIL_TIME_LIMIT = (LONG ? 100 : 40) * 60e3;
