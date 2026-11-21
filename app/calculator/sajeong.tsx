@@ -161,7 +161,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
               )}
             </div>
             <button type="button" onClick={() => onUse(amount)} className="mt-4 h-12 w-full rounded-cta bg-ink text-[15px] font-semibold text-white active:scale-[.98]">
-              이 금액으로 확인하기
+              금액 적용
             </button>
           </div>
         </div>

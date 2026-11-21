@@ -84,8 +84,7 @@ export default function AnalysisPage() {
   else if (!report) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
   else if (!report.verified) {
     body = (
-      <Empty title="회사를 확인하면 성적표를 보여드려요"
-        text="우리 회사 입찰 기록은 회사 확인을 마친 회원에게만 보여드려요. 다른 회사가 우리 기록을 보지 못하게 하기 위해서예요.">
+      <Empty title="회사 확인 후 열림" text="우리 회사 입찰 기록 · 확인된 회원 본인만" note="타사 기록 조회 불가">
         {profile.bizno
           ? <VerifyBox bizno={profile.bizno} className="" onVerified={(corpName) => updateProfile({ corpName, naraRegistered: true })} />
           : <Link href="/mypage?edit=company" className={BTN_PRIMARY}>사업자등록번호 넣기</Link>}
@@ -94,8 +93,8 @@ export default function AnalysisPage() {
   } else if (!report.total) {
     body = (
       <Empty title="아직 입찰한 기록이 없어요"
-        text="나라장터 개찰 결과에서 우리 회사 투찰을 찾지 못했어요. 입찰보다 수의계약으로 납품하는 회사라면, 공고 없이 우리 품목을 산 기관부터 찾아보세요.">
-        <button type="button" onClick={() => setTab('sales')} className={BTN_PRIMARY}>공고 없이 산 기관 보기</button>
+        text="나라장터 개찰 결과에서 우리 회사 투찰을 찾지 못했어요. 입찰보다 수의계약으로 납품하는 회사라면, 수의계약 기관부터 찾아보세요.">
+        <button type="button" onClick={() => setTab('sales')} className={BTN_PRIMARY}>수의계약 기관 보기</button>
         <Link href="/bids" className="mt-3 block text-center text-[14px] font-semibold text-sub">지금 참여 가능한 공고 보기</Link>
       </Empty>
     );
@@ -116,7 +115,7 @@ export default function AnalysisPage() {
                 {/* 038 U12: 1곳 참가(수의·견적)는 경쟁 입찰 실력과 달라 낙찰률에서 뺌 — 건수만 따로 */}
                 {!!r.single && (
                   <p className="mt-0.5 flex items-center justify-center gap-1 text-center text-[12px] text-mute">1곳 참가 {r.single.toLocaleString()}건 · 낙찰 {(r.single_won ?? 0).toLocaleString()} 별도
-                    <Tip title="경쟁 입찰만 계산">참가 업체가 1곳인 개찰(수의계약·1인 견적·단가계약)은 경쟁 없이 낙찰되는 경우가 많아, 낙찰률·투찰·업계 비교에서 빼고 건수만 따로 표시. 투찰한 공고 목록에는 모두 포함.</Tip>
+                    <Tip title="경쟁 입찰만 계산">참가 업체가 1곳인 개찰(수의계약·1인 견적·단가계약)은 단독으로 낙찰되는 경우가 많아, 낙찰률·투찰·업계 비교에서 빼고 건수만 따로 표시. 투찰한 공고 목록에는 모두 포함.</Tip>
                   </p>
                 )}
               </div>
@@ -213,11 +212,13 @@ export default function AnalysisPage() {
   );
 }
 
-function Empty({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
+function Empty({ title, text, note, children }: { title: string; text: string; note?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-box bg-white px-6 py-12 text-center">
       <h2 className="text-[20px] font-bold">{title}</h2>
       <p className="mx-auto mt-2 max-w-[440px] text-[15px] leading-relaxed text-sub">{text}</p>
+      {/* W18(2026-11-22): 덧붙임은 같은 문장에 넣지 않고 따로 한 줄 */}
+      {note && <p className="mx-auto mt-1.5 inline-flex items-center gap-1 rounded-full bg-fill px-2.5 py-0.5 text-[12px] font-medium text-mute">{note}</p>}
       <div className="mx-auto mt-6 max-w-[360px]">{children}</div>
     </section>
   );

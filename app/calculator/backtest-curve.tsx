@@ -72,7 +72,7 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
     <div className="mt-7">
       <div className="flex items-baseline justify-between gap-2">
         <p className="flex items-center gap-1 text-[14px] font-semibold text-ink">
-          이 사정률로 썼다면 1순위였던 비율
+          사정률별 1순위 비율 (지난 개찰)
           <Tip title="지난 개찰에 대 본 값이에요">
             지난 {type} {c.n.toLocaleString()}건에 기초금액 × 사정률을 예정가격으로 보고 하한선에 맞춰 썼다면 1순위였던 비율이에요.
             점선은 순위가 무작위일 때의 기대값. 정확한 값은 ‘지난 개찰에 대입’.

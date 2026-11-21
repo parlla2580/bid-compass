@@ -69,9 +69,9 @@ function reason(o: SalesOrg, term = '품목'): { badge: string; title: string | 
   const soon = d !== null && d <= SOON;
   const endC = soon ? o.contracts.find((x) => x.endDate === o.nextEnd)! : null;
   if (endC && recurring(o)) return { badge: `계약 종료 D-${d}`, title: endC.title, tone: 'warn', recur: true };
-  if (o.count >= 2) return { badge: `공고 없이 ${o.count}번 구매`, title: endC ? `${md(o.nextEnd!)} 계약 종료 · ${endC.title}` : o.contracts[0]?.title ?? null, tone: 'ink' };
+  if (o.count >= 2) return { badge: `수의계약 ${o.count}회`, title: endC ? `${md(o.nextEnd!)} 계약 종료 · ${endC.title}` : o.contracts[0]?.title ?? null, tone: 'ink' };
   if (endC) return { badge: `계약 종료 D-${d}`, title: endC.title, tone: 'warn' };
-  return { badge: `공고 없이 ${term} 구매`, title: o.contracts[0]?.title ?? null, tone: 'ink' };
+  return { badge: '수의계약', title: o.contracts[0]?.title ?? null, tone: 'ink' };
 }
 
 export function SalesSection({ focus }: { focus?: string | null }) {
@@ -161,7 +161,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
   if (!codes.size) {
     return (
       <section className="space-y-3">
-        {head('공고 없이 우리 품목을 사는 기관을 찾아드려요')}
+        {head('수의계약 기관 찾기')}
         <div className="rounded-box bg-white px-6 py-10 text-center">
           <p className="text-[17px] font-bold">주요 품목을 등록하면 찾아드려요</p>
           <p className="mx-auto mt-2 max-w-[420px] text-[14px] leading-relaxed text-sub">계약의 품목 코드와 우리 품목을 맞춰, 우리 품목을 산 기관을 보여드려요.</p>
@@ -178,10 +178,10 @@ export function SalesSection({ focus }: { focus?: string | null }) {
 
   return (
     <section className="space-y-3 lg:space-y-4">
-      {head(`공고 없이 우리 품목을 산 기관 ${base.length.toLocaleString()}곳을 찾았어요`)}
+      {head(`수의계약 기관 ${base.length.toLocaleString()}곳`)}
 
       {/* ① 이번 주 연락해 볼 기관 */}
-      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">공고 없이(수의계약) 우리 {term}을 산 기관 중 ① 유지보수·임차처럼 다시 맺는 계약이 곧 끝나는 곳 ② 여러 번 산 곳만 골랐어요. 우리 지역과 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 한 번 하고 끝나는 계약은 추천하지 않아요.</Tip>}>
+      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">수의계약으로 우리 {term}을 산 기관 중 ① 유지보수·임차처럼 다시 맺는 계약이 곧 끝나는 곳 ② 여러 번 산 곳만 골랐어요. 우리 지역과 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 한 번 하고 끝나는 계약은 추천하지 않아요.</Tip>}>
         {picks.length ? (
           <ol className="-my-1 divide-y divide-line">
             {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} term={term} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
@@ -237,7 +237,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
             {cond && (
               <div className="mb-4 space-y-3 rounded-2xl bg-fill/70 p-4 text-[14px]">
                 <Field label="어떤 계약">
-                  {([['none', '공고 없이', '수의계약 중 입찰·견적 공고 없이 맺은 계약'], ['sui', '수의계약 전체', '견적 공고를 낸 수의계약까지'], ['all', '모든 계약', '경쟁입찰 포함']] as const).map(([k, l, h]) => (
+                  {([['none', '1인 견적 수의', '수의계약 중 입찰·견적 공고를 내지 않은 계약'], ['sui', '수의계약 전체', '견적 공고를 낸 수의계약까지'], ['all', '모든 계약', '경쟁입찰 포함']] as const).map(([k, l, h]) => (
                     <label key={k} className="flex cursor-pointer items-start gap-2 py-1">
                       <input type="radio" name="scope" checked={scope === k} onChange={() => setScope(k)} className="mt-1" />
                       <span><b className="font-semibold">{l}</b> <span className="text-mute">· {h}</span></span>

@@ -57,7 +57,7 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   return (
     <Card title={
       <span className="flex items-center gap-1">공공 구매 단가
-        <Tip title="계산 방법">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격 · 최근 12개월(수집 기간 안) · 수량 2개 이상 계약만 · 큰 숫자는 중앙값, ‘대부분’은 가운데 50%. 이 공고 예산 = 추정가격 × 1.1(부가세) ÷ 수량 — 품목이 하나이고 개수 단위일 때만. 다른 기관 범위와 5배 넘게 차이 나면 비교(%) 생략. 규격·단위가 섞여 값이 크게 흩어지는 품목은 숫자 없이 실제 계약만.</Tip>
+        <Tip title="계산 방법">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격 · 최근 12개월(수집 기간 안) · 수량 2개 이상 계약만 · 큰 숫자는 중앙값, ‘대부분’은 가운데 50%. 이 공고 예산 = 추정가격 × 1.1(부가세) ÷ 수량 — 품목이 하나이고 개수 단위일 때만. 다른 기관 범위와 5배 넘게 차이 나면 비교(%) 생략. 규격·단위가 섞여 값이 크게 흩어지는 품목은 실제 계약만 표시.</Tip>
       </span>}
       aside={<span className="text-[13px] tabular-nums text-mute">{period} · {total.toLocaleString()}건</span>}>
       <div className="divide-y divide-line">

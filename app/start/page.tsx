@@ -133,7 +133,7 @@ export default function StartPage() {
           <br />
           <span className="text-primary">참여할 수 있는 공고</span>를<br />골라 드릴게요
         </h1>
-        <p className="mt-2 text-[15px] text-mute">가입 없이 바로, 무료로 볼 수 있어요</p>
+        <p className="mt-2 text-[15px] text-mute">가입 불필요 · 무료</p>
       </section>
 
       {mode === 'bizno' && (
@@ -151,7 +151,7 @@ export default function StartPage() {
           </div>
           <button type="button" onClick={() => { setError(null); setMode('manual'); }}
             className="mx-auto mt-5 block py-2 text-[15px] font-medium text-mute underline-offset-4 hover:text-sub hover:underline">
-            사업자번호 없이 업종·지역으로 시작하기
+            업종·지역으로 시작하기
           </button>
         </section>
       )}
@@ -197,7 +197,7 @@ export default function StartPage() {
             </button>
             <button type="button" disabled={!manualReady} onClick={() => go({ industries: [], location })}
               className="mt-2 w-full py-2 text-xs font-medium text-mute disabled:text-slate-300">
-              업종 없이 지역만으로 보기
+              지역만으로 보기
             </button>
             <button type="button" onClick={() => { setError(null); setMode('bizno'); }} className="w-full py-1 text-xs text-mute">사업자등록번호로 조회하기</button>
           </div>

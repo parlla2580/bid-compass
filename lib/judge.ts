@@ -100,7 +100,8 @@ function industryRule(n: Notice, p: Profile): Reason {
   }
   const allowedNames = n.licenseLimits.flatMap((l) => l.allowed.map(nameOf)).slice(0, 3);
   const extra = allowedNames.length ? ` 또는 허용업종(${allowedNames.join(', ')}${n.licenseLimits.some((l) => l.allowed.length > 3) ? ' 등' : ''})` : '';
-  return { rule, result: 'fail', text: `업종 불일치: ${required}${extra} 등록 필요` };
+  // W5(2026-11-22): 업종 코드(1162 등)는 빼고 이름만
+  return { rule, result: 'fail', text: `업종 불일치 · ${stripCode(required)}${stripCode(extra)} 필요` };
 }
 
 /* ---------- 3. 기업규모 (추정) ----------
@@ -111,6 +112,9 @@ function industryRule(n: Notice, p: Profile): Reason {
  * 그래서 계약방법이 '제한경쟁'인 물품·용역 공고에만 적용하고, 맞지 않아도 '불가'가 아닌 '확인 필요'로 둔다.
  */
 export const SME_LIMIT = { small: 1e8, sme: 2.3e8 };
+
+/** '건물위생관리업(1162)' → '건물위생관리업' */
+const stripCode = (t: string) => t.replace(/\(\d{4}\)/g, '');
 
 /** 이 공고에 추정되는 기업규모 제한 — 없으면 null */
 export function sizeLimitOf(n: Notice): { need: CompanySize; label: string } | null {

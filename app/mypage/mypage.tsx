@@ -76,7 +76,7 @@ export default function MyPage() {
     ['수행실적', profile.records || null],
     // 적격심사 점수 (032) — 계산기에서 저장, 공사 공고마다 통과선 자동
     ['적격 점수', profile.qualify
-      ? <Link href="/calculator?tab=score" className="text-ink underline decoration-line underline-offset-2">{CREDIT[profile.qualify.credit]?.label ?? '–'} · 그 밖 {Math.round(profile.qualify.otherRatio * 100)}%{profile.qualify.adj ? ` · 가감 ${profile.qualify.adj > 0 ? '+' : ''}${profile.qualify.adj}` : ''}</Link>
+      ? <Link href="/calculator?tab=score" className="text-ink underline decoration-line underline-offset-2">신용 {CREDIT[profile.qualify.credit]?.label ?? '–'} · 그 밖 점수 {profile.qualify.otherRatio >= 1 ? '만점' : `${Math.round(profile.qualify.otherRatio * 100)}%`}{profile.qualify.adj ? ` · 가감 ${profile.qualify.adj > 0 ? '+' : ''}${profile.qualify.adj}` : ''}</Link>
       : <Link href="/calculator?tab=score" className="text-brand">입력하기</Link>],
   ];
 
@@ -118,10 +118,10 @@ export default function MyPage() {
         {account && profile.bizno && <div id="verify" className="scroll-mt-24"><VerifyStatus bizno={profile.bizno} corpName={profile.corpName} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} /></div>}
       </section>
 
-      {/* 매칭 선호도 */}
+      {/* 추천 설정 (W14) */}
       <section className="rounded-box bg-white p-5 lg:p-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold"><SlidersHorizontal className="h-4 w-4 text-primary" />매칭 선호도</h2>
+          <h2 className="flex items-center gap-1.5 text-sm font-bold"><SlidersHorizontal className="h-4 w-4 text-primary" />추천 설정</h2>
           <button type="button" onClick={() => setSheet('prefs')} className="flex items-center gap-1 text-sm font-semibold text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>
         </div>
         <dl className="grid grid-cols-[112px_1fr] gap-y-2 text-sm">
@@ -343,7 +343,7 @@ function PrefsSheet({ profile, onClose, onSave }: { profile: Profile; onClose: (
   const [form, setForm] = useState(profile);
   const save = () => (form.types.length ? onSave(form) : toast('관심 사업유형을 1개 이상 선택해주세요'));
   return (
-    <Sheet title="매칭 선호도" open onClose={onClose} footer={<button type="button" onClick={save} className={BTN_PRIMARY}>저장</button>}>
+    <Sheet title="추천 설정" open onClose={onClose} footer={<button type="button" onClick={save} className={BTN_PRIMARY}>저장</button>}>
       <div className="space-y-6">
         <fieldset>
           <legend className="mb-2 text-sm font-semibold text-sub">관심 사업유형</legend>

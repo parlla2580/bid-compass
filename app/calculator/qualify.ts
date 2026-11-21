@@ -35,12 +35,14 @@ export interface Tier {
   pass: number;
 }
 
-/** 신용평가등급 묶음 — 회사채 / 기업어음 / 기업신용평가등급(①에 준하는 등급) */
+/** 신용평가등급 묶음 — 회사채 / 기업어음 / 기업신용평가등급(①에 준하는 등급)
+ *  표기·묶음·점수는 행안부 예규 제325호(2025.7.1 시행) 시설공사 적격심사 세부기준 [별표 2]~[별표 7] 원문과 대조 (2026-11-22, W15)
+ *  '°'는 예규 원문 표기(BB° = BB 플랫)를 그대로 씀 */
 export const CREDIT = [
-  { key: 'BBplus', label: 'BB° 이상', hint: '회사채 AAA~BB° · 기업어음 A1~B+' },
-  { key: 'BBminus', label: 'BB-', hint: '기업어음 B°' },
-  { key: 'B', label: 'B+ ~ B-', hint: '기업어음 B-' },
-  { key: 'CCC', label: 'CCC+ 이하', hint: '기업어음 C 이하' },
+  { key: 'BBplus', label: 'BB° 이상', hint: '회사채·기업신용평가 AAA~BB° · 기업어음 A1~B+' },
+  { key: 'BBminus', label: 'BB-', hint: '회사채·기업신용평가 BB- · 기업어음 B°' },
+  { key: 'B', label: 'B+ ~ B-', hint: '회사채·기업신용평가 B+~B- · 기업어음 B-' },
+  { key: 'CCC', label: 'CCC+ 이하', hint: '회사채·기업신용평가 CCC+ 이하 · 기업어음 C 이하' },
 ] as const;
 
 const r10 = [10, 9.8, 9.6, 6.0];

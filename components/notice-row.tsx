@@ -77,7 +77,7 @@ export const fitTone = (score: number | null) =>
         : { stroke: '#C9CED6', text: 'text-mute' };
 
 /**
- * U2(2026-11-22): 목록에서는 % 대신 단계 배지 — 61%·57%가 '덜 맞아 보이던' 문제. 숫자는 상세 '우리 일과 맞는 정도'에서
+ * U2(2026-11-22): 목록에서는 % 대신 단계 배지 — 61%·57%가 '덜 맞아 보이던' 문제. 숫자는 상세 '적합도'에서
  *  70 이상 잘 맞음 / 50~69 맞음 / 50 미만 보통
  */
 export const fitLevel = (score: number | null) =>
@@ -87,7 +87,7 @@ function ScoreRing({ score }: { score: number | null }) {
   const lv = fitLevel(score);
   return (
     <span className={`mt-0.5 inline-flex h-6 min-w-[44px] items-center justify-center rounded-md px-1.5 text-[12px] font-semibold ${lv ? lv.c : 'bg-fill text-mute'}`}
-      title={score === null ? undefined : `우리 일과 맞는 정도 ${score}%`} aria-label={score === null ? '맞는 정도 없음' : `우리 일과 맞는 정도 ${score}%`}>
+      title={score === null ? undefined : `적합도 ${score}%`} aria-label={score === null ? '적합도 없음' : `적합도 ${score}%`}>
       {lv ? lv.t : '–'}
     </span>
   );

@@ -87,7 +87,7 @@ function Detail({ n }: { n: Notice }) {
 
   const calc = calcHref(n);
   // U10(2026-11-22): 버튼은 동작만('미리 계산'), 상태(기초금액 공개 전)는 버튼 위 배지로
-  const calcLabel = bst === 'pending' ? '미리 계산' : '투찰금액 계산하기';
+  const calcLabel = bst === 'pending' ? '미리 계산' : '투찰 금액 계산';
   // 비예가는 사정률 계산 대상이 아님 → 공고문으로
   const primary = order.cancelled
     ? <span className={`${CTA_PRIMARY} pointer-events-none !bg-fill !text-mute`}>취소된 공고</span>
@@ -248,7 +248,7 @@ function Judgment({ status, reasons, fit }: { status: Status; reasons: Reason[];
       <div className="mt-5 border-t border-line pt-4">
         <button type="button" onClick={() => setMore(!more)} aria-expanded={more}
           className="flex w-full items-center justify-between text-[14px] text-sub lg:pointer-events-none">
-          원문 확인 항목 {MANUAL_CHECKS.length}개
+          공고문 필수 확인 {MANUAL_CHECKS.length}
           <ChevronDown className={`h-4 w-4 text-mute transition lg:hidden ${more ? 'rotate-180' : ''}`} />
         </button>
         <ul className={`mt-3 space-y-1.5 text-[14px] text-mute ${more ? '' : 'hidden lg:block'}`}>
@@ -268,7 +268,7 @@ function FitBlock({ fit }: { fit: Fit }) {
   return (
     <div className="mt-5 rounded-2xl bg-fill p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1 text-[14px] text-sub">우리 일과 맞는 정도<Tip title="우리 일과 맞는 정도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 배지: 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만.</Tip></p>
+        <p className="flex items-center gap-1 text-[14px] text-sub">적합도<Tip title="적합도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 배지: 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만.</Tip></p>
         <p className="text-[24px] font-bold text-brand">{fit.score}<span className="text-[15px]">%</span></p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-brand" style={{ width: `${fit.score}%` }} /></div>
@@ -340,7 +340,7 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
   if (cond.length) lines.push({ k: '조건', v: cond.join(' · ') });
 
   return (
-    <Card title="이 공고 브리핑">
+    <Card title="한눈에 보기">
       {past === undefined && !extra ? <div className="h-20 animate-pulse rounded-2xl bg-fill" /> : (
         <>
           <ul className="space-y-3">
@@ -470,7 +470,7 @@ function Similar({ n }: { n: Notice }) {
   if (items && !items.length) return null; // 관련 있는 지난 계약이 없으면 카드 자체를 숨김
 
   return (
-    <Card title={<span className="flex items-center gap-1">이 기관 최근 계약<Tip title="이 기관 최근 계약">이 공고의 지난 계약이 아니라, 같은 기관이 맺은 계약 중 공고명 핵심 낱말이 겹치는 것. 많이 겹치는 순.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
+    <Card title={<span className="flex items-center gap-1">최근 계약<Tip title="최근 계약">이 공고의 지난 계약이 아니라, 같은 기관이 맺은 계약 중 공고명 핵심 낱말이 겹치는 것. 많이 겹치는 순.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
       {items && items.length > 0 && (
         <>

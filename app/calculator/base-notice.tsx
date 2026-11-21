@@ -126,7 +126,7 @@ function RefPrices({ notice, budget }: { notice: Notice; budget: number | null }
 
 function howWins(award: string): string {
   if (/협상/.test(award)) return '낙찰: 제안서 기술·가격 평가 후 협상';
-  if (/수의/.test(award)) return '낙찰: 경쟁 없이 가격 협의';
+  if (/수의/.test(award)) return '낙찰: 수의 가격 협의';
   if (/규격가격|2단계/.test(award)) return '낙찰: 규격 통과 업체 중 예정가격 이하 최저가';
   if (/최저가/.test(award)) return '낙찰: 예정가격 이하 최저가 · 하한선 없음';
   return '낙찰 방법: 공고문 확인';
@@ -140,7 +140,7 @@ function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="단일예가">단일예가</Term> · 기초금액·사정률 없음</b>
-          <Tip title="단일예가">예정가격을 추첨 없이 하나로 정함. 예정가격은 보통 개찰 전까지 비공개.</Tip></p>
+          <Tip title="단일예가">예정가격을 하나로 정함(추첨 안 함). 예정가격은 보통 개찰 전까지 비공개.</Tip></p>
         {rate ? (
           <>
             <p className="mt-1"><Term k="낙찰하한율" /> {rate}% · 예산 기준 하한선 약 <b className="tabular-nums text-ink">{ref ? fmtWon(Math.ceil(ref * rate / 100)) : '—'}</b> <span className="text-mute">(추정)</span></p>

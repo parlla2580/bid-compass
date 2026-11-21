@@ -84,7 +84,7 @@ export function VerifyBox({ bizno, onVerified, title = '회사 확인', classNam
             <>
               <b className="font-semibold text-bad">나라장터에 등록된 대표자명과 달라요.</b>
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                <li>사업자등록증에 적힌 대표자 성명을 띄어쓰기 없이 넣어 주세요.</li>
+                <li>사업자등록증에 적힌 대표자 성명을 붙여 써서 넣어 주세요.</li>
                 <li>공동대표라면 한 분의 이름만 넣어도 돼요.</li>
                 <li>최근 대표자가 바뀌었다면 나라장터 업체정보(입찰참가자격 등록)가 아직 예전 대표자로 되어 있을 수 있어요. 나라장터에서 등록 정보를 바꾼 뒤 다시 확인해 주세요.</li>
               </ul>

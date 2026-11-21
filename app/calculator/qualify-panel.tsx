@@ -123,7 +123,7 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
             )}
             <button type="button" onClick={() => onUseRate(range.low!)}
               className="mt-4 flex h-12 w-full items-center justify-center gap-1 rounded-cta bg-ink text-[15px] font-semibold text-white active:scale-[.98]">
-              {pctS(range.low)}로 투찰금액 계산하기 <ChevronRight className="h-4 w-4" />
+              {pctS(range.low)}로 투찰 금액 계산 <ChevronRight className="h-4 w-4" />
             </button>
           </>
         )}

@@ -56,7 +56,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     try {
       // 1) 회사 확인 — 대표자명이 다르면 가입하지 않음
       const v = await verifyCompany(digits, ceo);
-      if (v.status === 'mismatch') throw new Error('대표자명이 나라장터 등록 정보와 달라요. 사업자등록증의 성명을 띄어쓰기 없이 넣어 주세요. 대표자가 최근 바뀌었다면 나라장터 업체정보도 바꿔야 해요.');
+      if (v.status === 'mismatch') throw new Error('대표자명이 나라장터 등록 정보와 달라요. 사업자등록증의 성명을 붙여 써서 넣어 주세요. 대표자가 최근 바뀌었다면 나라장터 업체정보도 바꿔야 해요.');
       if (v.status === 'unregistered' && !unregisteredOk) {
         setUnregisteredOk(true);
         throw new Error('나라장터에 입찰참가자격이 등록되지 않은 번호라 회사 확인을 할 수 없어요. 번호가 맞다면 한 번 더 누르면 가입돼요 (입찰 분석은 등록 후 열려요).');

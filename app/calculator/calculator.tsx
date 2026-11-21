@@ -254,9 +254,9 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
         <label className="flex cursor-pointer items-start gap-3 rounded-btn bg-fill px-4 py-3.5 text-[15px]">
           <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-0.5 h-5 w-5 accent-blue-600" />
           <span>
-            <span className="font-medium">세부기준표와 대조 완료</span>
+            <span className="font-medium">공고 값 확인</span>
             <span className="mt-0.5 block text-[13px] text-mute">
-              {fromNotice ? '공고 값 · 세부기준표 대조 필요' : '예시값 · 공고마다 다름'}
+              {fromNotice ? '불러온 값 · 공고문·세부기준표와 대조' : '직접 입력값 · 공고문과 대조'}
             </span>
           </span>
         </label>
@@ -335,7 +335,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
           {/* U9(2026-11-22): 처음엔 접어 둠 — 내역서가 있을 때만 펼쳐 입력 */}
           <button type="button" onClick={() => setShow98(!show98)} aria-expanded={show98} className="flex w-full items-center justify-between text-left">
             <span>
-              <span className="block text-[15px] font-bold">공사 98% 하한 체크</span>
+              <span className="block text-[15px] font-bold">순공사비 98% 확인</span>
               <span className="block text-[13px] text-mute">내역서 재료비·노무비·경비 → 98% 미만 여부</span>
             </span>
             <ChevronDown className={`h-5 w-5 shrink-0 text-mute transition ${show98 ? 'rotate-180' : ''}`} />
@@ -353,7 +353,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
             <NumField id="labor" label="노무비" value={costIn.labor} onChange={(v) => setCost({ ...costIn, labor: v })} unit="원" />
             <NumField id="expense" label="경비" value={costIn.expense} onChange={(v) => setCost({ ...costIn, expense: v })} unit="원" />
             <NumField id="vat" label="부가가치세" value={costIn.vat} onChange={(v) => setCost({ ...costIn, vat: v })} unit="원"
-              hint={costIn.vat === null ? `비우면 10% 자동: ${fmtNum(vat)}원` : undefined} />
+              hint={costIn.vat === null && costSum > 0 ? `자동 계산 (합계 × 10%) ${fmtNum(vat)}원` : undefined} />
           </div>
           {costSum > 0 && (
             <p className="text-sm">98% 기준금액 <b className="tabular-nums">{fmtWon(constructionFloor)}</b></p>
