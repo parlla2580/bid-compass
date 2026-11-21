@@ -23,7 +23,8 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   const codes = [...new Map(n.products.filter((p) => /^\d{8}/.test(p.code)).map((p) => [p.code.slice(0, 8), p.code])).values()].slice(0, 3);
   const goods = n.type === '물품' && !isCatalog(n) && codes.length > 0;
   const [items, setItems] = useState<ItemPrice[] | null | undefined>(undefined);
-  const [perUnit, setPerUnit] = useState<number | null>(null);
+  // 이 공고 1개당 예산 (추정가격 × 1.1 ÷ 수량) + 단위('대' 등)
+  const [perUnit, setPerUnit] = useState<{ v: number; unit: string } | null>(null);
 
   useEffect(() => {
     if (!goods) return;
@@ -32,7 +33,7 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
     // 이 공고 개당 금액 — 품목이 하나이고 개수 단위일 때만
     if (codes.length === 1 && n.estPrice > 0) {
       fetchNoticeQty(n.id).then((q) => {
-        if (on && q?.qty && q.qty >= 2 && q.unit && COUNT_UNIT.test(q.unit)) setPerUnit(Math.round((n.estPrice * 1.1) / q.qty));
+        if (on && q?.qty && q.qty >= 2 && q.unit && COUNT_UNIT.test(q.unit)) setPerUnit({ v: Math.round((n.estPrice * 1.1) / q.qty), unit: q.unit });
       }).catch(() => {});
     }
     return () => { on = false; };
@@ -48,51 +49,60 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
 
   return (
     <Card title={
-      <span className="flex items-center gap-1">공공 계약 단가
-        <Tip title="어떻게 계산했나요">같은 물품분류로 최근 12개월(수집된 기간 안)에 체결된 공공 계약 중 수량 2개 이상만 모았어요. 큰 글씨는 중앙값, 막대는 가운데 50%(보통 범위)예요. 규격·단위가 섞여 값이 크게 흩어지는 품목은 숫자 대신 실제 계약만 보여 드려요. 이 공고 개당 금액은 추정가격에 부가세 10%를 더해 수량으로 나눈 추정값이에요.</Tip>
+      <span className="flex items-center gap-1">공공 구매 단가
+        <Tip title="계산 방법">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격 · 최근 12개월(수집 기간 안) · 수량 2개 이상 계약만 · 큰 숫자는 중앙값, ‘대부분’은 가운데 50%. 이 공고 예산 = 추정가격 × 1.1(부가세) ÷ 수량. 규격·단위가 섞여 값이 크게 흩어지는 품목은 숫자 없이 실제 계약만.</Tip>
       </span>}
       aside={<span className="text-[13px] tabular-nums text-mute">{period} · {total.toLocaleString()}건</span>}>
       <div className="divide-y divide-line">
-        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} mark={items.length === 1 ? perUnit : null} locked={locked} onSignup={onSignup} />)}
+        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} mark={items.length === 1 ? perUnit?.v ?? null : null} unit={perUnit?.unit ?? null} locked={locked} onSignup={onSignup} />)}
       </div>
     </Card>
   );
 }
 
-function Row({ it, single, mark, locked, onSignup }: { it: ItemPrice; single: boolean; mark: number | null; locked: boolean; onSignup: () => void }) {
+function Row({ it, single, mark, unit, locked, onSignup }: { it: ItemPrice; single: boolean; mark: number | null; unit: string | null; locked: boolean; onSignup: () => void }) {
   const ok = it.spread_ok && it.n >= 10;
   const [open, setOpen] = useState(!ok);
   // 막대 눈금 — 보통 범위와 이 공고 위치가 다 들어오게
   const sane = mark != null && mark > it.p25 / 5 && mark < it.p75 * 5 ? mark : null; // 단위가 다른 공고(묶음 등)면 위치 표시 안 함
-  const lo = Math.min(it.p25, sane ?? it.p25) * 0.75, hi = Math.max(it.p75, sane ?? it.p75) * 1.25;
+  const lo = Math.min(it.p25, sane ?? it.p25) * 0.8, hi = Math.max(it.p75, sane ?? it.p75) * 1.2;
   const x = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
 
   return (
     <div className="py-4 first:pt-1 last:pb-1">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate text-[14px] font-semibold text-sub">{it.name ?? it.code}</p>
+        <p className="min-w-0 truncate text-[14px] font-semibold text-sub">{it.name ?? it.code}{ok && <span className="ml-1.5 text-[12px] font-normal text-mute">1{unit && COUNT_UNIT.test(unit) && !/^(EA|ea|set|SET)$/.test(unit) ? unit : '개'} 기준</span>}</p>
         {!single && <p className="shrink-0 text-[12px] text-mute">{it.n.toLocaleString()}건</p>}
       </div>
 
       {ok ? (
         <>
-          <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
-            <span className="text-[26px] font-bold tabular-nums tracking-tight">{won(it.p50)}</span>
-            <span className="text-[13px] tabular-nums text-mute">보통 {won(it.p25)} ~ {won(it.p75)}</span>
-          </p>
-          <div className={`relative ${sane ? 'mb-8' : 'mb-1'} mt-3 h-2 rounded-full bg-fill`}>
-            <div className="absolute h-2 rounded-full bg-[#C9D7F9]" style={{ left: x(it.p25), width: `calc(${x(it.p75)} - ${x(it.p25)})` }} />
-            <div className="absolute -top-1 h-4 w-0.5 -translate-x-1/2 rounded bg-ink" style={{ left: x(it.p50) }} />
-            {sane && (
-              <span className="absolute top-3 -translate-x-1/2 whitespace-nowrap text-center" style={{ left: x(sane) }}>
-                <span className="mx-auto block h-0 w-0 border-x-[5px] border-b-[6px] border-x-transparent border-b-brand" />
-                <span className="block text-[11px] font-semibold text-brand">이 공고 {won(sane)}</span>
-              </span>
+          {/* 두 숫자를 나란히 — 다른 기관이 산 가격 vs 이 공고 예산 */}
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <div>
+              <p className="flex items-center gap-1.5 text-[12px] text-mute"><i className="inline-block h-2 w-2 rounded-full bg-ink" />다른 기관 구매가</p>
+              <p className="mt-0.5 text-[24px] font-bold tabular-nums tracking-tight">{won(it.p50)}</p>
+              <p className="text-[12px] tabular-nums text-mute">대부분 {won(it.p25)}~{won(it.p75)}</p>
+            </div>
+            {sane != null && (
+              <div>
+                <p className="flex items-center gap-1.5 text-[12px] text-mute"><i className="inline-block h-0 w-0 border-x-[5px] border-b-[7px] border-x-transparent border-b-brand" />이 공고 예산</p>
+                <p className="mt-0.5 flex items-baseline gap-1.5">
+                  <span className="text-[24px] font-bold tabular-nums tracking-tight text-brand">{won(sane)}</span>
+                  <Diff v={sane} base={it.p50} />
+                </p>
+                <p className="text-[12px] text-mute">추정가격 ÷ 수량</p>
+              </div>
             )}
+          </div>
+          <div className="relative mb-1 mt-4 h-2 rounded-full bg-fill">
+            <div className="absolute h-2 rounded-full bg-[#C9D7F9]" style={{ left: x(it.p25), width: `calc(${x(it.p75)} - ${x(it.p25)})` }} />
+            <div className="absolute -top-1 h-4 w-1 -translate-x-1/2 rounded bg-ink" style={{ left: x(it.p50) }} />
+            {sane != null && <span className="absolute top-2.5 h-0 w-0 -translate-x-1/2 border-x-[6px] border-b-[8px] border-x-transparent border-b-brand" style={{ left: x(sane) }} />}
           </div>
         </>
       ) : (
-        <p className="mt-1 text-[13px] text-mute">규격·단위 차이가 커서 단가를 하나로 보기 어려움{it.n < 10 ? ` · ${it.n}건` : ''}</p>
+        <p className="mt-1 text-[13px] text-mute">규격·단위 차이가 커서 단가 생략{it.n < 10 ? ` · ${it.n}건` : ''}</p>
       )}
 
       {/* 최근 계약 — 단가가 모이면 접어 두고, 흩어지면 펼쳐서 실례로 */}
@@ -118,4 +128,11 @@ function Row({ it, single, mark, locked, onSignup }: { it: ItemPrice; single: bo
       ))}
     </div>
   );
+}
+
+/** 중앙값 대비 차이 — ±5% 안은 '비슷' */
+function Diff({ v, base }: { v: number; base: number }) {
+  const d = Math.round(((v - base) / base) * 100);
+  const cls = Math.abs(d) < 5 ? 'bg-fill text-sub' : d > 0 ? 'bg-[#FFF4E5] text-[#B45309]' : 'bg-brand-soft text-brand';
+  return <span className={`rounded px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${cls}`}>{Math.abs(d) < 5 ? '비슷' : `${d > 0 ? '+' : ''}${d}%`}</span>;
 }
