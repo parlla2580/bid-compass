@@ -76,6 +76,7 @@ export default function AnalysisPage() {
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
         text="가입할 때 사업자등록번호와 대표자명으로 회사를 확인하면, 나라장터 투찰 이력을 찾아 바로 분석해 드려요.">
         <button type="button" onClick={() => setSignup(true)} className={BTN_PRIMARY}>가입하고 성적표 보기</button>
+        <Link href="/login" className="mt-2 block py-2 text-center text-[15px] font-semibold text-sub">이미 가입했다면 로그인</Link>
       </Empty>
     );
   } else if (error) body = <p className="rounded-box bg-white p-5 text-[15px] text-bad">분석을 불러오지 못했어요: {error}</p>;
@@ -186,7 +187,7 @@ export default function AnalysisPage() {
     <Shell wide>
       <Header />
       <main className="space-y-4 px-5 pb-28 lg:px-0 lg:pb-0">
-        <PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 ${tab === 'sales' ? '계약' : '개찰 결과'} 기준`} />
+        <div className="-mx-5 lg:mx-0"><PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 ${tab === 'sales' ? '계약' : '개찰 결과'} 기준`} /></div>
         {account && (
           <div className="flex items-center gap-2">
             <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">

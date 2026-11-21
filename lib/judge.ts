@@ -46,7 +46,9 @@ function regionRule(n: Notice, p: Profile): Reason {
   const rule = 'region';
   if (!n.regionLimit) return { rule, result: 'pass', text: '지역제한 없음' };
   const area = n.regionLimit.join(', ');
-  const basis = n.regionBasis ? ` (판단기준: ${n.regionBasis})` : '';
+  // API 원문 '본사또는참여지사소재지' → 화면용 짧은 이름표 (2026-11-22)
+  const basisLabel = n.regionBasis === '본사또는참여지사소재지' ? '본사·참여지사 기준' : n.regionBasis === '본사소재지' ? '본사 기준' : n.regionBasis;
+  const basis = basisLabel ? ` (${basisLabel})` : '';
   if (!p.location) return { rule, result: 'check', text: `지역제한 ${area} · 소재지 입력 필요`, need: 'location' };
 
   const hit = n.regionLimit.find((r) => within(p.location!, r));

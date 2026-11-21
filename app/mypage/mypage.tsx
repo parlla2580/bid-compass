@@ -106,10 +106,10 @@ export default function MyPage() {
           <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="h-4 w-4 text-primary" />기업 정보</h2>
           <button type="button" onClick={() => setSheet('company')} className="flex items-center gap-1 text-sm font-semibold text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>
         </div>
-        <dl className="grid grid-cols-[72px_1fr] gap-y-2 text-sm">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           {companyRows.map(([k, v]) => (
             <div key={k} className="contents">
-              <dt className="text-mute">{k}</dt>
+              <dt className="whitespace-nowrap text-mute">{k}</dt>
               <dd className={v ? 'font-medium' : 'text-mute'}>{v ?? '미입력'}</dd>
             </div>
           ))}

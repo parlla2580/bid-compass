@@ -135,21 +135,31 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
             <p className="mt-1 text-[28px] font-bold tabular-nums tracking-tight">{fmtWon(amount)}</p>
             <p className="text-[13px] text-mute">{a ? `(기초금액 × ${cur.toFixed(2)}% − A) × 낙찰하한율 ${floor}% + A` : `기초금액 × ${cur.toFixed(2)}% × 낙찰하한율 ${floor}%`}</p>
 
-            <dl className="mt-4 space-y-2.5 border-t border-line pt-4 text-[15px]">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="flex items-center gap-1 text-mute">지난 개찰에 대보면 하한 통과
-                  <Tip title="낙찰 확률이 아니에요">지난 개찰들의 실제 사정률에 이 금액 방식을 대입했을 때, 낙찰하한선 아래로 떨어지지 않았던 비율이에요. 통과해도 낙찰은 추첨·순위에 따라 정해져요.</Tip>
-                </dt>
-                <dd className="font-semibold">{Math.round(ok * 100)}%</dd>
-              </div>
-              <div className="flex justify-between gap-3"><dt className="text-mute">하한선 아래로 떨어짐</dt><dd className={`font-semibold ${ok < 0.5 ? 'text-bad' : ''}`}>{Math.round((1 - ok) * 100)}%</dd></div>
-              {bt && bt.n >= 30 && (
-                <div className="rounded-2xl bg-fill p-3.5 text-[14px] leading-relaxed text-sub">
-                  이 금액 방식으로 <b className="text-ink">지난 {bt.n}건</b>에 썼다면<br />
-                  1순위 <b className="text-brand">{bt.first}번</b> · 3위 안 {bt.top3}번 · 하한 미달 {bt.below}번
-                </div>
+            {/* 지난 개찰 대입 — 한 가지 기준(fetchBacktest)만 보여 줌. 분포 누적(cdf)·곡선 값과 숫자가 3가지로 갈리던 문제 정리 (2026-11-22) */}
+            <div className="mt-4 border-t border-line pt-4">
+              <p className="flex items-center gap-1 text-[13px] text-mute">지난 개찰에 대입{bt && bt.n >= 30 ? ` · ${bt.n.toLocaleString()}건` : ''}
+                <Tip title="낙찰 확률이 아님">지난 개찰의 실제 예정가격에 이 사정률·금액 방식을 그대로 넣어 본 결과. 다음 개찰을 예측하지 않음.</Tip>
+              </p>
+              {bt && bt.n >= 30 ? (
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { k: '1순위', v: bt.first / bt.n, tone: 'text-brand' },
+                    { k: '3위 안', v: bt.top3 / bt.n, tone: 'text-ink' },
+                    { k: '하한 미달', v: bt.below / bt.n, tone: bt.below / bt.n >= 0.5 ? 'text-bad' : 'text-ink' },
+                  ].map((x) => (
+                    <div key={x.k} className="rounded-2xl bg-fill px-2 py-2.5">
+                      <dt className="text-[12px] text-mute">{x.k}</dt>
+                      <dd className={`mt-0.5 text-[18px] font-bold tabular-nums ${x.tone}`}>{Math.round(x.v * 1000) / 10}%</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-center">
+                  <div className="rounded-2xl bg-fill px-2 py-2.5"><dt className="text-[12px] text-mute">하한 통과</dt><dd className="mt-0.5 text-[18px] font-bold tabular-nums">{Math.round(ok * 100)}%</dd></div>
+                  <div className="rounded-2xl bg-fill px-2 py-2.5"><dt className="text-[12px] text-mute">하한 미달</dt><dd className={`mt-0.5 text-[18px] font-bold tabular-nums ${ok < 0.5 ? 'text-bad' : ''}`}>{Math.round((1 - ok) * 100)}%</dd></div>
+                </dl>
               )}
-            </dl>
+            </div>
             <button type="button" onClick={() => onUse(amount)} className="mt-4 h-12 w-full rounded-cta bg-ink text-[15px] font-semibold text-white active:scale-[.98]">
               이 금액으로 확인하기
             </button>

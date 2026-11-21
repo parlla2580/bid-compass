@@ -38,7 +38,15 @@ export default function InboxView() {
   }, [actions, news, markRead]);
 
   if (!account) {
-    return <p className="px-5 pt-16 text-center text-[15px] text-sub lg:px-0">가입하면 1순위 개찰·마감 임박·결과 소식을 모아 알려드려요</p>;
+    return (
+      <div className="px-5 pt-16 text-center lg:px-0">
+        <p className="text-[15px] text-sub">가입하면 1순위 개찰·마감 임박·결과 소식을 모아 알려드려요</p>
+        <div className="mx-auto mt-5 flex max-w-[320px] gap-2">
+          <Link href="/login" className="flex h-12 flex-1 items-center justify-center rounded-btn bg-ink text-[15px] font-semibold text-white">로그인</Link>
+          <Link href="/mypage?signup=1" className="flex h-12 flex-1 items-center justify-center rounded-btn bg-white text-[15px] font-semibold text-ink ring-1 ring-line">가입</Link>
+        </div>
+      </div>
+    );
   }
 
   return (

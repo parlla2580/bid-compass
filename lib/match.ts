@@ -91,13 +91,14 @@ export function suggestProducts(notices: Notice[] | null, industries: { name: st
       .map((w) => w.replace(/(사업자|사업|업체|공사업|제조업|판매업|용역업|업)$/, ''))
       .filter((w) => w.length >= 2 && !/^(일반|기타|종합|전문|공급|개발)$/.test(w))));
   if (!keys.size || !notices) return [];
-  const own = new Set(have.map((p) => p.code));
+  // 같은 이름의 세부품명(코드만 다름)이 여러 개라 이름으로 묶음 — 이미 가진·보이는 품목은 코드·이름 둘 다로 제외 (2026-11-22 전체 점검)
+  const own = new Set(have.flatMap((p) => [p.code, p.name]));
   const count = new Map<string, { p: Product; n: number }>();
   for (const n of notices) {
     for (const p of n.products) {
-      if (own.has(p.code) || ![...keys].some((k) => p.name.includes(k))) continue;
-      const c = count.get(p.code);
-      count.set(p.code, { p, n: (c?.n ?? 0) + 1 });
+      if (own.has(p.code) || own.has(p.name) || ![...keys].some((k) => p.name.includes(k))) continue;
+      const c = count.get(p.name);
+      count.set(p.name, { p: c?.p ?? p, n: (c?.n ?? 0) + 1 });
     }
   }
   return [...count.values()].sort((a, b) => b.n - a.n).slice(0, 8).map((x) => x.p);

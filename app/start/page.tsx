@@ -229,7 +229,7 @@ export default function StartPage() {
             {many && <p className="mt-2 text-[12px] text-mute">숫자는 지금 열린 공고 중 그 품목이 나온 공고 수예요. 고른 품목 {products.length}개</p>}
             <div className="mt-4">
               <ProductPicker value={products} onChange={setProducts}
-                suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, products)} />
+                suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, many ? [...products, ...found!.products!] : products)} />
             </div>
           </div>
           {found && !found.products?.length && !products.length ? (

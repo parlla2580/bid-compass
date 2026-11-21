@@ -66,8 +66,7 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
   // 한 줄 판단
   let msg: string;
   if (same(at)) msg = `${pct2(flat[0].s)}~${pct2(flat[flat.length - 1].s)} 구간 1순위 비율 비슷`;
-  else if (cur < peak.s) msg = `낮춰도 1순위 증가 없음 · 최다 ${pct2(peak.s)}`;
-  else msg = `높일수록 1순위 감소 · 최다 ${pct2(peak.s)}`;
+  else msg = `최다 ${pct2(peak.s)} · 지금보다 ${cur < peak.s ? '높은' : '낮은'} 쪽`;
 
   return (
     <div className="mt-7">
@@ -76,7 +75,7 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
           이 사정률로 썼다면 1순위였던 비율
           <Tip title="지난 개찰에 대 본 값이에요">
             지난 {type} {c.n.toLocaleString()}건에 기초금액 × 사정률을 예정가격으로 보고 하한선에 맞춰 썼다면 1순위였던 비율이에요.
-            점선은 순위가 무작위일 때의 기대값이에요.
+            점선은 순위가 무작위일 때의 기대값. 정확한 값은 ‘지난 개찰에 대입’.
           </Tip>
         </p>
         <span className={`shrink-0 text-[12px] text-mute transition-opacity ${show ? 'opacity-0' : ''}`}>지난 {c.n.toLocaleString()}건</span>
@@ -100,14 +99,10 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
         </svg>
 
         {/* 기준선 이름 — 선 오른쪽 위에 바로 */}
-        <span className="pointer-events-none absolute right-0 -translate-y-full pb-0.5 text-[11px] text-mute" style={{ top: `${Y(luck)}%` }}>평균 몫 {fmt(luck)}</span>
+        <span className="pointer-events-none absolute right-0 -translate-y-full pb-0.5 text-[11px] text-mute" style={{ top: `${Y(luck)}%` }}>무작위 기대값 {fmt(luck)}</span>
 
-        {/* 지금 고른 지점 — 점 + 값 말풍선 */}
+        {/* 지금 고른 지점 — 점만 (값은 '지난 개찰에 대입' 한 곳에서, 2026-11-22) */}
         <span className="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand ring-2 ring-white" style={{ left: `${X(at.s)}%`, top: `${Y(at.first)}%` }} />
-        {!show && (
-          <span className="pointer-events-none absolute -translate-x-1/2 -translate-y-[calc(100%+10px)] whitespace-nowrap rounded-md bg-ink px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-white"
-            style={{ left: `${Math.min(92, Math.max(8, X(at.s)))}%`, top: `${Y(at.first)}%` }}>{fmt(at.first)}</span>
-        )}
 
         {/* 올리면(탭) 그 사정률 값 */}
         {show && (
@@ -122,13 +117,7 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
         )}
       </div>
 
-      <div className="mt-3 rounded-2xl bg-fill px-4 py-3 text-[14px] leading-relaxed">
-        <p className="text-sub">
-          {at.s.toFixed(2)}% → 1순위 <b className="tabular-nums text-ink">{fmt(at.first)}</b>
-          <span className="mx-1.5 text-line">|</span>하한 미달 <b className={`tabular-nums ${at.below >= 50 ? 'text-bad' : 'text-ink'}`}>{fmt(at.below)}</b>
-        </p>
-        <p className="mt-0.5 text-[13px] text-mute">{msg}</p>
-      </div>
+      <p className="mt-2 text-[13px] text-mute">{msg}</p>
     </div>
   );
 }

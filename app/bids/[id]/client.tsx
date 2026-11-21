@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { COPY } from '@/lib/copy';
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Bookmark, Check, ChevronDown, ChevronRight, CircleAlert, Lock, X } from 'lucide-react';
+import { ArrowUpRight, Bookmark, Check, ChevronDown, ChevronRight, CircleAlert, CircleHelp, Lock, X } from 'lucide-react';
 import { useToast } from '@/components/feedback';
 import { Card } from '@/components/layout';
 import { CTA_PRIMARY, CTA_SOFT } from '@/components/ui';
@@ -75,7 +75,9 @@ function Detail({ n }: { n: Notice }) {
   const [signup, setSignup] = useState(false);
   const j = judge(n, profile);
   const fit = fitScore(n, profile, j, history.length ? similarity(n, prepareHistory(history), stats) : null, history, productMatch(n, profile.products, stats), competition, stats);
-  const closed = n.d < 0;
+  // 취소된 공고는 마감 전이라도 판정·계산 버튼을 내림 (2026-11-22 전체 점검: 취소 공고에 '투찰금액 계산하기'가 떠 있었음)
+  const order = useOrderState(n);
+  const closed = n.d < 0 || order.cancelled;
   const on = saved.includes(n.id);
   // 기초금액 상태 — 공개 전이면 저장 = 공개 알림, 비예가면 계산기 대신 공고문 (2026-11-18)
   const bst = baseStatus(n);
@@ -86,20 +88,22 @@ function Detail({ n }: { n: Notice }) {
   const calc = calcHref(n);
   const calcLabel = bst === 'pending' ? '기초금액 공개 전 · 미리 계산' : '투찰금액 계산하기';
   // 비예가는 사정률 계산 대상이 아님 → 공고문으로
-  const primary = bst === 'noDraw' || bst === 'catalog'
+  const primary = order.cancelled
+    ? <span className={`${CTA_PRIMARY} pointer-events-none !bg-fill !text-mute`}>취소된 공고</span>
+    : bst === 'noDraw' || bst === 'catalog'
     ? (n.url ? <a href={n.url} target="_blank" rel="noopener noreferrer" className={CTA_PRIMARY}>{bst === 'catalog' ? '공고문에서 계약 조건 보기' : '공고문에서 가격 평가 보기'}</a> : null)
     : <Link href={calc} className={CTA_PRIMARY}>{calcLabel}</Link>;
 
   return (
     <main className="px-5 pb-32 lg:px-0 lg:pb-0">
       <Hero n={n} />
-      <OrderNotice n={n} />
+      <OrderNotice {...order} />
 
       <div className="mt-6 lg:mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
         <div className="space-y-3 lg:space-y-4">
           {!closed && <Judgment reasons={j.reasons} status={j.status} fit={fit} />}
           <Briefing n={n} locked={gated} onSignup={() => setSignup(true)} />
-          <QualifyCard n={n} />
+          {!closed && <QualifyCard n={n} />}
           <ItemPrices n={n} locked={gated} onSignup={() => setSignup(true)} />
           <Info n={n} />
           {gated ? <SignupGate onSignup={() => setSignup(true)} /> : <Similar n={n} />}
@@ -148,11 +152,15 @@ function Detail({ n }: { n: Notice }) {
 }
 
 /** 취소·변경된 공고 안내 — 같은 공고번호의 마지막 차수를 확인 */
-function OrderNotice({ n }: { n: Notice }) {
+function useOrderState(n: Notice) {
   const [latest, setLatest] = useState<{ id: number; bidOrd: string; kind: string | null } | null>(null);
   useEffect(() => { fetchLatestOrder(n.bidNo).then(setLatest).catch(() => setLatest(null)); }, [n.bidNo]);
   const cancelled = /취소/.test(n.kind ?? '') || (!!latest && /취소/.test(latest.kind ?? ''));
-  const newer = latest && latest.id !== n.id && !/취소/.test(latest.kind ?? '');
+  const newer = !!latest && latest.id !== n.id && !/취소/.test(latest.kind ?? '');
+  return { latest, cancelled, newer };
+}
+
+function OrderNotice({ latest, cancelled, newer }: ReturnType<typeof useOrderState>) {
   if (!cancelled && !newer) return null;
   return (
     <div className="mt-4 rounded-box bg-white px-5 py-4 text-[15px]">
@@ -344,6 +352,8 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
 
 function ReasonIcon({ r }: { r: Reason }) {
   const base = 'mt-[3px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full';
+  // 판정은 통과지만 입력이 필요한 항목(기업규모 미입력 등)은 ✓ 대신 ? — '참여 가능'인데 '입력 필요'가 ✓로 보이던 모순 정리 (2026-11-22)
+  if (r.result === 'pass' && r.need) return <CircleHelp className="mt-[3px] h-[18px] w-[18px] shrink-0 text-mute" />;
   if (r.result === 'pass') return <span className={`${base} bg-fill text-sub`}><Check className="h-3 w-3" strokeWidth={3} /></span>;
   if (r.result === 'fail') return <span className={`${base} bg-bad text-white`}><X className="h-3 w-3" strokeWidth={3} /></span>;
   return <CircleAlert className="mt-[3px] h-[18px] w-[18px] shrink-0 text-warn" />;

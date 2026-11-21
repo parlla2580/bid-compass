@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Card } from './layout';
 import { Tip } from './tip';
@@ -8,18 +9,24 @@ import type { Notice } from '@/lib/data';
 import { fmtWon } from '@/lib/format';
 import { useStore } from '@/lib/store';
 import { amountAt, noticePass, tierOf } from '@/app/calculator/qualify';
+import { fetchNoticeCost } from '@/lib/notices';
 
 /*
  * 공고 상세 — 우리 회사 통과선 (로드맵 2, 2026-11-21)
  *  공사 적격심사 공고 + 계산기에서 저장한 점수(032) → 통과 투찰 비율 범위를 자동으로
  *  저장한 점수가 없으면 한 줄 안내(계산기 적격심사 탭으로)
- *  사정률 100% 가정 금액은 기초금액이 있을 때만, A값은 계산기에서 반영
+ *  사정률 100% 가정 금액은 기초금액이 있을 때만 · A값은 계산기와 같은 값으로 반영(2026-11-22: 상세·계산기 금액 불일치 수정)
  */
 
 const pct = (v: number) => `${v.toFixed(3)}%`;
 
 export function QualifyCard({ n }: { n: Notice }) {
   const { profile } = useStore();
+  const [a, setA] = useState(0);
+  useEffect(() => {
+    if (n.type !== '공사' || !n.basePrice) return;
+    fetchNoticeCost(n.id).then((c) => setA(c?.aValue && c.aApply !== false ? c.aValue : 0)).catch(() => setA(0));
+  }, [n.id, n.type, n.basePrice]);
   const eligible = n.type === '공사' && /적격심사/.test(n.award ?? '') && !!tierOf(n.estPrice);
   if (!eligible) return null;
   const href = `/calculator?from=${n.id}&tab=score`;
@@ -61,7 +68,7 @@ export function QualifyCard({ n }: { n: Notice }) {
             하한율 {pct(floor)}{!range.wide && ` · ${pct(range.high!)} 이상은 다시 미달`}
           </p>
           {base && (
-            <p className="mt-2 text-[13px] text-sub">사정률 100% 가정 <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low))}</b>{range.wide ? ' 이상' : ` ~ ${fmtWon(amountAt(base, range.high!))}`} <span className="text-mute">(A값 제외)</span></p>
+            <p className="mt-2 text-[13px] text-sub">사정률 100% 가정 <b className="tabular-nums text-ink">{fmtWon(amountAt(base, range.low, a))}</b>{range.wide ? ' 이상' : ` ~ ${fmtWon(amountAt(base, range.high!, a))}`} <span className="text-mute">({a ? 'A값 반영' : 'A값 없음'})</span></p>
           )}
         </>
       )}
