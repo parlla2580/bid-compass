@@ -609,6 +609,19 @@ async function main() {
   if (RANGE_FROM && from >= to) throw new Error(`거슬러 받기 기간이 잘못됐어요: ${process.env.COLLECT_FROM} ~ ${process.env.COLLECT_TO}`);
 
   const sb = DRY ? null : createClient(SB_URL, SB_KEY, { auth: { persistSession: false } });
+  // 보조 예약(GitHub schedule)은 최근 50분 안에 정상 실행이 있으면 건너뜀 (039: 주 예약은 Supabase pg_cron → workflow_dispatch)
+  //  두 예약이 겹쳐도 나라장터 API를 두 번 쓰지 않게. 수동 실행·거슬러 받기·스냅샷은 그대로
+  if (sb && process.env.COLLECT_EVENT === 'schedule' && !RANGE_FROM && MODE === 'full') {
+    const since = new Date(Date.now() - 50 * 60e3).toISOString();
+    const { data: recent } = await sb.from('collect_runs').select('id,started_at,status')
+      .gte('started_at', since).in('status', ['ok', 'partial', 'running']).limit(1);
+    if (recent?.length) {
+      console.log(`최근 50분 안에 수집 실행(${recent[0].started_at}, ${recent[0].status})이 있어 보조 예약은 건너뜀`);
+      writeResult({ status: 'skipped', errors: [], summary: '보조 예약 — 최근 실행 있어 건너뜀' });
+      return;
+    }
+  }
+
   // 빈틈 메우기 — 매시간 수집이 몇 번 실패했으면 마지막으로 성공한 구간 끝부터 받음 (최대 48시간)
   if (sb && !RANGE_FROM && MODE !== 'snapshot') {
     // 공고 저장까지 성공한 실행만 (일부 실패라도 공고 오류가 있으면 제외 — 2026-11-17 DB 장애 때 '일부 실패'가 하나도 저장 못 함)

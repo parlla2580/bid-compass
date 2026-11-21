@@ -2,9 +2,10 @@ name: 나라장터 공고·계약 수집
 
 on:
   schedule:
-    # 매시 17분 (2026-11-15 운영계정 전환 후 3시간 → 1시간) — 구간 3시간으로 겹쳐 받아 누락 방지
-    #  GitHub 예약 실행은 30~65분 늦게 시작하는 경우가 많음(실측) → 화면 반영까지 최대 약 2시간
-    - cron: '17 * * * *'
+    # 보조 예약: 3시간마다 47분 (2026-11-22, 039)
+    #  주 예약은 Supabase pg_cron 이 매시 07분에 workflow_dispatch 로 실행 요청 (GitHub 예약이 11/15~21 약 25% 누락·최대 8.6시간 공백)
+    #  보조 예약은 최근 50분 안에 정상 실행이 있으면 수집기가 스스로 건너뜀 (scripts/collect.mjs)
+    - cron: '47 */3 * * *'
   workflow_dispatch:
     inputs:
       hours:
@@ -79,6 +80,7 @@ jobs:
           COLLECT_MODE: ${{ github.event.inputs.mode || 'full' }}
           COLLECT_FROM: ${{ github.event.inputs.from || '' }}
           COLLECT_TO: ${{ github.event.inputs.to || '' }}
+          COLLECT_EVENT: ${{ github.event_name }}
         run: node scripts/collect.mjs
 
       - name: 문제가 있으면 알림 (GitHub 이슈)
