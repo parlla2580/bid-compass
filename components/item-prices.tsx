@@ -23,8 +23,6 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   const codes = [...new Map(n.products.filter((p) => /^\d{8}/.test(p.code)).map((p) => [p.code.slice(0, 8), p.code])).values()].slice(0, 3);
   const goods = n.type === '물품' && !isCatalog(n) && codes.length > 0;
   const [items, setItems] = useState<ItemPrice[] | null | undefined>(undefined);
-  // 이 공고 1개당 예산 (추정가격 × 1.1 ÷ 수량) + 단위('대' 등)
-  const [perUnit, setPerUnit] = useState<{ v: number; unit: string } | null>(null);
   // 이 공고가 사려는 수량 (품목이 하나일 때만 — 여러 품목이면 공고 수량이 어느 품목 것인지 알 수 없음)
   const [want, setWant] = useState<{ qty: number; unit: string } | null>(null);
 
@@ -37,7 +35,6 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
       fetchNoticeQty(n.id).then((q) => {
         if (!on || !q?.qty) return;
         setWant({ qty: q.qty, unit: q.unit ?? '' });
-        if (n.estPrice > 0 && q.qty >= 2 && q.unit && COUNT_UNIT.test(q.unit)) setPerUnit({ v: Math.round((n.estPrice * 1.1) / q.qty), unit: q.unit });
       }).catch(() => {});
     }
     return () => { on = false; };
@@ -45,6 +42,12 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
 
   if (!goods || !items?.length) return null;
   const total = items.reduce((s, i) => s + i.n, 0);
+  // 이 공고 1개당 예산 — 계산할 수 없으면 이유를 함께 (2026-11-21: 조건이 안 맞으면 칸이 말없이 사라졌음)
+  const budget: Budget | null = items.length !== 1 || !want ? null
+    : !(n.estPrice > 0) ? { v: null, why: '추정가격 미공개' }
+      : n.estPrice < 1e4 ? { v: null, why: `추정가격 값 이상 (${fmtWon(n.estPrice)})` }
+      : !want.unit || !COUNT_UNIT.test(want.unit) ? { v: null, why: `단위 '${want.unit || '없음'}' · 1개당 계산 불가` }
+        : { v: Math.round((n.estPrice * 1.1) / want.qty), why: null };
   // 실제 계약 기간 (수집된 기간이 12개월보다 짧을 수 있어 '최근 12개월' 대신 실제 날짜로)
   const froms = items.map((i) => i.from).filter(Boolean).sort() as string[];
   const tos = items.map((i) => i.to).filter(Boolean).sort() as string[];
@@ -54,28 +57,33 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   return (
     <Card title={
       <span className="flex items-center gap-1">공공 구매 단가
-        <Tip title="계산 방법">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격 · 최근 12개월(수집 기간 안) · 수량 2개 이상 계약만 · 큰 숫자는 중앙값, ‘대부분’은 가운데 50%. 이 공고 예산 = 추정가격 × 1.1(부가세) ÷ 수량. 규격·단위가 섞여 값이 크게 흩어지는 품목은 숫자 없이 실제 계약만.</Tip>
+        <Tip title="계산 방법">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격 · 최근 12개월(수집 기간 안) · 수량 2개 이상 계약만 · 큰 숫자는 중앙값, ‘대부분’은 가운데 50%. 이 공고 예산 = 추정가격 × 1.1(부가세) ÷ 수량 — 품목이 하나이고 개수 단위일 때만. 다른 기관 범위와 5배 넘게 차이 나면 비교(%) 생략. 규격·단위가 섞여 값이 크게 흩어지는 품목은 숫자 없이 실제 계약만.</Tip>
       </span>}
       aside={<span className="text-[13px] tabular-nums text-mute">{period} · {total.toLocaleString()}건</span>}>
       <div className="divide-y divide-line">
-        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} mark={items.length === 1 ? perUnit?.v ?? null : null} unit={perUnit?.unit ?? null}
+        {items.map((it) => <Row key={it.code} it={it} single={items.length === 1} budget={budget}
           want={items.length === 1 ? want : null} total={n.estPrice > 0 ? Math.round(n.estPrice * 1.1) : null} locked={locked} onSignup={onSignup} />)}
       </div>
     </Card>
   );
 }
 
-function Row({ it, single, mark, unit, want, total, locked, onSignup }: {
-  it: ItemPrice; single: boolean; mark: number | null; unit: string | null;
+interface Budget { v: number | null; why: string | null }
+
+function Row({ it, single, budget, want, total, locked, onSignup }: {
+  it: ItemPrice; single: boolean; budget: Budget | null;
   /** 이 공고 구매 수량 */ want: { qty: number; unit: string } | null;
   /** 이 공고 추정가격 × 1.1 */ total: number | null;
   locked: boolean; onSignup: () => void;
 }) {
   const qtyText = want ? `${want.qty.toLocaleString('ko-KR', { maximumFractionDigits: 1 })}${want.unit}` : null;
+  const unit = want?.unit ?? null;
   const ok = it.spread_ok && it.n >= 10;
   const [open, setOpen] = useState(!ok);
-  // 막대 눈금 — 보통 범위와 이 공고 위치가 다 들어오게
-  const sane = mark != null && mark > it.p25 / 5 && mark < it.p75 * 5 ? mark : null; // 단위가 다른 공고(묶음 등)면 위치 표시 안 함
+  const mark = budget?.v ?? null;
+  // 막대·% 비교는 범위와 5배 안쪽일 때만 — 벗어나면 값은 보여 주되 '차이 큼'으로 (구성품 묶음 등)
+  const sane = mark != null && mark > it.p25 / 5 && mark < it.p75 * 5 ? mark : null;
+  const formula = total && qtyText ? `${total >= 1e4 ? fmtKorean(total) : fmtWon(total)} ÷ ${qtyText}` : '추정가격 ÷ 수량';
   const lo = Math.min(it.p25, sane ?? it.p25) * 0.8, hi = Math.max(it.p75, sane ?? it.p75) * 1.2;
   const x = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
 
@@ -96,14 +104,23 @@ function Row({ it, single, mark, unit, want, total, locked, onSignup }: {
               <p className="mt-0.5 text-[24px] font-bold tabular-nums tracking-tight">{won(it.p50)}</p>
               <p className="text-[12px] tabular-nums text-mute">대부분 {won(it.p25)}~{won(it.p75)}</p>
             </div>
-            {sane != null && (
+            {budget && (
               <div>
                 <p className="flex items-center gap-1.5 text-[12px] text-mute"><i className="inline-block h-0 w-0 border-x-[5px] border-b-[7px] border-x-transparent border-b-brand" />이 공고 예산</p>
-                <p className="mt-0.5 flex items-baseline gap-1.5">
-                  <span className="text-[24px] font-bold tabular-nums tracking-tight text-brand">{won(sane)}</span>
-                  <Diff v={sane} base={it.p50} />
-                </p>
-                <p className="text-[12px] tabular-nums text-mute">{total && qtyText ? `${fmtKorean(total)} ÷ ${qtyText}` : '추정가격 ÷ 수량'}</p>
+                {mark != null ? (
+                  <>
+                    <p className="mt-0.5 flex items-baseline gap-1.5">
+                      <span className="text-[24px] font-bold tabular-nums tracking-tight text-brand">{won(mark)}</span>
+                      {sane != null ? <Diff v={sane} base={it.p50} /> : <span className="rounded bg-fill px-1.5 py-0.5 text-[12px] font-semibold text-sub">차이 큼</span>}
+                    </p>
+                    <p className="text-[12px] tabular-nums text-mute">{sane != null ? formula : `${formula} · 구성품 포함 가능`}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-0.5 text-[24px] font-bold text-mute">–</p>
+                    <p className="text-[12px] text-mute">{budget.why}</p>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -114,7 +131,14 @@ function Row({ it, single, mark, unit, want, total, locked, onSignup }: {
           </div>
         </>
       ) : (
-        <p className="mt-1 text-[13px] text-mute">규격·단위 차이가 커서 단가 생략{it.n < 10 ? ` · ${it.n}건` : ''}</p>
+        <>
+          <p className="mt-1 text-[13px] text-mute">다른 기관 구매가: 규격·단위 차이가 커서 생략{it.n < 10 ? ` · ${it.n}건` : ''}</p>
+          {budget && (
+            <p className="mt-1.5 text-[13px] text-sub">이 공고 예산{' '}
+              {mark != null ? <><b className="font-semibold tabular-nums text-ink">{won(mark)}</b> <span className="text-mute">/ 1{unit} · {formula}</span></> : <span className="text-mute">– · {budget.why}</span>}
+            </p>
+          )}
+        </>
       )}
 
       {/* 최근 계약 — 단가가 모이면 접어 두고, 흩어지면 펼쳐서 실례로 */}
