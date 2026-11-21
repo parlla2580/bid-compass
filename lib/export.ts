@@ -18,7 +18,7 @@ export async function buildAnalysisWorkbook(corpName: string | null): Promise<{ 
   if (!report.verified) throw new Error('회사 확인이 필요해요');
 
   const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  const source = `입찰나침반 · 나라장터 개찰 결과 기준 · 최근 3년 · ${today} 내려받음. 참고용 자료예요.`;
+  const source = `입찰나침반 · 나라장터 개찰 결과 기준 · 2026.04 수집분부터 · ${today} 내려받음. 참고용 자료예요.`;
   const total = report.total ?? 0, won = report.won ?? 0;
 
   const summary: Sheet = {
@@ -26,7 +26,7 @@ export async function buildAnalysisWorkbook(corpName: string | null): Promise<{ 
     columns: [{ title: '항목', width: 28 }, { title: '값', width: 16, fmt: 'pct' }, { title: '설명', width: 52 }],
     rows: [
       ['회사', corpName ?? '', ''],
-      ['투찰 건수', total, '최근 3년'],
+      ['투찰 건수', total, '2026.04 수집분부터'],
       ['낙찰 건수', won, '최종낙찰자 기준'],
       ['낙찰률(%)', report.detailed ? ratio(report.won_detailed ?? 0, report.detailed) : ratio(won, total), report.detailed ? `투찰 순위를 받은 ${report.detailed}건 기준` : ''],
       ['낙찰하한선 미달', report.below_floor ?? 0, '하한율보다 낮게 투찰한 건수'],

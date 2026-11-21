@@ -106,7 +106,7 @@ export default function HomePage() {
           <Link href="/analysis" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">우리 회사 입찰 성적표</span>
-              <span className="mt-0.5 block text-[14px] text-mute">지난 3년 투찰·낙찰 결과 분석</span>
+              <span className="mt-0.5 block text-[14px] text-mute">투찰·낙찰 결과 분석 · 2026.04~</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
