@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert, UserRound } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
 import { useInbox } from '@/lib/inbox';
@@ -57,6 +57,50 @@ function useAccountState(): 'guest' | 'unverified' | 'verified' {
   return corp ? 'verified' : 'unverified';
 }
 
+/** 회사명 첫 글자 — (주)·주식회사 등은 건너뜀 */
+const initialOf = (name: string) => name.replace(/^\s*(\(주\)|㈜|주식회사|\(유\)|유한회사|\(합\)|합자회사)\s*/, '').trim().charAt(0) || name.charAt(0);
+
+/** 로그인한 사람 표시 — 파란 동그라미(회사 첫 글자). 로그인 전 회색 아이콘과 한눈에 구분 (2026-11-21) */
+function Avatar({ corp, size = 'h-7 w-7 text-[13px]' }: { corp: string | null; size?: string }) {
+  return (
+    <span className={`flex shrink-0 items-center justify-center rounded-full bg-brand font-bold text-white ${size}`} aria-hidden>
+      {corp ? initialOf(corp) : <UserRound className="h-4 w-4" strokeWidth={2.4} />}
+    </span>
+  );
+}
+
+/**
+ * 홈 상단 계정 안내 — 로그인 전: 로그인·가입 / 회사 확인 전: 회사 확인 (2026-11-21 사용자: 로그인 후에도 그 영역이 안 보임)
+ *  확인 끝난 회원은 표시 안 함 (상단 바의 회사 이름표로 충분)
+ */
+export function AccountBanner() {
+  const state = useAccountState();
+  const { loaded } = useStore();
+  if (!loaded || state === 'verified') return null;
+  if (state === 'guest') {
+    return (
+      <div className="mt-4 flex items-center gap-3 rounded-box bg-white px-4 py-3.5">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">로그인</span>
+          <span className="block text-[13px] text-mute">저장 공고·입찰 분석 이어 보기</span>
+        </span>
+        <Link href="/mypage?signup=1" className="shrink-0 px-2 text-[14px] font-semibold text-sub">가입</Link>
+        <Link href="/login" className="flex h-10 shrink-0 items-center rounded-btn bg-ink px-4 text-[14px] font-semibold text-white active:scale-[.98]">로그인</Link>
+      </div>
+    );
+  }
+  return (
+    <Link href="/mypage?verify=1" className="mt-4 flex items-center gap-3 rounded-box bg-[#FFF4E5] px-4 py-3.5 active:brightness-[.98]">
+      <ShieldAlert className="h-5 w-5 shrink-0 text-[#B45309]" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold text-[#92400E]">회사 확인 필요</span>
+        <span className="block text-[13px] text-[#B45309]">확인 시 입찰 분석·업계 비교 열림</span>
+      </span>
+      <span className="flex shrink-0 items-center text-[14px] font-semibold text-[#B45309]">확인<ChevronRight className="h-4 w-4" /></span>
+    </Link>
+  );
+}
+
 function SideMenu() {
   const path = usePathname();
   const corp = useCorpName();
@@ -92,7 +136,7 @@ function SideMenu() {
           </Link>
         )}
         <Link href="/mypage" className={item(path.startsWith('/mypage'))}>
-          <CircleUserRound className="h-5 w-5 shrink-0" />
+          {state === 'guest' ? <CircleUserRound className="h-5 w-5 shrink-0" /> : <Avatar corp={corp} />}
           <span className="min-w-0">
             <span className="block">마이페이지</span>
             {corp && <span className="block truncate text-[13px] font-medium text-mute">{corp}</span>}
@@ -133,12 +177,21 @@ function ProfileLink() {
       <Link href="/login" className="ml-1 flex h-9 items-center rounded-full bg-ink px-3.5 text-[14px] font-semibold text-white active:scale-[.98]">로그인</Link>
     );
   }
+  // 로그인 후: 파란 동그라미 + 회사 이름(확인됨) / 주황 '회사 확인'(확인 전) — 알약 모양으로 로그인 상태가 한눈에
+  if (state === 'unverified') {
+    return (
+      <Link href="/mypage?verify=1" aria-label="회사 확인 필요 — 마이페이지"
+        className="ml-1 flex h-9 items-center gap-1.5 rounded-full bg-[#FFF4E5] pl-1 pr-3 active:brightness-[.97]">
+        <Avatar corp={null} />
+        <span className="text-[13px] font-semibold text-[#B45309]">회사 확인</span>
+      </Link>
+    );
+  }
   return (
-    <Link href={state === 'unverified' ? '/mypage?verify=1' : '/mypage'} aria-label={corp ? `마이페이지 (${corp})` : state === 'unverified' ? '회사 확인 필요' : '마이페이지'}
-      className="flex h-10 max-w-[55vw] items-center gap-1.5 rounded-full px-2 text-sub active:bg-fill">
-      {corp && <span className="truncate text-[14px] font-semibold">{corp}</span>}
-      {state === 'unverified' && <span className="rounded-full bg-[#FFF4E5] px-2 py-0.5 text-[12px] font-semibold text-[#B45309]">회사 확인</span>}
-      <CircleUserRound className="h-6 w-6 shrink-0" />
+    <Link href="/mypage" aria-label={`마이페이지 (${corp})`}
+      className="ml-1 flex h-9 max-w-[52vw] items-center gap-1.5 rounded-full bg-white pl-1 pr-3 ring-1 ring-line active:bg-fill">
+      <Avatar corp={corp} />
+      <span className="truncate text-[14px] font-semibold text-ink">{corp}</span>
     </Link>
   );
 }

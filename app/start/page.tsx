@@ -26,7 +26,7 @@ const MANY = 10;
 
 export default function StartPage() {
   const router = useRouter();
-  const { loaded, profile, updateProfile, notices } = useStore();
+  const { loaded, profile, updateProfile, notices, account } = useStore();
   const [pending, setPending] = useState<Parameters<typeof updateProfile>[0] | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [mode, setMode] = useState<Mode>('bizno');
@@ -121,6 +121,10 @@ export default function StartPage() {
             <Compass className="h-6 w-6" />
           </span>
           <span className="text-lg font-bold tracking-tight text-ink">입찰나침반</span>
+          {/* 로그인 입구는 첫 화면 맨 위에 (2026-11-21 사용자: 맨 아래 작은 글씨라 안 보임 — 휴대폰에선 화면 밖) */}
+          {loaded && !account && (
+            <Link href="/login" className="ml-auto flex h-9 items-center rounded-full bg-ink px-3.5 text-[14px] font-semibold text-white active:scale-[.98]">로그인</Link>
+          )}
         </div>
         <h1 className="mt-6 text-[26px] font-bold leading-snug tracking-tight">
           우리 회사가
@@ -243,9 +247,7 @@ export default function StartPage() {
         </section>
       )}
 
-      <p className="mt-auto pb-8 pt-6 text-center text-sm text-mute">
-        이미 가입하셨나요?<Link href="/login" className="ml-1 font-bold text-primary hover:underline">로그인</Link>
-      </p>
+      <div className="mt-auto pb-8 pt-6" />
     </div>
   );
 }

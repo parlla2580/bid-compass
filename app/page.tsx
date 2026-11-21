@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { Header, Shell, useRequireStart } from '@/components/layout';
+import { AccountBanner, Header, Shell, useRequireStart } from '@/components/layout';
 import { NoticeRow, RowList } from '@/components/notice-row';
 import { UrgentStrip } from '@/components/urgent-strip';
 import { profileSummary } from '@/components/ui';
@@ -50,6 +50,9 @@ export default function HomePage() {
             {profileSummary(profile)} 기준<ChevronRight className="h-4 w-4 text-mute" />
           </Link>
         </section>
+
+        {/* 로그인 전·회사 확인 전에만 — 로그인·회사 확인 입구 (2026-11-21) */}
+        <AccountBanner />
 
         {/* 기한 2일 이하 '해야 할 일'만 한 줄 — 전체는 알림함(🔔) (기획 16장 A1) */}
         <UrgentStrip />
