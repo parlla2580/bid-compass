@@ -75,7 +75,7 @@ export function NoticeCard({ notice: n, judgment, fit, note, footer }: { notice:
     <Link href={`/bids/${n.id}`} className="block rounded-box bg-white p-5 transition hover:bg-white/70 active:scale-[.99]">
       <div className="flex items-center gap-2">
         {judgment && <StatusBadge status={judgment.status} />}
-        {fit && <span className="text-[13px] font-semibold text-brand">맞춤 {fit.score}%</span>}
+        {fit && <span className="text-[13px] font-semibold text-brand">적합도 {fit.score}%</span>}
         <TypeTag type={n.type} />
         {n.isNew && <NewBadge />}
         <span className="ml-auto"><DdayBadge d={n.d} /></span>

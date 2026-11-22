@@ -28,7 +28,7 @@ import { Tip } from '@/components/tip';
 type Tab = 'match' | 'soon' | 'all' | 'saved';
 type SortKey = 'relevance' | 'deadline' | 'latest' | 'price';
 
-const SORT_LABEL: Record<SortKey, string> = { relevance: '맞춤순', deadline: '마감임박순', latest: '최신순', price: '금액순' };
+const SORT_LABEL: Record<SortKey, string> = { relevance: '적합도순', deadline: '마감임박순', latest: '최신순', price: '금액순' };
 const SORTERS: Record<SortKey, (a: Judged, b: Judged) => number> = {
   relevance: (a, b) => (b.fit?.score ?? -1) - (a.fit?.score ?? -1) || b.relevance - a.relevance,
   deadline: (a, b) => a.notice.d - b.notice.d,
@@ -404,7 +404,7 @@ function Preview({ item, onMute }: { item: Judged | { notice: Notice; judgment?:
             <p className={`flex items-center gap-1.5 text-[15px] font-semibold ${STATUS_STYLE[item.judgment.status].text}`}>
               <span className={`h-2 w-2 rounded-full ${STATUS_STYLE[item.judgment.status].dot}`} />{STATUS_LABEL[item.judgment.status]}
             </p>
-            {item.fit && <p className="text-[15px] font-bold text-brand">맞춤 {item.fit.score}%</p>}
+            {item.fit && <p className="text-[15px] font-bold text-brand">적합도 {item.fit.score}%</p>}
           </div>
           {account ? (
             <ul className="mt-3 space-y-2 text-[14px]">

@@ -138,7 +138,7 @@ export default function AnalysisPage() {
 
             {fromHistory.length > 0 && (
               <Link href="/bids?hist=1" className="flex items-center gap-3 rounded-box bg-white px-5 py-4 text-[15px] hover:bg-white/70">
-                <span className="flex-1 text-sub">지난 참여·낙찰과 비슷한 공고 <b className="font-semibold text-brand">{fromHistory.length.toLocaleString()}건</b> <span className="text-mute">/ 맞춤 {matched.length.toLocaleString()}건</span></span>
+                <span className="flex-1 text-sub">이력과 비슷한 공고 <b className="font-semibold tabular-nums text-brand">{fromHistory.length.toLocaleString()}</b> <span className="text-mute">· 추천 <span className="tabular-nums">{matched.length.toLocaleString()}</span></span></span>
                 <ChevronRight className="h-5 w-5 text-mute" />
               </Link>
             )}
@@ -370,7 +370,12 @@ function Coverage({ total, detailed }: { total: number; detailed?: number }) {
         <span>투찰 순위까지 받은 건</span><span className="tabular-nums">{detailed}/{total}건</span>
       </div>
       <div className="mt-1 h-1.5 rounded-full bg-fill"><div className="h-1.5 rounded-full bg-mute/60" style={{ width: `${p * 100}%` }} /></div>
-      {p < 1 && <p className="mt-1 text-[12px] text-mute">나머지는 낙찰 결과만 있어 아깝게 놓친 공고·하한 미달이 일부만 보여요</p>}
+      {p < 1 && (
+        <p className="mt-1.5 flex items-center gap-1">
+          <span className="rounded-md bg-fill px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-sub">순위 미수집 {(total - detailed).toLocaleString()}건</span>
+          <Tip title="순위 미수집">낙찰 결과만 있고 투찰 순위는 아직 받지 않은 개찰. 이 건들은 아깝게 놓친 공고·하한 미달이 일부만 보임. 순위는 매시 수집에서 이어 받음.</Tip>
+        </p>
+      )}
     </div>
   );
 }
