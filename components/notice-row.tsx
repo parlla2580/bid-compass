@@ -34,7 +34,7 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
   const body = (
     <>
       {lead !== 'none' && (
-        <span className="flex w-12 shrink-0 justify-center">
+        <span className="flex w-11 shrink-0 justify-center">
           {lead === 'score'
             ? <ScoreRing score={item.fit?.score ?? null} />
             : item.judgment && <span className={`mt-2 h-2 w-2 rounded-full ${STATUS_STYLE[item.judgment.status].dot}`} aria-label={item.judgment.status} />}
@@ -69,26 +69,24 @@ export function RowList({ children }: { children: React.ReactNode }) {
   return <div className="divide-y divide-line overflow-hidden rounded-box bg-white">{children}</div>;
 }
 
-/** 맞춤 점수 단계 — 80 이상 진한 파랑, 60~79 연한 파랑, 60 미만 회색 */
+/** 적합도 색 — 80 이상 진한 파랑, 60~79 연한 파랑, 60 미만 회색 */
 export const fitTone = (score: number | null) =>
   score === null ? { stroke: '#E8EAED', text: 'text-mute' }
     : score >= 80 ? { stroke: '#2563EB', text: 'text-brand' }
       : score >= 60 ? { stroke: '#93B4F5', text: 'text-brand/70' }
         : { stroke: '#C9CED6', text: 'text-mute' };
 
-/**
- * U2(2026-11-22): 목록에서는 % 대신 단계 배지 — 61%·57%가 '덜 맞아 보이던' 문제. 숫자는 상세 '적합도'에서
- *  70 이상 잘 맞음 / 50~69 맞음 / 50 미만 보통
- */
-export const fitLevel = (score: number | null) =>
-  score === null ? null : score >= 70 ? { t: '잘 맞음', c: 'bg-brand text-white' } : score >= 50 ? { t: '맞음', c: 'bg-brand-soft text-brand' } : { t: '보통', c: 'bg-fill text-sub' };
-
+/** 적합도 — 원형 게이지 + % (2026-11-22 사용자 결정: 단계 배지 대신 숫자로 되돌림 · 색으로 높낮이) */
 function ScoreRing({ score }: { score: number | null }) {
-  const lv = fitLevel(score);
+  const r = 17, c = 2 * Math.PI * r;
+  const tone = fitTone(score);
   return (
-    <span className={`mt-0.5 inline-flex h-6 min-w-[44px] items-center justify-center rounded-md px-1.5 text-[12px] font-semibold ${lv ? lv.c : 'bg-fill text-mute'}`}
-      title={score === null ? undefined : `적합도 ${score}%`} aria-label={score === null ? '적합도 없음' : `적합도 ${score}%`}>
-      {lv ? lv.t : '–'}
+    <span className="relative flex h-10 w-10 items-center justify-center" title={score === null ? undefined : `적합도 ${score}%`} aria-label={score === null ? '적합도 없음' : `적합도 ${score}%`}>
+      <svg viewBox="0 0 40 40" className="absolute inset-0 -rotate-90">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="#E8EAED" strokeWidth="3" />
+        {score !== null && <circle cx="20" cy="20" r={r} fill="none" stroke={tone.stroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(score / 100) * c} ${c}`} />}
+      </svg>
+      <span className={`text-[12px] font-bold tabular-nums ${tone.text}`}>{score ?? '–'}{score !== null && <span className="text-[9px]">%</span>}</span>
     </span>
   );
 }

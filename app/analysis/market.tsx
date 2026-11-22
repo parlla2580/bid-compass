@@ -80,7 +80,7 @@ export function MarketSection() {
     <section className="space-y-3 lg:space-y-4">
       <div className="px-1 pt-4">
         <h2 className="text-[20px] font-bold">시장 분석</h2>
-        <p className="mt-0.5 text-[14px] text-mute">우리 투찰 기록 기준 · 이기는 판과 놓친 기회</p>
+        <p className="mt-0.5 text-[14px] text-mute">우리 투찰 기록 기준 · 강점 구간 · 놓친 기회</p>
       </div>
 
       <WinPatternCard wp={wp} />
@@ -130,14 +130,14 @@ export function MarketSection() {
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
-/** Q1 우리가 이기는 판 — 조건별 낙찰률 막대 + 평균선, 뚜렷한 차이 하나를 맨 위 한 줄로 */
+/** Q1 강점 구간 (구 우리가 이기는 판, 2026-11-22 이름 변경) — 조건별 낙찰률 막대 + 평균선, 뚜렷한 차이 하나를 맨 위 한 줄로 */
 function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
   if (wp === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
   if (!wp || !wp.dims.length) return null;
   const h = wp.headline;
   return (
     <div className="rounded-box bg-white p-5 lg:p-6">
-      <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">우리가 이기는 판
+      <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">강점 구간
         <Tip title="어떻게 계산했나요">결과가 나온 투찰 {wp.n}건을 조건별로 나눈 낙찰률이에요. 세로 선은 우리 평균({pct(wp.rate)})이고, 5건 미만인 구간은 뺐어요. 맨 위 문장은 차이가 뚜렷할 때만 보여 드려요.</Tip>
       </p>
       {h ? (

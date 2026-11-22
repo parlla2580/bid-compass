@@ -259,7 +259,7 @@ function Judgment({ status, reasons, fit }: { status: Status; reasons: Reason[];
   );
 }
 
-/** 맞춤 점수 — 근거는 강한 것 4개만, 나머지는 펼쳐 보기. 설명은 ⓘ로 */
+/** 적합도 — 근거는 강한 것 4개만, 나머지는 펼쳐 보기. 설명은 ⓘ로 */
 const NEGATIVE = new Set(['deadline', 'type']);
 function FitBlock({ fit }: { fit: Fit }) {
   const [all, setAll] = useState(false);
@@ -268,7 +268,7 @@ function FitBlock({ fit }: { fit: Fit }) {
   return (
     <div className="mt-5 rounded-2xl bg-fill p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1 text-[14px] text-sub">적합도<Tip title="적합도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 배지: 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만.</Tip></p>
+        <p className="flex items-center gap-1 text-[14px] text-sub">적합도<Tip title="적합도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 원 색: 진한 파랑 80% 이상 · 연한 파랑 60~79% · 회색 60% 미만.</Tip></p>
         <p className="text-[24px] font-bold text-brand">{fit.score}<span className="text-[15px]">%</span></p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-brand" style={{ width: `${fit.score}%` }} /></div>

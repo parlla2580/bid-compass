@@ -83,7 +83,7 @@ export default function BidList() {
   const setTab = (t: Tab) => router.replace(t === 'match' ? '/bids' : `/bids?tab=${t}`, { scroll: false });
 
   const GROUPS = useMemo(() => buildGroups(notices ?? []), [notices]);
-  // 주소로 필터를 받음 (예: 시장 분석 '우리가 이기는 판'에서 ?price=1억 미만, ?type=물품)
+  // 주소로 필터를 받음 (예: 시장 분석 '강점 구간'에서 ?price=1억 미만, ?type=물품)
   const [filters, setFilters] = useState<Filters>(() => ({
     ...EMPTY,
     ...Object.fromEntries((['type', 'price', 'award'] as const).map((k) => [k, params.get(k)]).filter(([, v]) => v)),
@@ -251,7 +251,7 @@ export default function BidList() {
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
                 <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '적합도 높은 순' : `총 ${all.length.toLocaleString()}건`}
-                  <Tip title="목록 보는 법">왼쪽 배지는 적합도 — 우리 업종·품목·지역·지난 입찰과 맞는 정도예요. 잘 맞음 70% 이상 · 맞음 50~69% · 보통 50% 미만 (숫자는 공고 상세에서). 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
+                  <Tip title="목록 보는 법">왼쪽 원은 적합도 — 우리 업종·품목·지역·지난 입찰과 맞는 정도예요. 진한 파랑 80% 이상 · 연한 파랑 60~79% · 회색 60% 미만. 근거는 공고 상세에서. 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
                 </p>
                 <label className="relative flex items-center">
                   <span className="sr-only">정렬</span>
