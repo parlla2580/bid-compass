@@ -152,9 +152,9 @@ export function SalesSection({ focus }: { focus?: string | null }) {
   const toggleSave = (o: SalesOrg) => (isSavedOrg(o.name) ? unsaveOrg(o.name) : saveOrg({ org: o.name, kind: o.kind, watch: watchOf(o) }));
 
   const head = (sub: string) => (
-    <div className="px-1 pt-4">
-      <h2 className="text-[20px] font-bold">영업</h2>
-      <p className="mt-0.5 text-[14px] text-mute">{sub}</p>
+    <div className="px-1 pt-1">
+      {/* 2026-11-22 '기관' 탭 › 영업으로 이동 — 제목은 탭이 대신 */}
+      <p className="text-[14px] text-mute">{sub}</p>
     </div>
   );
 

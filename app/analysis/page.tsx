@@ -13,7 +13,6 @@ import { Tip } from '@/components/tip';
 import { bidOutcome, outcomeLabel, fetchMyBidList, fetchMyReport, type BidOutcome, type BidReport, type MyBidItem, type NearMiss } from '@/lib/analysis';
 import { MarketSection } from './market';
 import { PeersCard } from './peers';
-import { SalesSection } from './sales';
 import { fmtDate, fmtRate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
@@ -41,20 +40,13 @@ export default function AnalysisPage() {
   // 맞춤 공고 중 '이력' 근거가 있는 공고 — 맞춤 공고 수의 부분집합이 되도록 같은 기준 사용
   const matched = useMemo(() => (judged ?? []).filter((j) => j.matched), [judged]);
   const fromHistory = useMemo(() => matched.filter((j) => j.fit?.factors.some((f) => f.key === 'history' && f.value >= HIST_STRONG)), [matched]);
-  const [tab, setTab] = useState<'me' | 'market' | 'sales'>('me');
-  // 알림에서 ?tab=sales&org=기관 으로 들어오면 영업 기회의 그 기관으로
-  const [focusOrg, setFocusOrg] = useState<string | null>(null);
+  const [tab, setTab] = useState<'me' | 'market'>('me');
+  // 영업은 2026-11-22 '기관' 탭으로 이동 — 예전 주소(?tab=sales&org=기관, 알림 링크)는 그쪽으로 넘김
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (q.get('tab') === 'sales') { setTab('sales'); setFocusOrg(q.get('org')); }
+    if (q.get('tab') === 'sales') window.location.replace(`/orgs?tab=sales${q.get('org') ? `&org=${encodeURIComponent(q.get('org')!)}` : ''}`);
+    else if (q.get('tab') === 'market') setTab('market');
   }, []);
-  // 회사 확인은 됐지만 투찰 이력이 없는 회사(수의계약 위주 등)는 빈 성적표 대신 [영업]부터 (2026-11-17 우유나라 점검)
-  const [autoTab, setAutoTab] = useState(false);
-  useEffect(() => {
-    if (autoTab || !report?.verified || report.total) return;
-    setAutoTab(true);
-    if (!new URLSearchParams(window.location.search).get('tab')) setTab('sales');
-  }, [report, autoTab]);
   // 기관별 지금 열린 공고 수 (어디서 잘하나 → 공고로 바로 이어짐)
   const openOf = useMemo(() => {
     const m = new Map<string, { all: number; matched: number }>();
@@ -71,7 +63,6 @@ export default function AnalysisPage() {
 
   let body: React.ReactNode;
   if (!loaded) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
-  else if (account && tab === 'sales') body = <SalesSection focus={focusOrg} />; // 영업 기회는 회사 확인·투찰 이력 없이도 (주요 품목만 있으면)
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
@@ -94,7 +85,7 @@ export default function AnalysisPage() {
     body = (
       <Empty title="아직 입찰한 기록이 없어요"
         text="나라장터 개찰 결과에서 우리 회사 투찰을 찾지 못했어요. 입찰보다 수의계약으로 납품하는 회사라면, 수의계약 기관부터 찾아보세요.">
-        <button type="button" onClick={() => setTab('sales')} className={BTN_PRIMARY}>수의계약 기관 보기</button>
+        <Link href="/orgs?tab=sales" className={BTN_PRIMARY}>수의계약 기관 보기</Link>
         <Link href="/bids" className="mt-3 block text-center text-[14px] font-semibold text-sub">지금 참여 가능한 공고 보기</Link>
       </Empty>
     );
@@ -193,16 +184,16 @@ export default function AnalysisPage() {
     <Shell wide>
       <Header />
       <main className="space-y-4 px-5 pb-28 lg:px-0 lg:pb-0">
-        <div className="-mx-5 lg:mx-0"><PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 ${tab === 'sales' ? '계약' : '개찰 결과'} 기준`} /></div>
+        <div className="-mx-5 lg:mx-0"><PageTitle title="우리 회사 입찰 분석" sub={`${profile.corpName ? `${profile.corpName} · ` : ''}나라장터 개찰 결과 기준`} /></div>
         {account && (
           <div className="flex items-center gap-2">
             <div className="flex flex-1 rounded-btn bg-line/60 p-1 lg:flex-none" role="tablist">
-              {([['me', '입찰 성과'], ['market', '시장 분석'], ['sales', '영업']] as const).map(([t, label]) => (
+              {([['me', '입찰 성과'], ['market', '시장 분석']] as const).map(([t, label]) => (
                 <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
                   className={`flex-1 whitespace-nowrap rounded-[10px] px-2 py-2 text-[15px] font-semibold transition sm:px-3 lg:px-5 ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
               ))}
             </div>
-            {tab !== 'sales' && !!report?.total && <ExportButton corpName={profile.corpName ?? null} />}
+            {!!report?.total && <ExportButton corpName={profile.corpName ?? null} />}
           </div>
         )}
         {body}

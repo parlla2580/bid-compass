@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert, UserRound } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert, UserRound, Building2 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useStore } from '@/lib/store';
 import { useInbox } from '@/lib/inbox';
@@ -28,7 +28,9 @@ const NAV = [
   { href: '/', label: '홈', Icon: House, match: (p: string) => p === '/' },
   { href: '/bids', label: '공고', Icon: FileText, match: (p: string) => p.startsWith('/bids') },
   { href: '/analysis', label: '분석', desk: '입찰 분석', Icon: BarChart3, match: (p: string) => p.startsWith('/analysis') },
-  { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') || p.startsWith('/orgs') },
+  // 2026-11-22: 발주기관 찾기 · 영업(수의계약 기관) · 저장한 기관을 '기관' 탭 하나로 (분석 › 영업, 도구 › 발주기관에서 이동)
+  { href: '/orgs', label: '기관', desk: '발주기관', Icon: Building2, match: (p: string) => p.startsWith('/orgs') },
+  { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') },
 ];
 
 function Logo() {

@@ -220,7 +220,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
         const left = (end.getTime() - now) / 86400e3;
         if (left < 0 || left > ORG_END_DAYS) continue;
         out.push({ key: `orgend:${o.org}:${w.id}`, kind: 'action', icon: 'org', title: '저장한 기관의 계약이 곧 끝나요', sub: `${o.org} · ${w.title}`,
-          href: `/analysis?tab=sales&org=${encodeURIComponent(o.org)}`, due: end, at: new Date(end.getTime() - ORG_END_DAYS * 86400e3), doneLabel: '확인했어요' });
+          href: `/orgs?tab=sales&org=${encodeURIComponent(o.org)}`, due: end, at: new Date(end.getTime() - ORG_END_DAYS * 86400e3), doneLabel: '확인했어요' });
       }
     }
     // 5) 저장한 기관이 새 공고를 냄 (최근 7일 게시, 마감 전)

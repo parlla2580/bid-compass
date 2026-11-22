@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Lock, Search } from 'lucide-react';
+import { Bookmark, ChevronRight, Lock, Search } from 'lucide-react';
 import { BackHeader, Card, Header, PageTitle } from '@/components/layout';
 import { Tip } from '@/components/tip';
-import { ToolTabs } from '@/components/tool-tabs';
+import { BTN_PRIMARY } from '@/components/ui';
+import { SalesSection } from './sales';
 import { fetchMyReport, fetchOrgProfile, orgPeaks, recentOrgs, rememberOrg, type OrgProfile } from '@/lib/analysis';
 import { useInbox } from '@/lib/inbox';
+import { daysTo } from '@/lib/sales';
 import { useStore } from '@/lib/store';
 import { GENERIC_ORG, orgOf } from '@/lib/data';
 
@@ -17,26 +19,108 @@ import { GENERIC_ORG, orgOf } from '@/lib/data';
  *  발주 시기(월별 공고 수) · 보통 참가 업체 수 · 사정률 · 낙찰률 · 낙찰 많이 한 업체(가입 후) · 지금 열린 공고
  *  기간은 실제 수집 기간을 그대로 표시 (12개월이 안 될 수 있음)
  *  035 보정: 참가 1곳 이하(단가계약) 개찰은 통계 제외 · 표본 10건 미만 숫자는 '표본 부족'으로
- *  2026-11-22 진입로: 이름 없이 열면 기관 찾기 첫 화면(도구 탭 '발주기관') · 공고 상세 요약 카드 · 분석 기관 줄 · 영업 기관 카드
+ *  2026-11-22 하단 '기관' 탭: 찾기(기관 검색) · 영업(수의계약 기관, 분석 탭에서 이동) · 저장(저장한 기관)
+ *   진입로: 공고 상세 요약 카드 · 분석 기관 줄 · 영업 기관 카드
  */
 
 const MIN = 10;
 const ym = (d: string | null) => (d ? `${d.slice(2, 4)}.${d.slice(5, 7)}` : '');
 
+type OrgTab = 'find' | 'sales' | 'saved';
+const TABS: [OrgTab, string][] = [['find', '찾기'], ['sales', '영업'], ['saved', '저장']];
+
 export default function OrgPage() {
-  const org = useSearchParams().get('name') ?? '';
-  return org ? (
+  const q = useSearchParams();
+  const router = useRouter();
+  const org = q.get('name') ?? '';
+  const t = q.get('tab');
+  const tab: OrgTab = t === 'sales' || t === 'saved' ? t : 'find';
+  if (org) return (
     <>
       <BackHeader title="발주기관" fallback="/orgs" />
       <OrgView org={org} />
     </>
-  ) : (
+  );
+  const pick = (x: OrgTab) => router.replace(x === 'find' ? '/orgs' : `/orgs?tab=${x}`, { scroll: false });
+  return (
     <>
       <Header />
-      <PageTitle title="투찰 도구" />
-      <ToolTabs active="org" />
-      <OrgHome />
+      <PageTitle title="발주기관" />
+      <div className="sticky top-14 z-20 bg-canvas/95 px-5 py-3 backdrop-blur lg:static lg:bg-transparent lg:px-0">
+        <div className="flex rounded-btn bg-line/60 p-1 lg:inline-flex" role="tablist">
+          {TABS.map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => pick(k)}
+              className={`flex-1 whitespace-nowrap rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === k ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
+          ))}
+        </div>
+      </div>
+      {tab === 'find' ? <OrgHome /> : tab === 'saved' ? <SavedTab /> : <SalesTab focus={q.get('org')} />}
     </>
+  );
+}
+
+/* ---------- 영업 (수의계약 기관) — 회원만 ---------- */
+function SalesTab({ focus }: { focus: string | null }) {
+  const { account, loaded } = useStore();
+  if (!loaded) return <main className="px-5 pt-1 lg:px-0"><div className="h-40 animate-pulse rounded-box bg-white" /></main>;
+  if (!account) return (
+    <main className="px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
+      <div className="rounded-box bg-white px-6 py-10 text-center">
+        <p className="text-[17px] font-bold">가입하면 수의계약 기관을 찾아드려요</p>
+        <p className="mx-auto mt-2 max-w-[420px] text-[14px] text-sub">우리 품목을 수의계약으로 산 기관 · 계약 끝 D-N</p>
+        <div className="mx-auto mt-5 max-w-[320px]"><Link href="/mypage?signup=1" className={BTN_PRIMARY}>가입하기</Link></div>
+        <Link href="/login" className="mt-2 block py-2 text-center text-[15px] font-semibold text-sub">로그인</Link>
+      </div>
+    </main>
+  );
+  return <main className="px-5 pb-28 lg:px-0 lg:pb-0"><SalesSection focus={focus} /></main>;
+}
+
+/* ---------- 저장한 기관 ---------- */
+function SavedTab() {
+  const { notices } = useStore();
+  const { savedOrgs, unsaveOrg } = useInbox();
+  const open = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of notices ?? []) { if (n.d < 0) continue; for (const o of new Set([orgOf(n), n.org])) m.set(o, (m.get(o) ?? 0) + 1); }
+    return m;
+  }, [notices]);
+  if (!savedOrgs.length) return (
+    <main className="px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
+      <div className="rounded-box bg-white px-6 py-10 text-center">
+        <p className="text-[17px] font-bold">저장한 기관 없음</p>
+        <p className="mx-auto mt-2 max-w-[420px] text-[14px] text-sub">기관 화면·영업에서 저장하면 계약 끝과 새 공고를 알림함으로 알려드려요</p>
+      </div>
+    </main>
+  );
+  return (
+    <main className="space-y-3 px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
+      <Card title={`저장한 기관 ${savedOrgs.length}곳`} aside={<Tip title="저장한 기관">계약이 끝나기 60일 전과 새 공고가 나올 때 알림함으로 알림. 계약 끝은 영업에서 저장한 기관만(수의계약 기록 기준).</Tip>}>
+        <ul className="-my-1 divide-y divide-line">
+          {savedOrgs.map((s) => {
+            const next = s.watch.map((w) => w.end).filter((e) => daysTo(e) >= 0).sort()[0];
+            const n = open.get(s.org) ?? 0;
+            return (
+              <li key={s.org} className="flex items-center gap-2 py-3">
+                <Link href={href(s.org)} className="min-w-0 flex-1 hover:opacity-80">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-[15px] font-semibold">{s.org}</span>
+                    {s.kind && <span className="shrink-0 rounded bg-fill px-1.5 py-0.5 text-[11px] text-mute">{s.kind}</span>}
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-1.5">
+                    <span className={`rounded px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${n ? 'bg-brand-soft text-brand' : 'bg-fill text-mute'}`}>지금 공고 {n}</span>
+                    {next && <span className="rounded bg-warn/10 px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-warn">계약 끝 D-{daysTo(next)}</span>}
+                  </span>
+                </Link>
+                <button type="button" onClick={() => unsaveOrg(s.org)} aria-label="저장 해제" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand">
+                  <Bookmark className="h-5 w-5 fill-current" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
+    </main>
   );
 }
 
@@ -114,7 +198,6 @@ function OrgHome() {
       ) : (
         <>
           {recent.length > 0 && <Card title="최근 본 기관">{chips(recent)}</Card>}
-          {saved.length > 0 && <Card title="저장한 기관" aside={<Link href="/analysis?tab=sales" className="text-[14px] font-semibold text-brand">영업에서 보기</Link>}>{chips(saved)}</Card>}
           {mine.length > 0 && <Card title="자주 들어간 기관" aside={<span className="text-[13px] text-mute">우리 투찰 기록</span>}>{rows(mine.map((m) => [m.org, `투찰 ${m.total}`]))}</Card>}
           {busy.length > 0 && <Card title="공고 많은 기관" aside={<span className="text-[13px] text-mute">지금 열린 공고</span>}>{rows(busy.map(([o, n]) => [o, `공고 ${n}`]))}</Card>}
           {!busy.length && !recent.length && <div className="h-48 animate-pulse rounded-box bg-white" />}
@@ -127,6 +210,8 @@ function OrgHome() {
 /* ---------- 기관 한 곳 ---------- */
 function OrgView({ org }: { org: string }) {
   const { account, notices } = useStore();
+  const { isSavedOrg, saveOrg, unsaveOrg } = useInbox();
+  const saved = isSavedOrg(org);
   const [p, setP] = useState<OrgProfile | null | undefined>(undefined);
   useEffect(() => {
     setP(undefined);
@@ -144,7 +229,13 @@ function OrgView({ org }: { org: string }) {
   return (
     <main className="space-y-3 px-5 pb-28 pt-1 lg:space-y-4 lg:px-0 lg:pb-0">
       <section>
-        <h1 className="text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{org}</h1>
+        <div className="flex items-start gap-2">
+          <h1 className="min-w-0 flex-1 text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{org}</h1>
+          <button type="button" onClick={() => (saved ? unsaveOrg(org) : saveOrg({ org, kind: null, watch: [] }))} aria-pressed={saved}
+            className={`mt-0.5 inline-flex h-9 shrink-0 items-center gap-1 rounded-btn px-3 text-[14px] font-semibold ${saved ? 'bg-brand-soft text-brand' : 'bg-ink text-white'}`}>
+            <Bookmark className={`h-4 w-4 ${saved ? 'fill-current' : ''}`} />{saved ? '저장됨' : '저장'}
+          </button>
+        </div>
         <p className="mt-1 text-[14px] tabular-nums text-mute">{ym(p.d_from)}~{ym(p.d_to)} · 공고 {p.notices.toLocaleString()}건 · 개찰 {p.openings.toLocaleString()}건</p>
         {!!p.single && (
           <p className="mt-0.5 flex items-center gap-1 text-[13px] tabular-nums text-mute">단가계약 등 1곳 참가 {p.single.toLocaleString()}건 통계 제외
