@@ -4,6 +4,7 @@
 //  · 일부 실패(partial) → 일시적인 네트워크 오류만이면 넘어가고, 그 밖의 오류가 있으면 알림
 //  · 정상(ok)으로 돌아오면 열린 알림 이슈에 '복구' 댓글을 달고 닫음
 //  · 공개 저장소라 비밀값처럼 보이는 글자는 가림
+//  · (044) 수집 예약 토큰 만료 30일 전부터 별도 이슈 하나로 알림, 갱신되면 닫음
 // 환경변수: GH_TOKEN, GITHUB_REPOSITORY, JOB_STATUS, RUN_URL, WORKFLOW_NAME
 // =========================================================
 import { execFileSync } from 'node:child_process';
@@ -70,4 +71,45 @@ try {
 } catch (e) {
   // 알림이 실패해도 수집 결과에는 영향 없음
   console.error('알림 보내기 실패:', e.message);
+}
+
+// 수집 예약 토큰 만료 알림 (044, 2026-11-22) — 30일 전에 이슈 하나 열고, 7일 전에 한 번 더 댓글. 갱신되어 30일을 넘으면 닫음
+const TOKEN_LABEL = 'token-expiry';
+const TOKEN_WARN_DAYS = 30;
+try {
+  const t = result?.token;
+  if (t && Number.isFinite(t.days)) {
+    const list = JSON.parse(gh('issue', 'list', '--label', TOKEN_LABEL, '--state', 'open', '--json', 'number,comments', '--limit', '1') || '[]');
+    const issue = list[0] ?? null;
+    if (t.days <= TOKEN_WARN_DAYS) {
+      const body = [
+        `**수집 예약 토큰 만료 D-${t.days}** (만료일 ${t.date})`,
+        '',
+        '만료되면 매시 수집 예약(Supabase → GitHub)이 멈춥니다. GitHub 보조 예약(3시간마다)만 남습니다.',
+        '',
+        '갱신 순서',
+        '1. 새 토큰 만들기: https://github.com/settings/personal-access-tokens/new',
+        '   - Repository access: Only select repositories → bid-compass',
+        '   - Permissions: Actions → Read and write',
+        '2. Supabase Vault 에서 github_collect_token 값만 새 토큰으로 바꾸기',
+        '3. 다음 매시 수집 뒤 이 이슈가 자동으로 닫히면 완료',
+        t.source !== 'github' ? '   - 자동으로 안 닫히면: SQL `update public.ops_settings set value = \'새 만료일\' where key = \'github_token_expires\';`' : null,
+        '',
+        `실행 기록: ${runUrl}`,
+      ].filter((x) => x !== null).join('\n');
+      if (!issue) {
+        try { gh('label', 'create', TOKEN_LABEL, '--color', 'FBCA04', '--description', '수집 예약 토큰 만료 알림'); } catch { /* 이미 있음 */ }
+        gh('issue', 'create', '--title', `🔑 수집 예약 토큰 만료 D-${t.days} (${t.date})`, '--label', TOKEN_LABEL, '--body', body);
+        console.log(`토큰 만료 알림을 열었어요 (D-${t.days})`);
+      } else if (t.days <= 7 && !(issue.comments ?? []).some((c) => /D-[0-7]\b/.test(c.body ?? ''))) {
+        gh('issue', 'comment', String(issue.number), '--body', `⏰ 만료 D-${t.days} (${t.date}) — 갱신이 아직 확인되지 않았어요.\n\n실행 기록: ${runUrl}`);
+      }
+    } else if (issue) {
+      gh('issue', 'comment', String(issue.number), '--body', `✅ 토큰 갱신 확인 — 새 만료일 ${t.date} (D-${t.days})\n\n실행 기록: ${runUrl}`);
+      gh('issue', 'close', String(issue.number));
+      console.log('토큰 갱신을 확인하고 알림 이슈를 닫았어요');
+    }
+  }
+} catch (e) {
+  console.error('토큰 만료 알림 실패:', e.message);
 }

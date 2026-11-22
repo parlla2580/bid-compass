@@ -806,6 +806,23 @@ async function main() {
     try { result.past = await collectPastDays(sb, T0); } catch (e) { result.past = `과거분 실패: ${e.message.replace('(', ' ')}`; console.log(result.past); }
   }
 
+  // 수집 예약 토큰 만료일 (044) — 30일 전부터 alert.mjs 가 GitHub 이슈로 알림. 실패해도 수집 결과에는 영향 없음
+  if (sb && MODE === 'full') {
+    try {
+      const { data, error } = await sb.rpc('collect_token_expiry');
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row?.expires_at) {
+        const days = Math.floor((new Date(row.expires_at).getTime() - Date.now()) / 86400e3);
+        result.token = { date: new Date(new Date(row.expires_at).getTime() + 9 * 3600e3).toISOString().slice(0, 10), days, source: row.source };
+        console.log(`수집 예약 토큰 만료: ${result.token.date} (D-${days}, ${row.source === 'github' ? 'GitHub 응답' : '저장값'})`);
+      }
+    } catch (e) {
+      if (/collect_token_expiry/.test(e.message ?? '')) console.log('  토큰 만료일 확인 건너뜀 — SQL 044 실행 필요');
+      else console.log(`  토큰 만료일 확인 실패(무시): ${e.message}`);
+    }
+  }
+
   // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
   try {
     let refresh = DRY || new Date().getUTCHours() === 15;
@@ -833,7 +850,7 @@ async function main() {
     }).eq('id', runId);
   }
   // 장애 알림(scripts/alert.mjs)이 읽는 결과
-  writeResult({ status, errors: result.errors, summary: `공고 ${result.notices}건, 계약 ${result.contracts}건, 개찰 ${result.openings ?? 0}건, 사전규격 ${result.prespecs ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회` });
+  writeResult({ status, errors: result.errors, token: result.token, summary: `공고 ${result.notices}건, 계약 ${result.contracts}건, 개찰 ${result.openings ?? 0}건, 사전규격 ${result.prespecs ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, API 호출 ${apiCalls}회` });
   if (status === 'failed') process.exit(1);
 }
 
