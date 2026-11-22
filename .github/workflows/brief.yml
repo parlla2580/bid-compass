@@ -1,0 +1,41 @@
+name: 일일 수집 브리핑
+
+on:
+  schedule:
+    # 보조 예약 (00:43 UTC = 09:43 한국시간). 주 예약은 Supabase pg_cron 'brief-daily' 가 00:00 UTC 에 실행 요청 (045)
+    #  같은 날 이미 올렸으면 스크립트가 건너뜀
+    - cron: '43 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '1 = 오늘 이미 올렸어도 다시 올림'
+        required: false
+        default: '0'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: brief
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: 브리핑
+        env:
+          SUPABASE_URL: https://tpuhqzxhrwuugojsnfpj.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          FORCE: ${{ github.event.inputs.force || '0' }}
+        run: node scripts/brief.mjs
