@@ -15,3 +15,11 @@ export function getSupabase(): SupabaseClient {
   client ??= createBrowserClient(url!, key!);
   return client;
 }
+
+/**
+ * 결과를 기다리지 않는 저장 — supabase-js 요청은 then()을 불러야 실제로 보내짐.
+ *  `void getSupabase().from(...).upsert(...)` 처럼 쓰면 요청이 아예 안 나감 (2026-11-22 발견: 저장한 기관·알림 읽음·본 공고 표시가 서버에 안 남던 원인)
+ */
+export function fire(q: PromiseLike<{ error: { message: string } | null }>, what = '저장'): void {
+  q.then(({ error }) => { if (error) console.warn(`${what} 실패:`, error.message); }, (e) => console.warn(`${what} 실패:`, e));
+}

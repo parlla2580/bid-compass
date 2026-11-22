@@ -231,10 +231,15 @@ function OrgView({ org }: { org: string }) {
       <section>
         <div className="flex items-start gap-2">
           <h1 className="min-w-0 flex-1 text-[22px] font-bold leading-snug tracking-tight lg:text-[26px]">{org}</h1>
-          <button type="button" onClick={() => (saved ? unsaveOrg(org) : saveOrg({ org, kind: null, watch: [] }))} aria-pressed={saved}
-            className={`mt-0.5 inline-flex h-9 shrink-0 items-center gap-1 rounded-btn px-3 text-[14px] font-semibold ${saved ? 'bg-brand-soft text-brand' : 'bg-ink text-white'}`}>
-            <Bookmark className={`h-4 w-4 ${saved ? 'fill-current' : ''}`} />{saved ? '저장됨' : '저장'}
-          </button>
+          {account ? (
+            <button type="button" onClick={() => (saved ? unsaveOrg(org) : saveOrg({ org, kind: null, watch: [] }))} aria-pressed={saved}
+              className={`mt-0.5 inline-flex h-9 shrink-0 items-center gap-1 rounded-btn px-3 text-[14px] font-semibold ${saved ? 'bg-brand-soft text-brand' : 'bg-ink text-white'}`}>
+              <Bookmark className={`h-4 w-4 ${saved ? 'fill-current' : ''}`} />{saved ? '저장됨' : '저장'}
+            </button>
+          ) : (
+            // 저장·알림은 회원만 (공고 저장과 같은 기준)
+            <Link href="/mypage?signup=1" className="mt-0.5 inline-flex h-9 shrink-0 items-center gap-1 rounded-btn bg-ink px-3 text-[14px] font-semibold text-white"><Bookmark className="h-4 w-4" />저장</Link>
+          )}
         </div>
         <p className="mt-1 text-[14px] tabular-nums text-mute">{ym(p.d_from)}~{ym(p.d_to)} · 공고 {p.notices.toLocaleString()}건 · 개찰 {p.openings.toLocaleString()}건</p>
         {!!p.single && (

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { bidOutcome, fetchMyBidList, type MyBidItem } from './analysis';
 import { fetchFirstRanks, type FirstRank } from './first-rank';
 import { useJudged, useStore } from './store';
-import { getSupabase, supabaseEnabled } from './supabase';
+import { fire, getSupabase, supabaseEnabled } from './supabase';
 import { fetchPrespecs, matchPrespecs, type Prespec } from './prespecs';
 import { fetchQualifyBy } from './briefing';
 import { calcHref, isCatalog } from './data';
@@ -118,11 +118,11 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const saveOrg = useCallback((o: SavedOrg) => {
     // 이미 저장된 기관은 자리 유지(목록 갱신), 새 기관은 맨 앞
     writeOrgs((cur) => cur.some((x) => x.org === o.org) ? cur.map((x) => (x.org === o.org ? o : x)) : [o, ...cur]);
-    if (orgServer && account) void getSupabase().from('saved_orgs').upsert({ user_id: account.id, org: o.org, kind: o.kind, watch: o.watch, updated_at: new Date().toISOString() });
+    if (orgServer && account) fire(getSupabase().from('saved_orgs').upsert({ user_id: account.id, org: o.org, kind: o.kind, watch: o.watch, updated_at: new Date().toISOString() }), '기관 저장');
   }, [writeOrgs, orgServer, account]);
   const unsaveOrg = useCallback((org: string) => {
     writeOrgs((cur) => cur.filter((x) => x.org !== org));
-    if (orgServer && account) void getSupabase().from('saved_orgs').delete().eq('user_id', account.id).eq('org', org);
+    if (orgServer && account) fire(getSupabase().from('saved_orgs').delete().eq('user_id', account.id).eq('org', org), '기관 저장 해제');
   }, [writeOrgs, orgServer, account]);
 
   // 회원 입찰 이력 → 1순위·결과
@@ -151,7 +151,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       return all;
     });
     if (server && account) {
-      void getSupabase().from('inbox_state').upsert({ user_id: account.id, item_key: key, ...next, updated_at: new Date().toISOString() });
+      fire(getSupabase().from('inbox_state').upsert({ user_id: account.id, item_key: key, ...next, updated_at: new Date().toISOString() }), '알림 상태');
     }
   }, [server, account]);
 

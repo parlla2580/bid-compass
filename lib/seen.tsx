@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useStore } from './store';
-import { getSupabase, supabaseEnabled } from './supabase';
+import { fire, getSupabase, supabaseEnabled } from './supabase';
 
 /*
  * 열어 본 공고 · 지난 확인 이후 새 공고 (2026-11-18 사용자 요청: "봤던 공고와 안 본 공고가 구분이 안 돼요")
@@ -60,7 +60,7 @@ export function SeenProvider({ children }: { children: ReactNode }) {
     if (!server.current || !queue.current.size) return;
     const ids = [...queue.current];
     queue.current.clear();
-    void getSupabase().rpc('mark_seen', { p_ids: ids });
+    fire(getSupabase().rpc('mark_seen', { p_ids: ids }), '본 공고 표시');
   }, []);
 
   // 회원 — 서버 기록과 합치고, 이 기기에만 있던 것은 서버로
@@ -103,7 +103,7 @@ export function SeenProvider({ children }: { children: ReactNode }) {
     else next = { at: now, cur: Math.max(m.cur, maxId), prev: m.prev };
     write(LOCAL_MARK, next);
     setPrevMark(next.prev);
-    if (server.current) void getSupabase().rpc('set_list_mark', { p_mark: next.cur });
+    if (server.current) fire(getSupabase().rpc('set_list_mark', { p_mark: next.cur }), '목록 확인 시점');
   }, []);
 
   const value = useMemo<SeenValue>(() => ({
