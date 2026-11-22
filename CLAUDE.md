@@ -34,6 +34,10 @@
   - (2026-11-22, 039) 주 예약 = Supabase pg_cron `collect-hourly`(매시 07분) → GitHub API workflow_dispatch. 보조 = GitHub schedule 3시간마다(최근 50분 안 실행 있으면 건너뜀)
   - 토큰: GitHub fine-grained 토큰(bid-compass · Actions 쓰기만)을 Supabase Vault `github_collect_token`에 보관. **만료 전 갱신 필요** — 만료일: (사용자 확인 후 기록)
   - 점검: `select * from public.collect_trigger_log();` (204/200 정상, 401·403 토큰, 404 권한)
+  - (2026-11-22) 11/22 이전 예약 실패 원인 = Vault 토큰 미저장 (042로 확인). 토큰 저장 후 재확인
+- 과거분 받기 (2026-11-22, 043, 방식 B): 2026-03 은 수동으로 받음. 2026-02-28 → 2025-04-01 을 매시 수집 끝에 하루치씩 거꾸로 (실행당 최대 3일·시작 30분 안)
+  - 진행 위치: `select * from public.backfill_state;` · 3번 실패한 날은 `skipped` 에 남음 → 나중에 수동 재수집
+  - 용량(040, 11/22): 표 합계 약 6.7GB (계약 세부 2.9 · 투찰 순위 1.7 · 계약 1.3 · 공고 0.6). 한 달치 약 0.5~0.8GB 추정 → 다 받으면 12~16GB. Pro 8GB 포함·초과 GB당 월 $0.125
 - DB 변경은 `supabase/migrations/` 에 번호 순서로 추가하고, 여러 번 실행해도 안전하게 작성한다
 - 비밀값: `NARA_API_KEY`, `SUPABASE_SECRET_KEY` 는 GitHub Secrets / `NARA_API_KEY` 는 Vercel 환경변수에도. 코드·대화에 값을 쓰지 않는다
 - 공공데이터포털: **모든 API 운영계정 전환 완료 (2026-11-22 사용자 확인)** — 낙찰정보 하루 최대 10만 건 기준으로 호출량 관리 (투찰 순위 실행당 3,000)

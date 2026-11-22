@@ -610,7 +610,116 @@ async function writeSnapshot(sb) {
   return `${data.length}건, ${(body.length / 1024 / 1024).toFixed(1)}MB`;
 }
 
+// 한 구간(최대 하루) 받기 — 공고·개찰·계약(세부)·사전규격. 오류는 onErr 로 넘김 (평소 수집·과거분 받기 공용)
+async function collectChunk(sb, a, b, result, onErr) {
+  try {
+    const { rows: notices, updates } = await collectNotices(a, b);
+    result.notices += notices.length;
+    if (sb) {
+      await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
+      const patched = await applyUpdates(sb, updates);
+      console.log(`  늦게 온 정보 ${updates.length}건 중 ${patched}건을 기존 공고에 반영`);
+    }
+  } catch (e) {
+    onErr(`공고(${ymdhm(a)}): ${e.message}`);
+  }
+  try {
+    const openings = await collectOpenings(a, b);
+    result.openings = (result.openings ?? 0) + openings.length;
+    if (sb) await upsert(sb, 'openings', openings, 'bid_no,bid_ord,clsfc_no,rbid_no');
+  } catch (e) {
+    onErr(`개찰(${ymdhm(a)}): ${e.message}`);
+  }
+  try {
+    const contracts = await collectContracts(a, b);
+    result.contracts += contracts.length;
+    // 계약 세부 — 020 실행 전이면 경고만 (수집 실패로 치지 않음)
+    try {
+      const lines = await collectContractLines(a, b, new Map(contracts.map((c) => [c.id, c.contract_date])), contracts.alias);
+      const orphan = lines.filter((l) => !l.contract_date).length;
+      if (orphan) console.log(`  계약 세부 중 이번 구간 계약 목록에 없는 줄: ${orphan}/${lines.length}`);
+      result.lines = (result.lines ?? 0) + lines.length;
+      if (sb && lines.length) await upsert(sb, 'contract_lines', lines, 'contract_id,kind,seq');
+    } catch (e) {
+      if (/contract_lines 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  계약 세부 저장 건너뜀 — SQL 020 실행 필요');
+      else onErr(`계약 세부(${ymdhm(a)}): ${e.message}`);
+    }
+    if (sb) {
+      // 020 실행 전이면 새 열(분류·담당부서·수요기관·끝나는 날·공동계약)을 빼고 저장
+      const NEW020 = ['class_code', 'class_name', 'class_mid', 'dept', 'demand_orgs', 'end_date', 'period_text', 'joint'];
+      const strip = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !NEW020.includes(k))));
+      let rowsToSave = contracts;
+      try {
+        await upsert(sb, 'contracts', rowsToSave, 'contract_no');
+      } catch (e) {
+        if (NEW020.some((k) => e.message.includes(`'${k}'`))) {
+          console.log('  계약 새 항목 저장 건너뜀 — SQL 020 실행 필요');
+          rowsToSave = strip(contracts);
+          try { await upsert(sb, 'contracts', rowsToSave, 'contract_no'); }
+          catch (e2) { if (!/contract_no/.test(e2.message)) throw e2; await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id'); }
+        } else {
+          // 005 SQL 실행 전(계약번호 칸 없음)에는 예전 방식으로 저장 — 중복은 걸러진 상태
+          if (!/contract_no/.test(e.message)) throw e;
+          await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id');
+        }
+      }
+    }
+  } catch (e) {
+    onErr(`계약(${ymdhm(a)}): ${e.message}`);
+  }
+  // 사전규격 — 022 실행 전이면 경고만
+  try {
+    const pre = await collectPrespecs(a, b);
+    result.prespecs = (result.prespecs ?? 0) + pre.length;
+    if (sb && pre.length) await upsert(sb, 'prespecs', pre, 'id');
+  } catch (e) {
+    if (/prespecs 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  사전규격 저장 건너뜀 — SQL 022 실행 필요');
+    else onErr(`사전규격(${ymdhm(a)}): ${e.message}`);
+  }
+}
+
+// 과거분 이어 받기 (043, 2026-11-22) — 평소 수집을 마친 뒤 과거 하루치씩 거꾸로 받음 (2026-02-28 → 2025-04-01)
+//  · 진행 위치는 backfill_state 한 줄. 하루가 오류 없이 끝나야 앞 날로 넘어감 · 같은 날 3번 실패하면 skipped 에 남기고 넘어감
+//  · 실행 시작부터 PAST_BUDGET_MIN(30분) 안에서만 새 날을 시작 · 한 실행에 최대 PAST_MAX_DAYS(3)일 (평일 하루 7~8분, 주말 1분)
+//  · 오류는 평소 수집 오류와 섞지 않음 — 장애 알림·빈틈 메우기가 과거분 오류로 흔들리지 않게
+const PAST_MAX_DAYS = Number(process.env.PAST_MAX_DAYS ?? 3);
+const PAST_BUDGET = Number(process.env.PAST_BUDGET_MIN ?? 30) * 60e3;
+const prevDay = (d) => new Date(Date.parse(`${d}T00:00:00Z`) - 86400e3).toISOString().slice(0, 10);
+async function collectPastDays(sb, t0) {
+  const { data: st, error } = await sb.from('backfill_state').select('next_day,stop_day,fails,skipped').eq('id', 1).maybeSingle();
+  if (error) {
+    if (/backfill_state/.test(error.message)) { console.log('과거분 이어 받기 건너뜀 — SQL 043 실행 필요'); return null; }
+    throw new Error(error.message);
+  }
+  if (!st || st.next_day < st.stop_day) return null; // 다 받음
+  let day = st.next_day, fails = st.fails ?? 0, skipped = st.skipped ?? [];
+  const done = [], errs = [];
+  for (let n = 0; n < PAST_MAX_DAYS && day >= st.stop_day && Date.now() - t0 < PAST_BUDGET; n++) {
+    if (n) await sleep(10e3); // DB 쉬어 가기
+    const a = new Date(`${day}T00:00:00+09:00`), b = new Date(a.getTime() + 86400e3);
+    console.log(`- 과거분 ${day}`);
+    const e = [];
+    await collectChunk(sb, a, b, { notices: 0, contracts: 0 }, (m) => e.push(m));
+    let advance = true;
+    if (e.length) {
+      fails += 1;
+      errs.push(...e);
+      if (fails < 3) advance = false; // 다음 실행에서 같은 날 다시
+      else { skipped = [...skipped, day]; console.log(`  과거분 ${day} 3번 실패 — 건너뜀`); }
+    }
+    if (advance) { if (!e.length) done.push(day); fails = 0; day = prevDay(day); }
+    const { error: ue } = await sb.from('backfill_state')
+      .update({ next_day: day, fails, skipped, updated_at: new Date().toISOString() }).eq('id', 1);
+    if (ue) throw new Error(`과거분 진행 위치 저장 실패: ${ue.message}`);
+    if (!advance) break;
+  }
+  const msg = `과거분 ${done.length ? done.join(',') : '없음'}${errs.length ? ` · 오류 ${errs.length}건: ${errs.map((x) => x.replace('(', ' ')).join(' / ').slice(0, 300)}` : ''} · 다음 ${day}`;
+  console.log(msg);
+  return msg;
+}
+
 async function main() {
+  const T0 = Date.now();
   const to = RANGE_FROM ? new Date(Math.min((RANGE_TO ?? new Date()).getTime(), Date.now())) : new Date();
   let from = RANGE_FROM ?? new Date(to.getTime() - HOURS * 3600e3);
   if (RANGE_FROM && from >= to) throw new Error(`거슬러 받기 기간이 잘못됐어요: ${process.env.COLLECT_FROM} ~ ${process.env.COLLECT_TO}`);
@@ -665,70 +774,7 @@ async function main() {
     const a = new Date(s), b = new Date(Math.min(s + CHUNK, to.getTime()));
     if (RANGE_FROM && s > from.getTime()) await sleep(Number(process.env.BACKFILL_PAUSE_SEC ?? 30) * 1000); // DB 쉬어 가기
     if (LONG) console.log(`- 구간 ${ymdhm(a)} ~ ${ymdhm(b)}`);
-    try {
-      const { rows: notices, updates } = await collectNotices(a, b);
-      result.notices += notices.length;
-      if (sb) {
-        await upsert(sb, 'notices', notices, 'bid_no,bid_ord');
-        const patched = await applyUpdates(sb, updates);
-        console.log(`  늦게 온 정보 ${updates.length}건 중 ${patched}건을 기존 공고에 반영`);
-      }
-    } catch (e) {
-      result.errors.push(`공고(${ymdhm(a)}): ${e.message}`);
-    }
-    try {
-      const openings = await collectOpenings(a, b);
-      result.openings = (result.openings ?? 0) + openings.length;
-      if (sb) await upsert(sb, 'openings', openings, 'bid_no,bid_ord,clsfc_no,rbid_no');
-    } catch (e) {
-      result.errors.push(`개찰(${ymdhm(a)}): ${e.message}`);
-    }
-    try {
-      const contracts = await collectContracts(a, b);
-      result.contracts += contracts.length;
-      // 계약 세부 — 020 실행 전이면 경고만 (수집 실패로 치지 않음)
-      try {
-        const lines = await collectContractLines(a, b, new Map(contracts.map((c) => [c.id, c.contract_date])), contracts.alias);
-        const orphan = lines.filter((l) => !l.contract_date).length;
-        if (orphan) console.log(`  계약 세부 중 이번 구간 계약 목록에 없는 줄: ${orphan}/${lines.length}`);
-        result.lines = (result.lines ?? 0) + lines.length;
-        if (sb && lines.length) await upsert(sb, 'contract_lines', lines, 'contract_id,kind,seq');
-      } catch (e) {
-        if (/contract_lines 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  계약 세부 저장 건너뜀 — SQL 020 실행 필요');
-        else result.errors.push(`계약 세부(${ymdhm(a)}): ${e.message}`);
-      }
-      if (sb) {
-        // 020 실행 전이면 새 열(분류·담당부서·수요기관·끝나는 날·공동계약)을 빼고 저장
-        const NEW020 = ['class_code', 'class_name', 'class_mid', 'dept', 'demand_orgs', 'end_date', 'period_text', 'joint'];
-        const strip = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !NEW020.includes(k))));
-        let rowsToSave = contracts;
-        try {
-          await upsert(sb, 'contracts', rowsToSave, 'contract_no');
-        } catch (e) {
-          if (NEW020.some((k) => e.message.includes(`'${k}'`))) {
-            console.log('  계약 새 항목 저장 건너뜀 — SQL 020 실행 필요');
-            rowsToSave = strip(contracts);
-            try { await upsert(sb, 'contracts', rowsToSave, 'contract_no'); }
-            catch (e2) { if (!/contract_no/.test(e2.message)) throw e2; await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id'); }
-          } else {
-            // 005 SQL 실행 전(계약번호 칸 없음)에는 예전 방식으로 저장 — 중복은 걸러진 상태
-            if (!/contract_no/.test(e.message)) throw e;
-            await upsert(sb, 'contracts', rowsToSave.map(({ contract_no, ...r }) => r), 'id');
-          }
-        }
-      }
-    } catch (e) {
-      result.errors.push(`계약(${ymdhm(a)}): ${e.message}`);
-    }
-    // 사전규격 — 022 실행 전이면 경고만
-    try {
-      const pre = await collectPrespecs(a, b);
-      result.prespecs = (result.prespecs ?? 0) + pre.length;
-      if (sb && pre.length) await upsert(sb, 'prespecs', pre, 'id');
-    } catch (e) {
-      if (/prespecs 저장 실패: .*(Could not find|does not exist)/.test(e.message)) console.log('  사전규격 저장 건너뜀 — SQL 022 실행 필요');
-      else result.errors.push(`사전규격(${ymdhm(a)}): ${e.message}`);
-    }
+    await collectChunk(sb, a, b, result, (m) => result.errors.push(m));
   }
 
   // 공고 목록 스냅샷 — 공고 저장 직후에 만들어, 오래 걸리는 투찰 순위 수집을 기다리지 않게
@@ -755,6 +801,11 @@ async function main() {
     }
   }
 
+  // 과거분 이어 받기 (043) — 평소 수집(예약·수동)일 때만. 거슬러 받기·스냅샷 실행에서는 안 함
+  if (sb && !RANGE_FROM && MODE === 'full') {
+    try { result.past = await collectPastDays(sb, T0); } catch (e) { result.past = `과거분 실패: ${e.message.replace('(', ' ')}`; console.log(result.past); }
+  }
+
   // 업종 목록: 비어 있으면 바로, 아니면 하루 한 번(한국시간 0시대 실행) 갱신
   try {
     let refresh = DRY || new Date().getUTCHours() === 15;
@@ -778,7 +829,7 @@ async function main() {
     await sb.from('collect_runs').update({
       finished_at: new Date().toISOString(), status,
       notices_upserted: result.notices, contracts_upserted: result.contracts,
-      api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, 사전규격 ${result.prespecs ?? 0}건`, ...result.errors].join(' / '),
+      api_calls: apiCalls, message: [`개찰 ${result.openings ?? 0}건, 투찰 기록 ${result.bidRows ?? 0}행, 사전규격 ${result.prespecs ?? 0}건`, ...result.errors, ...(result.past ? [result.past] : [])].join(' / '),
     }).eq('id', runId);
   }
   // 장애 알림(scripts/alert.mjs)이 읽는 결과
