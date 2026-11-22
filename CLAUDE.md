@@ -33,7 +33,7 @@
 - 수집: GitHub Actions `.github/workflows/collect.yml`, 결과는 `collect_runs` 테이블
   - (2026-11-22, 039) 주 예약 = Supabase pg_cron `collect-hourly`(매시 07분) → GitHub API workflow_dispatch. 보조 = GitHub schedule 3시간마다(최근 50분 안 실행 있으면 건너뜀)
   - 토큰: GitHub fine-grained 토큰(bid-compass · Actions 쓰기만)을 Supabase Vault `github_collect_token`에 보관. **만료 전 갱신 필요** — 만료일: **2027-11-22** (2026-11-22 발급, 1년)
-  - (044) 만료 30일 전 GitHub 이슈(`token-expiry` 라벨) 자동 알림 · 7일 전 댓글 · 갱신되면 자동으로 닫힘. 만료일은 GitHub 응답 머리글 우선, 없으면 `ops_settings.github_token_expires`
+  - (044) 만료 30일 전 GitHub 이슈(`token-expiry` 라벨) 자동 알림 · 7일 전 댓글 · 갱신되면 자동으로 닫힘. 만료일은 GitHub 응답 머리글 우선(11/22 확인: 머리글로 정상 수신 → 갱신 시 자동 반영), 없으면 `ops_settings.github_token_expires`
   - 점검: `select * from public.collect_trigger_log();` (204/200 정상, 401·403 토큰, 404 권한)
   - (2026-11-22) 11/22 이전 예약 실패 원인 = Vault 토큰 미저장 (042로 확인). 토큰 저장 후 재확인
 - 과거분 받기 (2026-11-22, 043, 방식 B): 2026-03 은 수동으로 받음. 2026-02-28 → 2025-04-01 을 매시 수집 끝에 하루치씩 거꾸로 (실행당 최대 3일·시작 30분 안)
