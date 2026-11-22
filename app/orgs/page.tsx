@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { BackHeader, Shell } from '@/components/layout';
-import OrgView from './client';
+import { Shell } from '@/components/layout';
+import OrgPage from './client';
 
 export const metadata: Metadata = { title: '발주기관' };
 
-export default function OrgPage() {
+export default function Page() {
   return (
     <Shell>
-      <BackHeader title="발주기관" fallback="/bids" />
-      <Suspense fallback={null}><OrgView /></Suspense>
+      <Suspense fallback={null}><OrgPage /></Suspense>
     </Shell>
   );
 }

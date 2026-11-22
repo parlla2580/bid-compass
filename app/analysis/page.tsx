@@ -272,7 +272,7 @@ function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total:
               return (
                 <li key={o.org}>
                   <div className="mb-1 flex items-baseline justify-between gap-3 text-[14px]">
-                    <span className="min-w-0 truncate">{o.org}</span>
+                    <Link href={`/orgs?name=${encodeURIComponent(o.org)}`} className="flex min-w-0 items-center gap-0.5 hover:opacity-80"><span className="truncate">{o.org}</span><ChevronRight className="h-4 w-4 shrink-0 text-mute" /></Link>
                     <span className="shrink-0 tabular-nums text-mute">{o.won}/{o.total}건 · <b className={`font-semibold ${r > avg ? 'text-brand' : 'text-ink'}`}>{Math.round(r * 100)}%</b></span>
                   </div>
                   <div className="relative h-2.5 rounded-full bg-fill">

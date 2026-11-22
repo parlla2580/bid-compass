@@ -28,7 +28,7 @@ const NAV = [
   { href: '/', label: '홈', Icon: House, match: (p: string) => p === '/' },
   { href: '/bids', label: '공고', Icon: FileText, match: (p: string) => p.startsWith('/bids') },
   { href: '/analysis', label: '분석', desk: '입찰 분석', Icon: BarChart3, match: (p: string) => p.startsWith('/analysis') },
-  { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') },
+  { href: '/calculator', label: '도구', desk: '투찰 도구', Icon: Calculator, match: (p: string) => p.startsWith('/calculator') || p.startsWith('/orgs') },
 ];
 
 function Logo() {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Bookmark, ChevronDown, ExternalLink, SlidersHorizontal } from 'lucide-react';
+import { Bookmark, ChevronDown, ChevronRight, ExternalLink, SlidersHorizontal } from 'lucide-react';
 import { Card } from '@/components/layout';
 import { Tip } from '@/components/tip';
 import { BTN_PRIMARY } from '@/components/ui';
@@ -325,6 +325,7 @@ function Pick({ n, o, saved, onSave }: { n: number; o: SalesOrg; saved: boolean;
             <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex h-9 items-center gap-1 rounded-btn bg-fill px-3 text-[14px] font-semibold text-sub">
               계약 보기<ChevronDown className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`} />
             </button>
+            <OrgLink org={o.name} />
           </div>
           {open && <Contracts o={o} />}
         </div>
@@ -364,9 +365,19 @@ function OrgRow({ o, open, onToggle, saved, onSave }: { o: SalesOrg; open: boole
             </p>
           )}
           <Contracts o={o} />
+          <div className="mt-2.5"><OrgLink org={o.name} /></div>
         </div>
       )}
     </li>
+  );
+}
+
+/** 발주기관 분석으로 (2026-11-22 진입로 ⑤) — 계약 기관 이름이 공고 기관 이름과 다르면 분석 화면에 '수집된 공고·개찰 없음'이 나올 수 있음 */
+function OrgLink({ org }: { org: string }) {
+  return (
+    <Link href={`/orgs?name=${encodeURIComponent(org)}`} className="inline-flex h-9 items-center gap-0.5 rounded-btn bg-fill px-3 text-[14px] font-semibold text-sub">
+      기관 분석<ChevronRight className="h-4 w-4" />
+    </Link>
   );
 }
 

@@ -1,39 +1,145 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Lock } from 'lucide-react';
-import { Card } from '@/components/layout';
+import { ChevronRight, Lock, Search } from 'lucide-react';
+import { BackHeader, Card, Header, PageTitle } from '@/components/layout';
 import { Tip } from '@/components/tip';
-import { fetchOrgProfile, type OrgProfile } from '@/lib/analysis';
+import { ToolTabs } from '@/components/tool-tabs';
+import { fetchMyReport, fetchOrgProfile, orgPeaks, recentOrgs, rememberOrg, type OrgProfile } from '@/lib/analysis';
+import { useInbox } from '@/lib/inbox';
 import { useStore } from '@/lib/store';
+import { GENERIC_ORG, orgOf } from '@/lib/data';
 
 /*
  * 발주기관 카드 (로드맵 4, 034) — 이 기관은 언제·어떻게 사나
  *  발주 시기(월별 공고 수) · 보통 참가 업체 수 · 사정률 · 낙찰률 · 낙찰 많이 한 업체(가입 후) · 지금 열린 공고
  *  기간은 실제 수집 기간을 그대로 표시 (12개월이 안 될 수 있음)
  *  035 보정: 참가 1곳 이하(단가계약) 개찰은 통계 제외 · 표본 10건 미만 숫자는 '표본 부족'으로
+ *  2026-11-22 진입로: 이름 없이 열면 기관 찾기 첫 화면(도구 탭 '발주기관') · 공고 상세 요약 카드 · 분석 기관 줄 · 영업 기관 카드
  */
 
 const MIN = 10;
 const ym = (d: string | null) => (d ? `${d.slice(2, 4)}.${d.slice(5, 7)}` : '');
 
-export default function OrgView() {
+export default function OrgPage() {
   const org = useSearchParams().get('name') ?? '';
+  return org ? (
+    <>
+      <BackHeader title="발주기관" fallback="/orgs" />
+      <OrgView org={org} />
+    </>
+  ) : (
+    <>
+      <Header />
+      <PageTitle title="투찰 도구" />
+      <ToolTabs active="org" />
+      <OrgHome />
+    </>
+  );
+}
+
+/* ---------- 기관 찾기 첫 화면 ---------- */
+const href = (o: string) => `/orgs?name=${encodeURIComponent(o)}`;
+function OrgHome() {
+  const router = useRouter();
+  const { account, notices } = useStore();
+  const { savedOrgs } = useInbox();
+  const [q, setQ] = useState('');
+  const [recent, setRecent] = useState<string[]>([]);
+  const [mine, setMine] = useState<{ org: string; total: number }[]>([]);
+  useEffect(() => { setRecent(recentOrgs()); }, []);
+  useEffect(() => {
+    if (!account) return;
+    fetchMyReport().then((r) => setMine([...(r.top_orgs ?? [])].sort((a, b) => b.total - a.total).slice(0, 8))).catch(() => setMine([]));
+  }, [account]);
+  // 지금 열린 공고의 기관(수요기관 우선)별 공고 수
+  const open = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of notices ?? []) {
+      if (n.d < 0) continue;
+      const o = orgOf(n);
+      if (GENERIC_ORG.test(o)) continue;
+      m.set(o, (m.get(o) ?? 0) + 1);
+    }
+    return m;
+  }, [notices]);
+  const busy = useMemo(() => [...open.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10), [open]);
+  const saved = savedOrgs.map((s) => s.org);
+  const term = q.trim();
+  const hits = useMemo(() => {
+    if (!term) return [];
+    const all = new Set([...open.keys(), ...saved, ...recent, ...mine.map((m) => m.org)]);
+    return [...all].filter((o) => o.includes(term)).sort((a, b) => (open.get(b) ?? 0) - (open.get(a) ?? 0) || a.length - b.length).slice(0, 10);
+  }, [term, open, saved, recent, mine]);
+  const go = (o: string) => router.push(href(o));
+
+  const chips = (list: string[]) => (
+    <div className="flex flex-wrap gap-2">
+      {list.map((o) => <Link key={o} href={href(o)} className="max-w-full truncate rounded-full bg-fill px-3.5 py-2 text-[14px] font-medium text-ink hover:bg-line/60">{o}</Link>)}
+    </div>
+  );
+  const rows = (list: [string, string][]) => (
+    <ul className="-my-1 divide-y divide-line">
+      {list.map(([o, v]) => (
+        <li key={o}>
+          <Link href={href(o)} className="flex items-center gap-3 py-3 text-[15px] hover:opacity-80">
+            <span className="min-w-0 flex-1 truncate">{o}</span>
+            <span className="shrink-0 text-[13px] tabular-nums text-mute">{v}</span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-mute" />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <main className="space-y-3 px-5 pb-28 pt-1 lg:space-y-4 lg:px-0 lg:pb-0">
+      <form onSubmit={(e) => { e.preventDefault(); if (term) go(hits[0] ?? term); }} className="flex h-12 items-center gap-2 rounded-box bg-white px-4">
+        <Search className="h-5 w-5 shrink-0 text-mute" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="기관 이름 검색 (예: 조달청, 서울특별시)" enterKeyHint="search"
+          className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-mute" />
+        <Tip title="기관 검색">공고에 적힌 기관 이름(수요기관 우선)으로 찾음. 목록에 없으면 정확한 이름을 넣고 검색. 발주 시기·참가 업체 수·사정률·낙찰률을 보여 줌.</Tip>
+      </form>
+
+      {term ? (
+        <Card>
+          {hits.length ? rows(hits.map((o) => [o, open.get(o) ? `공고 ${open.get(o)}` : ''])) : (
+            <button type="button" onClick={() => go(term)} className="flex w-full items-center justify-between py-2 text-[15px]">
+              <span><b className="font-semibold">{term}</b> <span className="text-mute">이름 그대로 검색</span></span><ChevronRight className="h-4 w-4 text-mute" />
+            </button>
+          )}
+        </Card>
+      ) : (
+        <>
+          {recent.length > 0 && <Card title="최근 본 기관">{chips(recent)}</Card>}
+          {saved.length > 0 && <Card title="저장한 기관" aside={<Link href="/analysis?tab=sales" className="text-[14px] font-semibold text-brand">영업에서 보기</Link>}>{chips(saved)}</Card>}
+          {mine.length > 0 && <Card title="자주 들어간 기관" aside={<span className="text-[13px] text-mute">우리 투찰 기록</span>}>{rows(mine.map((m) => [m.org, `투찰 ${m.total}`]))}</Card>}
+          {busy.length > 0 && <Card title="공고 많은 기관" aside={<span className="text-[13px] text-mute">지금 열린 공고</span>}>{rows(busy.map(([o, n]) => [o, `공고 ${n}`]))}</Card>}
+          {!busy.length && !recent.length && <div className="h-48 animate-pulse rounded-box bg-white" />}
+        </>
+      )}
+    </main>
+  );
+}
+
+/* ---------- 기관 한 곳 ---------- */
+function OrgView({ org }: { org: string }) {
   const { account, notices } = useStore();
   const [p, setP] = useState<OrgProfile | null | undefined>(undefined);
-  useEffect(() => { if (org) fetchOrgProfile(org).then(setP).catch(() => setP(null)); }, [org]);
+  useEffect(() => {
+    setP(undefined);
+    fetchOrgProfile(org).then((r) => { setP(r); if (r && (r.openings || r.notices)) rememberOrg(org); }).catch(() => setP(null));
+  }, [org]);
   const open = useMemo(() => (notices ?? []).filter((n) => n.d >= 0 && ((n.demandOrg ?? n.org) === org || n.org === org)).length, [notices, org]);
 
-  if (!org) return <main className="px-5 pt-16 text-center text-[15px] text-mute">기관 이름 없음</main>;
   if (p === undefined) return <main className="space-y-3 px-5 pt-4 lg:px-0">{[0, 1, 2].map((i) => <div key={i} className="h-36 animate-pulse rounded-box bg-white" />)}</main>;
   if (!p || (!p.openings && !p.notices)) return <main className="px-5 pt-16 text-center text-[15px] text-mute">이 기관의 수집된 공고·개찰 없음</main>;
 
   const types = Object.entries(p.by_type).sort((a, b) => b[1].n - a[1].n);
   const maxM = Math.max(1, ...p.months.map((m) => m.n));
-  const avgM = p.months.length ? p.months.reduce((s, m) => s + m.n, 0) / p.months.length : 0;
-  const peaks = p.months.filter((m) => m.n >= avgM * 1.5 && m.n >= 3).map((m) => `${Number(m.ym.slice(5))}월`);
+  const peaks = orgPeaks(p.months);
 
   return (
     <main className="space-y-3 px-5 pb-28 pt-1 lg:space-y-4 lg:px-0 lg:pb-0">

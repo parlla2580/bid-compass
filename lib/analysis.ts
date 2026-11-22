@@ -271,9 +271,33 @@ export interface OrgProfile {
   winners: { name: string; wins: number }[];
 }
 
-/** 034 실행 전이면 null */
-export async function fetchOrgProfile(org: string, months = 12): Promise<OrgProfile | null> {
-  const r = await getSupabase().rpc('org_profile', { p_org: org, p_months: months });
-  if (r.error || !r.data) return null;
-  return r.data as OrgProfile;
+/** 034 실행 전이면 null · 같은 기관은 5분 동안 다시 부르지 않음 (공고 상세 요약 카드 → 발주기관 화면) */
+const orgCache = new Map<string, { at: number; p: Promise<OrgProfile | null> }>();
+export function fetchOrgProfile(org: string, months = 12): Promise<OrgProfile | null> {
+  const key = `${org}|${months}`;
+  const hit = orgCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.p;
+  const p = (async () => {
+    const r = await getSupabase().rpc('org_profile', { p_org: org, p_months: months });
+    if (r.error || !r.data) return null;
+    return r.data as OrgProfile;
+  })();
+  p.catch(() => orgCache.delete(key));
+  orgCache.set(key, { at: Date.now(), p });
+  return p;
+}
+
+/** 발주 많은 달 — 월 평균의 1.5배 이상 · 3건 이상 ('3월' 형태) */
+export function orgPeaks(months: OrgProfile['months']): string[] {
+  const avg = months.length ? months.reduce((s, m) => s + m.n, 0) / months.length : 0;
+  return months.filter((m) => m.n >= avg * 1.5 && m.n >= 3).map((m) => `${Number(m.ym.slice(5))}월`);
+}
+
+/** 최근 본 기관 (이 기기에만 · 최대 8곳) */
+const RECENT_ORGS = 'bc.recentOrgs';
+export function recentOrgs(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_ORGS) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 8) : []; } catch { return []; }
+}
+export function rememberOrg(org: string) {
+  try { localStorage.setItem(RECENT_ORGS, JSON.stringify([org, ...recentOrgs().filter((o) => o !== org)].slice(0, 8))); } catch { /* 저장 못 해도 무시 */ }
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ToolTabs } from '@/components/tool-tabs';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { CircleAlert, CircleCheck, CircleX, ChevronDown, ChevronRight, TriangleAlert } from 'lucide-react';
@@ -108,14 +109,7 @@ export default function CalculatorTabs() {
   return (
     <>
       <PageTitle title="투찰 도구" />
-      <div className="sticky top-14 z-20 bg-canvas/95 px-5 py-3 backdrop-blur lg:static lg:bg-transparent lg:px-0">
-        <div className="flex rounded-btn bg-line/60 p-1 lg:inline-flex" role="tablist">
-          {([['bid', '투찰금액 계산'], ['score', '적격심사 점수']] as const).map(([t, label]) => (
-            <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => selectTab(t)}
-              className={`flex-1 rounded-[10px] px-5 py-2 text-[15px] font-semibold transition ${tab === t ? 'bg-white text-ink shadow-sm' : 'text-mute'}`}>{label}</button>
-          ))}
-        </div>
-      </div>
+      <ToolTabs active={tab} onSelect={selectTab} />
 
       <main className="space-y-3 px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
         {from && (

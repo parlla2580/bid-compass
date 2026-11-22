@@ -11,12 +11,12 @@ import { IndustryPicker, LocationPicker } from '@/components/inputs';
 import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
-import { SIZES, baseStatus, calcHref, looksUnitPrice, type Industry, type Notice } from '@/lib/data';
+import { SIZES, baseStatus, calcHref, looksUnitPrice, orgOf, type Industry, type Notice } from '@/lib/data';
 import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
 import { fetchNoticeExtra, fetchPastStats, type NoticeExtra, type PastStats } from '@/lib/briefing';
-import { prepareHistory, similarity } from '@/lib/analysis';
+import { fetchOrgProfile, orgPeaks, prepareHistory, similarity, type OrgProfile } from '@/lib/analysis';
 import { fitScore, type Fit } from '@/lib/fit';
 import { productMatch } from '@/lib/match';
 import { useSeen } from '@/lib/seen';
@@ -106,6 +106,7 @@ function Detail({ n }: { n: Notice }) {
           <Briefing n={n} locked={gated} onSignup={() => setSignup(true)} />
           {!closed && <QualifyCard n={n} />}
           <ItemPrices n={n} locked={gated} onSignup={() => setSignup(true)} />
+          <OrgSummary n={n} />
           <Info n={n} />
           {gated ? <SignupGate onSignup={() => setSignup(true)} /> : <Similar n={n} />}
         </div>
@@ -202,7 +203,7 @@ function Hero({ n }: { n: Notice }) {
   ];
   return (
     <section className="pt-1">
-      <p className="text-[14px] text-mute">{n.type} · <Link href={`/orgs?name=${encodeURIComponent(n.demandOrg ?? n.org)}`} className="underline decoration-line underline-offset-2 hover:text-ink">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org}</Link>{n.isNew && <span className="ml-1.5 font-semibold text-brand">새 공고</span>}</p>
+      <p className="text-[14px] text-mute">{n.type} · <Link href={`/orgs?name=${encodeURIComponent(orgOf(n))}`} className="underline decoration-line underline-offset-2 hover:text-ink">{n.demandOrg && n.demandOrg !== n.org ? n.demandOrg : n.org}</Link>{n.isNew && <span className="ml-1.5 font-semibold text-brand">새 공고</span>}</p>
       <h1 className="mt-1.5 text-[22px] font-bold leading-[1.4] tracking-[-0.01em] lg:text-[28px]">{n.title}</h1>
       {award && (
         <p className="mt-2 flex items-start gap-2 text-[14px] text-sub">
@@ -287,6 +288,52 @@ function FitBlock({ fit }: { fit: Fit }) {
         <button type="button" onClick={() => setAll(!all)} className="mt-2 text-[13px] font-medium text-mute">{all ? '접기' : `근거 ${shown.length - 4}개 더`}</button>
       )}
     </div>
+  );
+}
+
+/* ---------- 발주기관 요약 (2026-11-22 진입로 ①) ---------- */
+// 공고를 보며 '들어갈까' 고민하는 순간에 기관 성격을 한 줄로. 경쟁·낙찰률은 '한눈에 보기'에 있어 여기서는 사정률·발주 시기·지금 공고
+const ORG_MIN = 10;
+function OrgSummary({ n }: { n: Notice }) {
+  const org = orgOf(n);
+  const { notices } = useStore();
+  const [p, setP] = useState<OrgProfile | null | undefined>(undefined);
+  useEffect(() => { let on = true; fetchOrgProfile(org).then((r) => on && setP(r)).catch(() => on && setP(null)); return () => { on = false; }; }, [org]);
+  const open = (notices ?? []).filter((x) => x.d >= 0 && x.id !== n.id && orgOf(x) === org).length;
+  const href = `/orgs?name=${encodeURIComponent(org)}`;
+  const title = (
+    <span className="flex items-center gap-1">발주기관
+      <Tip title="발주기관">이 기관(수요기관 우선)의 최근 12개월 공고·개찰 기준. 사정률은 추첨 결과라 다음 개찰 예측 아님. 참가 1곳 개찰(단가계약 등)은 제외.</Tip>
+    </span>
+  );
+  if (p === undefined) return <Card title={title}><div className="h-16 animate-pulse rounded-2xl bg-fill" /></Card>;
+  const has = !!p && (p.openings > 0 || p.notices > 0);
+  const peaks = has ? orgPeaks(p!.months) : [];
+  const sj = has && p!.sajeong && p!.sajeong.n >= ORG_MIN ? p!.sajeong : null;
+  const box = 'rounded-2xl bg-fill px-3 py-3';
+  return (
+    <Card title={title} aside={<Link href={href} className="inline-flex items-center text-[14px] font-semibold text-brand">자세히<ChevronRight className="h-4 w-4" /></Link>}>
+      <Link href={href} className="block truncate text-[16px] font-bold hover:opacity-80">{org}</Link>
+      {has ? (
+        <>
+          <p className="mt-0.5 text-[13px] tabular-nums text-mute">공고 {p!.notices.toLocaleString()} · 개찰 {p!.openings.toLocaleString()}</p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className={box}>
+              <p className="text-[12px] text-mute">사정률 중앙</p>
+              {sj ? <p className="mt-0.5 text-[17px] font-bold tabular-nums">{sj.p50.toFixed(2)}%</p> : <p className="mt-1 text-[13px] font-semibold text-mute">표본 부족</p>}
+            </div>
+            <div className={box}>
+              <p className="text-[12px] text-mute">많은 달</p>
+              <p className={`mt-0.5 truncate font-bold ${peaks.length ? 'text-[17px]' : 'text-[13px] text-mute'}`}>{peaks.length ? peaks.slice(0, 3).map((m) => m.replace('월', '')).join('·') + '월' : '고른 편'}</p>
+            </div>
+            <Link href={`/bids?tab=all&org=${encodeURIComponent(org)}`} className={`${box} hover:bg-line/60`}>
+              <p className="text-[12px] text-mute">지금 공고</p>
+              <p className={`mt-0.5 text-[17px] font-bold tabular-nums ${open ? 'text-brand' : 'text-mute'}`}>{open.toLocaleString()}건</p>
+            </Link>
+          </div>
+        </>
+      ) : <p className="mt-1 text-[13px] text-mute">수집된 공고·개찰 적음</p>}
+    </Card>
   );
 }
 
@@ -401,7 +448,7 @@ function InlineInput({ need }: { need: ProfileNeed }) {
 /* ---------- 공고 정보: 모바일 1열 / 데스크탑 2열, 모두 표시 ---------- */
 function Info({ n }: { n: Notice }) {
   const rows: [React.ReactNode, React.ReactNode][] = [
-    ['공고기관', <Link key="org" href={`/orgs?name=${encodeURIComponent(n.demandOrg ?? n.org)}`} className="inline-flex items-center text-brand">{n.org}<ChevronRight className="h-4 w-4" /></Link>],
+    ['공고기관', <Link key="org" href={`/orgs?name=${encodeURIComponent(orgOf(n))}`} className="inline-flex items-center text-brand">{n.org}<ChevronRight className="h-4 w-4" /></Link>],
     ['입찰마감', fmtDateTime(n.closesAt)],
     [<Term key="e" k="추정가격" />, n.estPrice ? fmtWon(n.estPrice) : '미공개'],
     [<Term key="b" k="기초금액" />, n.basePrice ? fmtWon(n.basePrice) : '아직 공개 전'],

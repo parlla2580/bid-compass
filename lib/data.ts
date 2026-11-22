@@ -343,3 +343,7 @@ export const PRICE_STEPS = [10e6, 30e6, 50e6, 1e8, 2e8, 3e8, 5e8, 7e8, 10e8, 20e
 /** 기초금액이 추정가격보다 훨씬 작으면 단가(1개·1회 기준) 입찰로 보임 — 추정 */
 export const looksUnitPrice = (n: Pick<Notice, 'basePrice' | 'estPrice'>) =>
   !!n.basePrice && n.estPrice > 0 && n.basePrice < n.estPrice * 0.2;
+
+/** 공고의 기관 — 수요기관 우선. '각 수요기관'(조달청 일괄 구매 등) 같은 묶음 이름이면 공고기관으로 (2026-11-22) */
+export const GENERIC_ORG = /^각\s*수요기관|^수요기관$/;
+export const orgOf = (n: { org: string; demandOrg: string | null }) => (n.demandOrg && !GENERIC_ORG.test(n.demandOrg.trim()) ? n.demandOrg : n.org);
