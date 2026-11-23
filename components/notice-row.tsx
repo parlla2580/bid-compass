@@ -53,7 +53,7 @@ export function NoticeRow({ item, lead = 'score', active, onSelect }: {
         </span>
       </span>
       <span className="shrink-0 text-right">
-        <span className="block text-[15px] font-semibold tabular-nums">{n.estPrice ? `${fmtShort(n.estPrice)}` : <span className="text-[13px] font-normal text-mute">미공개</span>}</span>
+        <span className="block text-[15px] font-semibold tabular-nums">{n.estPrice ? <><span className="mr-0.5 text-[11px] font-normal text-mute">추정</span>{fmtShort(n.estPrice)}</> : <span className="text-[13px] font-normal text-mute">미공개</span>}</span>
         <span className={`mt-1 block text-[13px] tabular-nums ${n.d >= 0 && n.d <= 3 ? 'font-semibold text-bad' : 'text-mute'}`}>{dday(n.d)}</span>
       </span>
     </>

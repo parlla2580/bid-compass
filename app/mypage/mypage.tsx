@@ -18,6 +18,7 @@ import { suggestProducts } from '@/lib/match';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
 import { LoadingBox } from '@/components/loading';
+import { Tip } from '@/components/tip';
 
 const TYPES: BidType[] = ['물품', '용역', '공사'];
 type SheetKey = 'company' | 'prefs' | null;
@@ -104,7 +105,7 @@ export default function MyPage() {
       {/* 기업 정보 */}
       <section className="rounded-box bg-white p-5 lg:p-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="h-4 w-4 text-primary" />기업 정보</h2>
+          <h2 className="flex items-center gap-1.5 text-sm font-bold"><Building2 className="h-4 w-4 text-primary" />기업 정보<Tip title="기업 정보">업종·소재지로 참여 가능 여부를 판단하고, 주요 품목으로 맞춤 공고를 골라요.</Tip></h2>
           <button type="button" onClick={() => setSheet('company')} className="flex items-center gap-1 text-sm font-semibold text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
@@ -115,14 +116,13 @@ export default function MyPage() {
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-mute">업종·소재지는 참여 가능 판정에, 주요 품목은 맞춤 공고에 쓰입니다.</p>
         {account && profile.bizno && <div id="verify" className="scroll-mt-24"><VerifyStatus bizno={profile.bizno} corpName={profile.corpName} onVerified={(corpName) => setProfile({ ...profile, corpName, naraRegistered: true })} onCleared={() => setProfile({ ...profile, corpName: null })} /></div>}
       </section>
 
       {/* 추천 설정 (W14) */}
       <section className="rounded-box bg-white p-5 lg:p-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold"><SlidersHorizontal className="h-4 w-4 text-primary" />추천 설정</h2>
+          <h2 className="flex items-center gap-1.5 text-sm font-bold"><SlidersHorizontal className="h-4 w-4 text-primary" />추천 설정<Tip title="추천 설정">맞춤 공고의 순서에만 반영돼요. 참여 가능 여부는 바뀌지 않아요.</Tip></h2>
           <button type="button" onClick={() => setSheet('prefs')} className="flex items-center gap-1 text-sm font-semibold text-primary"><Pencil className="h-3.5 w-3.5" />수정</button>
         </div>
         <dl className="grid grid-cols-[112px_1fr] gap-y-2 text-sm">
@@ -131,7 +131,6 @@ export default function MyPage() {
           <dt className="text-mute">추정가격 범위</dt>
           <dd className="font-medium">{profile.priceRange ? `${fmtRange(profile.priceRange[0])} ~ ${fmtRange(profile.priceRange[1])}` : '제한 없음'}</dd>
         </dl>
-        <p className="mt-3 text-xs text-mute">선호도는 추천 순서(관련도)에만 반영되고, 참여 가능 판정에는 쓰이지 않습니다.</p>
       </section>
 
       {/* 저장한 공고 */}

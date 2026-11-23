@@ -228,7 +228,7 @@ function BreakdownCard({ byType, orgs, open }: { byType: Record<string, { total:
   const maxRate = Math.max(avg, ...rows.map(rate), 0.01);
   const seg = (on: boolean) => `rounded-[10px] px-3 py-1.5 text-[14px] font-semibold transition ${on ? 'bg-white text-ink shadow-sm' : 'text-mute'}`;
   return (
-    <Card title="어디서 잘하나" aside={
+    <Card title="유형·기관별 낙찰률" aside={
       <div className="flex gap-1 rounded-btn bg-line/60 p-1" role="tablist">
         <button type="button" role="tab" aria-selected={view === 'type'} onClick={() => setView('type')} className={seg(view === 'type')}>유형</button>
         <button type="button" role="tab" aria-selected={view === 'org'} onClick={() => setView('org')} className={seg(view === 'org')}>기관</button>
@@ -458,7 +458,7 @@ function HistoryCard() {
     return o === 'pending' && i.rank ? { t: `${i.rank}위`, s: i.rank === 1 ? '심사 중' : '결정 전', c } : { t: outcomeLabel(i, o), s: null, c };
   };
   return (
-    <Card title="투찰한 공고" aside={<span className="text-[13px] text-mute">{items.length}건</span>}>
+    <Card title="투찰한 공고" aside={<span className="flex items-center gap-1.5 text-[13px] text-mute"><span className="rounded bg-fill px-1.5 py-0.5 text-[11px]">1곳 참가 포함</span>{items.length}건</span>}>
       <div className="no-scrollbar -mt-1 mb-2 flex gap-1.5 overflow-x-auto">
         {([['all', '전체'], ['won', '낙찰'], ['pending', '결정 전'], ['lost', '탈락'], ['below', '하한 미달']] as const).filter(([k]) => k !== 'pending' || pick.pending.length > 0).map(([k, label]) => (
           <button key={k} type="button" onClick={() => { setF(k); setN(10); }} aria-pressed={f === k}
@@ -468,6 +468,9 @@ function HistoryCard() {
         ))}
       </div>
       {rows.length ? (
+        <>
+        {/* A8: 오른쪽 숫자가 무엇인지 */}
+        <p className="flex justify-end pr-7 text-[11px] text-mute">투찰률</p>
         <ul className="divide-y divide-line">
           {rows.slice(0, n).map((i) => {
             const t = tag(i);
@@ -486,6 +489,7 @@ function HistoryCard() {
             );
           })}
         </ul>
+        </>
       ) : <p className="py-6 text-center text-[14px] text-mute">해당 공고 없음</p>}
       {rows.length > n && <button type="button" onClick={() => setN(n + 20)} className="w-full py-2 text-[14px] font-medium text-sub">{Math.min(20, rows.length - n)}건 더 보기</button>}
     </Card>

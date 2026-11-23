@@ -298,7 +298,7 @@ function OrgView({ org }: { org: string }) {
                   {p.sajeong.n >= MIN ? (
                     <>
                       <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.sajeong.p50.toFixed(2)}%</p>
-                      <p className="text-[12px] tabular-nums text-mute">{p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">보통 {p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
                     </>
                   ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>
@@ -309,7 +309,7 @@ function OrgView({ org }: { org: string }) {
                   {p.win_rate.n >= MIN ? (
                     <>
                       <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.win_rate.p50.toFixed(2)}%</p>
-                      <p className="text-[12px] tabular-nums text-mute">{p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">보통 {p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
                     </>
                   ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>

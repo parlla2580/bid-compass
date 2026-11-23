@@ -208,7 +208,8 @@ function Hero({ n }: { n: Notice }) {
       {award && (
         <p className="mt-2 flex items-start gap-2 text-[14px] text-sub">
           <span className={`shrink-0 rounded px-1.5 py-px text-[13px] font-semibold ${awardTone(award.kind)}`}>{award.label}</span>
-          <span>{award.desc}</span>
+          {/* A4: 설명 문장은 ⓘ로 */}
+          {award.desc && <Tip title={award.label}>{award.desc}</Tip>}
         </p>
       )}
       <div className="mt-5 grid grid-cols-2 gap-2 lg:mt-6 lg:grid-cols-4 lg:gap-3">
@@ -310,6 +311,11 @@ function OrgSummary({ n }: { n: Notice }) {
   const has = !!p && (p.openings > 0 || p.notices > 0);
   const peaks = has ? orgPeaks(p!.months) : [];
   const sj = has && p!.sajeong && p!.sajeong.n >= ORG_MIN ? p!.sajeong : null;
+  // A5: 사정률이 쓰이지 않는 공고(비예가·쇼핑몰·수의·소액 견적)는 '보통 참가 업체'로
+  const bstOrg = baseStatus(n);
+  const noSj = bstOrg === 'noDraw' || bstOrg === 'catalog' || /수의|소액/.test(`${n.contract ?? ''} ${n.award ?? ''}`);
+  const typ = has ? p!.by_type?.[n.type] : undefined;
+  const part = typ && typ.n >= ORG_MIN && typ.participants != null ? Math.round(typ.participants) : null;
   const box = 'rounded-2xl bg-fill px-3 py-3';
   return (
     <Card title={title} aside={<Link href={href} className="inline-flex items-center text-[14px] font-semibold text-brand">자세히<ChevronRight className="h-4 w-4" /></Link>}>
@@ -319,8 +325,17 @@ function OrgSummary({ n }: { n: Notice }) {
           <p className="mt-0.5 text-[13px] tabular-nums text-mute">공고 {p!.notices.toLocaleString()} · 개찰 {p!.openings.toLocaleString()}</p>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <div className={box}>
-              <p className="text-[12px] text-mute">사정률 중앙</p>
-              {sj ? <p className="mt-0.5 text-[17px] font-bold tabular-nums">{sj.p50.toFixed(2)}%</p> : <p className="mt-1 text-[13px] font-semibold text-mute">표본 부족</p>}
+              {noSj ? (
+                <>
+                  <p className="text-[12px] text-mute">보통 참가</p>
+                  {part != null ? <p className="mt-0.5 text-[17px] font-bold tabular-nums">{part.toLocaleString()}곳</p> : <p className="mt-1 text-[13px] font-semibold text-mute">표본 부족</p>}
+                </>
+              ) : (
+                <>
+                  <p className="text-[12px] text-mute">보통 사정률</p>
+                  {sj ? <p className="mt-0.5 text-[17px] font-bold tabular-nums">{sj.p50.toFixed(2)}%</p> : <p className="mt-1 text-[13px] font-semibold text-mute">표본 부족</p>}
+                </>
+              )}
             </div>
             <div className={box}>
               <p className="text-[12px] text-mute">많은 달</p>
@@ -366,11 +381,13 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
     lines.push({ k: '경쟁', v: lock }, { k: '낙찰률', v: lock });
   } else if (past) {
     const basis = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
+    // A3(2026-11-23): 누구의 기록인지 화면에 배지로
+    const basisTag = past.basis === 'org' ? '이 기관 지난 공고' : '비슷한 지난 공고';
     if (past.medianParticipants) {
       const range = past.minParticipants !== past.maxParticipants ? ` 적게는 ${past.minParticipants!.toLocaleString()}곳, 많게는 ${past.maxParticipants!.toLocaleString()}곳이었어요.` : '';
-      lines.push({ k: '경쟁', v: <><b className="font-semibold text-ink">보통 {past.medianParticipants.toLocaleString()}곳</b> <span className="text-mute">· {past.count}건 기준</span> <Tip title="경쟁">{basis}에 보통 몇 곳이 들어왔는지예요.{range}</Tip></> });
+      lines.push({ k: '경쟁', v: <><b className="font-semibold text-ink">보통 {past.medianParticipants.toLocaleString()}곳</b> <span className="text-mute">· {past.count}건</span> <span className="whitespace-nowrap rounded bg-fill px-1.5 py-0.5 text-[11px] text-mute">{basisTag}</span> <Tip title="경쟁">{basis}에 보통 몇 곳이 들어왔는지예요.{range}</Tip></> });
     }
-    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <><b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b> <span className="text-mute">· {past.rateCount}건</span> <Tip title="낙찰률">{basis}에서 낙찰된 금액이 예정가격의 몇 %였는지, 보통 범위예요.</Tip></> });
+    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <><b className="font-semibold text-ink">보통 {Number(past.rateLow).toFixed(1)}~{Number(past.rateHigh).toFixed(1)}%</b> <span className="text-mute">· {past.rateCount}건</span> <span className="whitespace-nowrap rounded bg-fill px-1.5 py-0.5 text-[11px] text-mute">{basisTag}</span> <Tip title="낙찰률">{basis}에서 낙찰된 금액이 예정가격의 몇 %였는지, 보통 범위예요.</Tip></> });
   }
   if (extra?.qualifyBy) {
     const d = daysUntil(extra.qualifyBy);

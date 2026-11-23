@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { BellOff, Building2, ChevronRight, Clock, FilePen, FileSearch, FileText, PartyPopper, Trophy, Trophy as Result } from 'lucide-react';
 import { useInbox, type InboxIcon, type InboxItem } from '@/lib/inbox';
 import { useStore } from '@/lib/store';
+import { Tip } from '@/components/tip';
 
 /*
  * 알림함 — 해야 할 일(기한, 끝내야 사라짐) / 소식(읽으면 끝)
@@ -52,7 +53,9 @@ export default function InboxView() {
   return (
     <main className="space-y-6 px-5 pb-28 pt-2 lg:px-0 lg:pb-0">
       <section>
-        <h2 className="mb-2 px-1 text-[17px] font-bold">해야 할 일 {actions.length > 0 && <span className="text-brand">{actions.length}</span>}</h2>
+        <h2 className="mb-2 flex items-center gap-1 px-1 text-[17px] font-bold">해야 할 일 {actions.length > 0 && <span className="text-brand">{actions.length}</span>}
+          <Tip title="알림 기준">1순위 서류 기한은 개찰일 기준 추정이라, 실제 기한은 나라장터 통보일부터 세 주세요. 저장한 기관은 계약 끝 60일 전부터, 곧 나올 맞춤 공고는 공개된 날 알려 드려요.</Tip>
+        </h2>
         {actions.length ? (
           <ul className="divide-y divide-line overflow-hidden rounded-box bg-white">
             {actions.map((i) => <Row key={i.key} i={i} unread={!state(i.key).read_at} onDone={i.doneLabel ? () => setDone(i.key, true) : undefined} />)}
@@ -69,9 +72,6 @@ export default function InboxView() {
         ) : <Empty text="새 소식이 없어요" />}
       </section>
 
-      <p className="px-1 text-[12px] leading-relaxed text-mute">
-        1순위 서류 기한은 개찰일 기준 추정이에요. 저장한 기관의 계약은 끝나기 60일 전부터, 곧 나올 맞춤 공고(사전규격)는 새로 공개된 날 알려드려요. 실제 기한은 나라장터 통보일부터 세요. 이메일 알림은 준비 중이에요.
-      </p>
     </main>
   );
 }

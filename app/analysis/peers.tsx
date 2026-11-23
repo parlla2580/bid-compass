@@ -42,10 +42,11 @@ export function PeersCard() {
       <span className="flex items-center gap-1">업계 비교
         <Tip title="업계 비교">최근 {p.months}개월 우리가 들어간 공고에서 자주 만난 경쟁사 {p.n.toLocaleString()}곳과 낙찰률을 비교했어요. 개별 회사는 공개하지 않아요. 낙찰은 운도 커서 참고만 하세요.</Tip>
       </span>}
-      aside={<span className="text-[13px] text-mute">경쟁사 {p.n.toLocaleString()}곳 · 최근 {p.months}개월</span>}>
-      <p className="text-[12px] text-mute">낙찰률 순위</p>
+      aside={<span className="text-[13px] text-mute">경쟁사 {p.n.toLocaleString()}곳</span>}>
+      {/* A7: 위 도넛(전체 기간)과 숫자가 다른 이유 — 기간을 배지로 */}
+      <p className="flex items-center gap-1.5 text-[12px] text-mute">낙찰률 순위<span className="rounded bg-fill px-1.5 py-0.5 text-[11px]">최근 {p.months}개월</span></p>
       <p className={`mt-0.5 text-[28px] font-bold tracking-tight ${tone}`}>상위 {top}%</p>
-      <p className="text-[13px] tabular-nums text-mute">우리 {pct(myRate)} · 경쟁사 보통 {pct(p.rate.p50)} {p.rate.p75 < 0.01 ? '(대부분 1% 미만)' : `(대부분 ${pct(p.rate.p25)}~${pct(p.rate.p75)})`}</p>
+      <p className="text-[13px] tabular-nums text-mute">우리 {pct(myRate)} · 경쟁사 보통 {pct(p.rate.p50)} {p.rate.p75 < 0.01 ? '(보통 1% 미만)' : `(보통 ${pct(p.rate.p25)}~${pct(p.rate.p75)})`}</p>
 
       <div className="relative mb-6 mt-4 h-2 rounded-full bg-fill">
         <div className="absolute h-2 rounded-full bg-[#C9D7F9]" style={{ left: x(p.rate.p25), width: `calc(${x(p.rate.p75)} - ${x(p.rate.p25)})` }} />

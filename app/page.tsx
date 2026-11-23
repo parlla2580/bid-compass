@@ -31,7 +31,8 @@ export default function HomePage() {
   const need = topNeed(judged);
 
   const stats = [
-    { href: '/bids', label: '맞춤 공고', value: judged ? matched.length : null, tone: 'text-brand' },
+    // A11(2026-11-23): 제목의 '맞춤 공고 N건'과 겹쳐서 → 적합도 80% 이상
+    { href: '/bids', label: '적합도 80% 이상', value: judged ? matched.filter((j) => (j.fit?.score ?? 0) >= 80).length : null, tone: 'text-brand' },
     freshMatched !== null
       ? { href: '/bids?new=1', label: '지난번 이후 새로', value: judged ? freshMatched : null, tone: freshMatched ? 'text-brand' : 'text-ink' }
       : { href: '/bids?sort=latest', label: '오늘 새로 나온', value: judged ? newMatched : null, tone: 'text-ink' },
@@ -106,15 +107,15 @@ export default function HomePage() {
         <section className="mt-8 grid gap-2 lg:grid-cols-2 lg:gap-3">
           <Link href="/analysis" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
-              <span className="block text-[16px] font-semibold">우리 회사 입찰 성적표</span>
-              <span className="mt-0.5 block text-[14px] text-mute">투찰·낙찰 결과 분석 · 2026.04~</span>
+              <span className="block text-[16px] font-semibold">입찰 분석</span>
+              <span className="mt-0.5 block text-[14px] text-mute">우리 회사 투찰·낙찰 결과</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
           <Link href="/calculator" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
-              <span className="block text-[16px] font-semibold">투찰금액 계산기</span>
-              <span className="mt-0.5 block text-[14px] text-mute">사정률 분포로 투찰금액 계산</span>
+              <span className="block text-[16px] font-semibold">투찰 금액 계산</span>
+              <span className="mt-0.5 block text-[14px] text-mute">사정률 분포로 금액 정하기</span>
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
