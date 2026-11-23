@@ -1,5 +1,5 @@
 // =========================================================
-// 일일 수집 브리핑 (045, 2026-11-22) — 매일 09:00(한국시간) 데이터별 기간·건수·용량 + 이슈
+// 일일 수집 브리핑 (045·046, 2026-11-22) — 매일 09:00(한국시간) 데이터별 기간·건수·용량 + 이슈
 //  · Supabase ops_daily_brief() 집계 → GitHub 이슈 'daily-brief' 에 댓글 (저장소 알림으로 메일·앱 알림)
 //  · 같은 날 이미 올렸으면 건너뜀 (pg_cron 주 예약 + GitHub schedule 보조 예약이 겹쳐도 한 번만). 수동 실행에서 FORCE=1 이면 다시 올림
 // 환경변수: SUPABASE_URL, SUPABASE_SECRET_KEY, GH_TOKEN, GITHUB_REPOSITORY, RUN_URL, FORCE, GITHUB_STEP_SUMMARY
@@ -54,6 +54,7 @@ export function render(d) {
 
   // 이슈
   const I = [];
+  if (d.stale) I.push(`오늘 집계 없음 — ${d.stale} 집계로 표시 (DB 예약 brief-snapshot 확인)`);
   if (r.failed) I.push(`수집 실패 ${r.failed}회 — ${(r.errors?.[0] ?? '').slice(0, 160)}`);
   if (r.partial) I.push(`일부 실패 ${r.partial}회 — ${(r.errors?.find(Boolean) ?? '').slice(0, 160)}`);
   if (r.total != null && r.total < 20) I.push(`매시 수집 ${r.total}회 (기대 24회) — 예약 점검: select * from public.collect_trigger_log();`);
@@ -78,8 +79,12 @@ export function render(d) {
 
 async function main() {
   const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false } });
-  const { data, error } = await sb.rpc('ops_daily_brief');
-  if (error) throw new Error(`집계 실패 (SQL 045 실행 여부 확인): ${error.message}`);
+  // 집계는 DB 예약 작업(046, 08:50)이 해 둠 — 여기서는 저장된 결과만 읽음 (API 시간 제한 때문)
+  const { data, error } = await sb.rpc('ops_brief_latest');
+  if (error) throw new Error(`집계 결과 읽기 실패 (SQL 045·046 실행 여부 확인): ${error.message}`);
+  if (!data) throw new Error('저장된 집계 없음 — 046 실행 뒤 1~2분 기다리거나 08:50 집계를 기다려 주세요');
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  if (data.day !== today) data.stale = data.day;
   const { md, issues } = render(data);
   console.log(md);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');

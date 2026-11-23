@@ -41,7 +41,7 @@
   - 용량(040, 11/22): 표 합계 약 6.7GB (계약 세부 2.9 · 투찰 순위 1.7 · 계약 1.3 · 공고 0.6). 한 달치 약 0.5~0.8GB 추정 → 다 받으면 12~16GB. Pro 8GB 포함·초과 GB당 월 $0.125
 - 일일 수집 브리핑 (2026-11-22, 045): 매일 09:00(한국시간) GitHub 이슈 `daily-brief` 에 댓글 — 데이터별 기간·건수·전날 대비·용량 + 이슈
   - 주 예약 pg_cron `brief-daily`(00:00 UTC) → `trigger_workflow('brief.yml')`, 보조 GitHub schedule 00:43 UTC (같은 날 두 번 안 올림)
-  - 집계 `ops_daily_brief()`(관리자 키만) · 날짜별 스냅샷 `ops_brief_log` · 수동: Actions › 일일 수집 브리핑 › Run workflow (force=1 다시 올림)
+  - 집계 `ops_daily_brief()`는 API 시간 제한에 걸려 (046) pg_cron `brief-snapshot` 08:50 한국시간에 실행 → `ops_brief_log` 저장, 브리핑은 `ops_brief_latest()`로 읽기만 · 수동: Actions › 일일 수집 브리핑 › Run workflow (force=1 다시 올림)
 - 하단 메뉴 (2026-11-22): 홈 · 공고 · 분석(입찰 성과·시장 분석) · 기관(찾기·영업·저장) · 도구(투찰 금액 계산·적격심사 점수)
 - DB 변경은 `supabase/migrations/` 에 번호 순서로 추가하고, 여러 번 실행해도 안전하게 작성한다
 - 비밀값: `NARA_API_KEY`, `SUPABASE_SECRET_KEY` 는 GitHub Secrets / `NARA_API_KEY` 는 Vercel 환경변수에도. 코드·대화에 값을 쓰지 않는다
