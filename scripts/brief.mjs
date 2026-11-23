@@ -76,7 +76,8 @@ export function render(d) {
     if (left <= 30) I.push(`수집 예약 토큰 만료 D-${left}`);
   }
   L.push('', '### 이슈', ...(I.length ? I.map((x) => `- ⚠️ ${x}`) : ['- ✅ 없음']));
-  if (!p) L.push('', '<sub>전날 기록이 없어 증가량은 내일부터 표시</sub>');
+  const at = d.snapshot_at ? new Date(Date.parse(d.snapshot_at) + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' ') : null;
+  L.push('', `<sub>${at ? `집계 ${at} (한국시간)` : ''}${!p ? `${at ? ' · ' : ''}전날 기록이 없어 증가량은 내일부터 표시` : ''}</sub>`);
   return { md: L.join('\n'), issues: I.length };
 }
 
