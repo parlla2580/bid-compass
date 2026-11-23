@@ -55,3 +55,9 @@ export function withEulReul(word: string) {
 
 /** 투찰률·낙찰률 — 소수 셋째 자리까지 고정 (90.39% · 90.384%처럼 자릿수가 섞이던 문제, 2026-11-22) */
 export const fmtRate = (v: number | string | null | undefined) => (v == null || v === '' ? '–' : `${Number(v).toFixed(3)}%`);
+
+/** 나라장터 원문에 섞여 오는 HTML 문자 참조(&amp; 등)를 글자로 (2026-11-23: '아토즈씨앤텍（ATOZ Sci &amp; Tech）') */
+export function plain(s: string | null | undefined): string {
+  if (!s) return '';
+  return s.replace(/&(amp|lt|gt|quot|apos|#39|#x27|nbsp);/g, (_, e) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'", '#x27': "'", nbsp: ' ' } as Record<string, string>)[e]);
+}

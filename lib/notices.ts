@@ -1,7 +1,7 @@
 import { NOTICE_COLUMNS, NOTICE_COLUMNS_FAST, toNotice, type Industry, type Notice, type NoticeRow, type Product } from './data';
 import { getSupabase } from './supabase';
 import { cacheGet, cacheSet } from './cache';
-import { fmtKorean } from './format';
+import { fmtKorean, plain } from './format';
 
 /* =========================================================
  * Supabase 읽기 — 공고·계약·업종 (공개 데이터, publishable 키로 읽기)
@@ -231,7 +231,7 @@ export async function fetchSimilarContracts(n: Notice): Promise<SimilarContract[
     .slice(0, 3)
     .map(({ c }) => ({
       id: c.id,
-      title: c.title,
+      title: plain(c.title),
       org: c.org,
       method: c.method,
       amount: c.amount === null ? null : Number(c.amount),

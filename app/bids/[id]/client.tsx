@@ -11,7 +11,7 @@ import { SignupSheet } from '@/components/signup-sheet';
 import { Term } from '@/components/term';
 import { Tip } from '@/components/tip';
 import { SIZES, baseStatus, calcHref, looksUnitPrice, orgOf, type Industry, type Notice } from '@/lib/data';
-import { fmtDate, fmtDateTime, fmtShort, fmtWon } from '@/lib/format';
+import { fmtDate, fmtDateTime, fmtShort, fmtWon, plain } from '@/lib/format';
 import { MANUAL_CHECKS, awardInfo, eligibilitySummary, judge, lawGuess, type ProfileNeed, type Reason, type Status } from '@/lib/judge';
 import { fetchLatestOrder, fetchNotice, fetchSimilarContracts, type SimilarContract } from '@/lib/notices';
 import { fetchNoticeExtra, fetchPastStats, type NoticeExtra, type PastStats } from '@/lib/briefing';
@@ -513,7 +513,7 @@ function Similar({ n }: { n: Notice }) {
   const [items, setItems] = useState<SimilarContract[] | null>(null);
   const [all, setAll] = useState(false);
   useEffect(() => { fetchSimilarContracts(n).then(setItems).catch(() => setItems([])); }, [n]);
-  const corp = (c: SimilarContract) => c.corps.map((x) => x.name).filter(Boolean).join(', ') || '–';
+  const corp = (c: SimilarContract) => c.corps.map((x) => plain(x.name)).filter(Boolean).join(', ') || '–';
   if (items && !items.length) return null; // 관련 있는 지난 계약이 없으면 카드 자체를 숨김
 
   return (

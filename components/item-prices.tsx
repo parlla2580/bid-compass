@@ -6,7 +6,7 @@ import { Card } from './layout';
 import { LoadingBox } from './loading';
 import { Tip } from './tip';
 import { isCatalog, type Notice } from '@/lib/data';
-import { fmtKorean, fmtShort, fmtWon } from '@/lib/format';
+import { fmtKorean, fmtShort, fmtWon, plain } from '@/lib/format';
 import { fetchItemPrices, fetchNoticeQty, type ItemPrice } from '@/lib/notices';
 
 /*
@@ -176,10 +176,10 @@ function Row({ it, single, budget, want, total, locked, onSignup }: {
           {it.recent.slice(0, 3).map((r, i) => (
             <li key={i} className="text-[13px]">
               <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-ink"><span className="tabular-nums text-mute">{md(r.date)}</span> {r.org?.trim() || '기관 미상'}</span>
+                <span className="min-w-0 truncate text-ink"><span className="tabular-nums text-mute">{md(r.date)}</span> {plain(r.org).trim() || '기관 미상'}</span>
                 <span className="shrink-0 tabular-nums"><span className="text-mute">{Number(r.qty).toLocaleString('ko-KR', { maximumFractionDigits: 1 })} × </span><b className="font-semibold">{won(r.unit_price)}</b></span>
               </div>
-              {(r.spec || r.corp) && <p className="truncate text-[12px] text-mute">{[r.spec, r.corp].filter(Boolean).join(' · ')}</p>}
+              {(r.spec || r.corp) && <p className="truncate text-[12px] text-mute">{[r.spec, r.corp].filter(Boolean).map((x) => plain(x)).join(' · ')}</p>}
             </li>
           ))}
         </ul>
