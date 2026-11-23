@@ -33,6 +33,9 @@ export function render(d) {
     const range = t.from ? `${t.from} ~ ${t.to}` : '–';
     L.push(`| ${name} | ${range} | ${num(t.rows)}${t.estimate ? ' (추정)' : ''} | ${delta(t.rows, pt?.rows)} | ${size(t.bytes)} |`);
   }
+  // 047: 2000-01-01 ~ 오늘+1년 밖의 날짜(원본 오타 추정)는 기간에서 빼고 따로 셈
+  const odd = NAMES.map(([k, name]) => [name, d.tables?.[k]?.odd]).filter(([, n]) => n > 0);
+  if (odd.length) L.push('', `- **날짜 이상** ${odd.map(([name, n]) => `${name} ${num(n)}건`).join(' · ')} <sub>(원본 날짜 오타 추정 · 기간 계산에서 제외)</sub>`);
   const pct = d.db_bytes ? Math.round((d.db_bytes / PLAN_BYTES) * 100) : null;
   L.push('', `- **DB 전체** ${size(d.db_bytes)} · 포함 8 GB의 ${pct}%${p?.db_bytes ? ` · 전날 대비 ${d.db_bytes >= p.db_bytes ? '+' : '−'}${size(Math.abs(d.db_bytes - p.db_bytes))}` : ''}`);
 
