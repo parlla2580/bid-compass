@@ -172,7 +172,8 @@ export function SalesSection({ focus }: { focus?: string | null }) {
     );
   }
   if (list === undefined) return <section className="space-y-3">{head('우리 품목을 산 기관을 찾는 중이에요')}<LoadingBox className="h-48" /></section>;
-  if (err || !list) return <section className="space-y-3">{head('')}<p className="rounded-box bg-white p-5 text-[15px] text-bad">불러오지 못했어요{err ? `: ${err}` : ''}</p></section>;
+  // 서버 오류 원문(영어)은 보여 주지 않음 — 콘솔에만
+  if (err || !list) { if (err) console.warn('영업 불러오기 실패:', err); return <section className="space-y-3">{head('')}<p className="rounded-box bg-white p-5 text-[15px] text-sub">잠시 뒤 다시 시도해 주세요 <span className="text-mute">· 불러오기 실패</span></p></section>; }
 
   const chip = (on: boolean) => `h-9 shrink-0 rounded-full px-3.5 text-[14px] font-semibold transition ${on ? 'bg-ink text-white' : 'bg-white text-sub ring-1 ring-line'}`;
   const condOn = scope !== 'none' || !!kind || sort !== 'count';

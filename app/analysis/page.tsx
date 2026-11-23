@@ -72,7 +72,7 @@ export default function AnalysisPage() {
         <Link href="/login" className="mt-2 block py-2 text-center text-[15px] font-semibold text-sub">이미 가입했다면 로그인</Link>
       </Empty>
     );
-  } else if (error) body = <p className="rounded-box bg-white p-5 text-[15px] text-bad">분석을 불러오지 못했어요: {error}</p>;
+  } else if (error) { console.warn('분석 불러오기 실패:', error); body = <p className="rounded-box bg-white p-5 text-[15px] text-sub">잠시 뒤 다시 시도해 주세요 <span className="text-mute">· 분석 불러오기 실패</span></p>; }
   else if (!report) body = <LoadingBox className="h-40" />;
   else if (!report.verified) {
     body = (

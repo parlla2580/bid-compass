@@ -123,11 +123,17 @@ export async function fetchSalesContracts(codes: Map<string, string>): Promise<S
 
   // 1) 물품 세부 줄 → 계약 번호별 맞은 품목·단가
   const goods = new Map<string, { matched: Set<string>; items: SalesItem[] }>();
-  for (const part of chunk(list, 40)) {
+  // 2026-11-23: 코드 여러 개를 한 번에(in) 묶어 최근순으로 받으면 계약 세부가 650만 줄을 넘으며 시간 초과
+  //  → 코드마다 따로, (code, contract_date) 색인(049)으로 최근 것만 받음. 코드당 최대 PER_CODE 줄
+  const PER_CODE = Math.max(150, Math.floor(LIMIT / Math.max(list.length, 1)));
+  const lines = await Promise.all(list.map(async (code) => {
     const { data, error } = await sb.from('contract_lines').select('contract_id,code,item_name,name,unit_price,qty')
-      .in('code', part).lte('contract_date', futureLimit()).order('contract_date', { ascending: false, nullsFirst: false }).limit(LIMIT);
+      .eq('code', code).lte('contract_date', futureLimit()).order('contract_date', { ascending: false, nullsFirst: false }).limit(PER_CODE);
     if (error) throw new Error(error.message);
-    for (const l of data ?? []) {
+    return data ?? [];
+  }));
+  {
+    for (const l of lines.flat()) {
       const g = goods.get(l.contract_id) ?? { matched: new Set<string>(), items: [] };
       g.matched.add(codes.get(l.code) ?? l.name ?? '');
       if (g.items.length < 5) g.items.push({ name: l.item_name || l.name || '', unitPrice: l.unit_price, qty: l.qty });

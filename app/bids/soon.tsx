@@ -42,7 +42,7 @@ export function SoonList({ list, matches, error }: ReturnType<typeof useSoon>) {
   const [shown, setShown] = useState(PAGE);
   useEffect(() => setShown(PAGE), [st, everything]);
 
-  if (error) return <p className="rounded-box bg-white p-5 text-[15px] text-bad">곧 나올 공고를 불러오지 못했어요: {error}</p>;
+  if (error) { console.warn('곧 나올 공고 불러오기 실패:', error); return <p className="rounded-box bg-white p-5 text-[15px] text-sub">잠시 뒤 다시 시도해 주세요 <span className="text-mute">· 곧 나올 공고 불러오기 실패</span></p>; }
   if (!list || !matches) return <LoadingBox className="h-40" />;
 
   const base: PrespecMatch[] = everything ? list.filter((p) => p.status !== 'closed').map((p) => ({ p, why: '', sim: 0 })) : matches;

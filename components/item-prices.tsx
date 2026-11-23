@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, Lock } from 'lucide-react';
 import { Card } from './layout';
+import { LoadingBox } from './loading';
 import { Tip } from './tip';
 import { isCatalog, type Notice } from '@/lib/data';
 import { fmtKorean, fmtShort, fmtWon } from '@/lib/format';
@@ -40,7 +41,11 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
     return () => { on = false; };
   }, [n.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!goods || !items?.length) return null;
+  // 2026-11-23: 불러오는 동안 칸이 없다가 갑자기 생기면 '원래 없는 칸'으로 보임 → 처음부터 자리 잡고 로딩, 없으면 한 줄로
+  if (!goods) return null;
+  const head = <span className="flex items-center gap-1">다른 기관 구매 단가</span>;
+  if (items === undefined) return <Card title={head}><LoadingBox className="h-24" tone="fill" /></Card>;
+  if (!items?.length) return <Card title={head}><p className="text-[14px] text-mute">비교할 다른 기관 계약 없음</p></Card>;
   const total = items.reduce((s, i) => s + i.n, 0);
   // 이 공고 1개당 예산 — 계산할 수 없으면 이유를 함께 (2026-11-21: 조건이 안 맞으면 칸이 말없이 사라졌음)
   const budget: Budget | null = items.length !== 1 || !want ? null
