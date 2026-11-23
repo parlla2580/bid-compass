@@ -13,7 +13,7 @@ import { waGwa } from './format';
  * v3 문제: 흔한 품목·업종도 드문 것과 같은 배점 → 솔트룩스형 회사 맞춤 1,871건, 80점대 893건
  * v4 (2026-11-12): 근거마다 '얼마나 드문가'(특이도, lib/stats)로 배점 차등 + 이력 유사 공고 강하게
  *
- * 점수 = 20 + 관련도 55 × R + 이력 30 × H + 조건(금액·지역·경쟁·기관·마감·유형)
+ * 점수 = 20 + 관련도 55 × R + 이력 30 × H + 조건(금액·지역·경쟁·기관·마감·유형), 85점 위는 완만하게 눌러 99 아래로 (2026-11-23)
  *  R = 가장 강한 근거 + 나머지는 남은 거리의 35%씩 (상관된 근거를 할인한 noisy-OR)
  *    - 품목  v = 계층 일치(1/0.85/0.6/0.35) × 공고 내 비중 × (0.4 + 0.6 × 특이도)
  *    - 단어  v = 1 − Π(1 − 0.6 × 특이도_w)  공고명에 나온 회사 핵심어 (품명에만 있으면 절반, 품목 근거와 겹치면 절반)
@@ -209,6 +209,10 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   if (p.types.length && p.types.length < 3 && !p.types.includes(n.type)) { cond -= 15; push('type', '사업유형', 0.2, `관심 유형 아님(${n.type})`); }
 
   // 최종 = 기본 20 + 관련도(≤55) + 이력(≤30) + 조건(대략 -25~+40)
-  const score = Math.round(clamp(20 + relPts + cond, 5, 99));
+  // 2026-11-23: 합이 100을 넘는 공고가 모두 99%로 몰림(맞춤 상위 10%) → 85점 위는 완만하게 눌러 85~99에 펼침
+  //  85 이하는 그대로 · 95 → 약 90 · 105 → 약 94 · 145 → 약 98 (순서는 그대로)
+  const raw = 20 + relPts + cond;
+  const soft = raw <= 85 ? raw : 85 + 14 * (1 - Math.exp(-(raw - 85) / 20));
+  const score = Math.round(clamp(soft, 5, 99));
   return { score, rel: R, hist: H, gate, factors: f.sort((a, b) => b.weight - a.weight || b.value - a.value) };
 }
