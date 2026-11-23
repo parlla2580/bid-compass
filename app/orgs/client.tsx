@@ -13,6 +13,7 @@ import { useInbox } from '@/lib/inbox';
 import { daysTo } from '@/lib/sales';
 import { useStore } from '@/lib/store';
 import { GENERIC_ORG, orgOf } from '@/lib/data';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 발주기관 카드 (로드맵 4, 034) — 이 기관은 언제·어떻게 사나
@@ -62,7 +63,7 @@ export default function OrgPage() {
 /* ---------- 영업 (수의계약 기관) — 회원만 ---------- */
 function SalesTab({ focus }: { focus: string | null }) {
   const { account, loaded } = useStore();
-  if (!loaded) return <main className="px-5 pt-1 lg:px-0"><div className="h-40 animate-pulse rounded-box bg-white" /></main>;
+  if (!loaded) return <main className="px-5 pt-1 lg:px-0"><LoadingBox className="h-40" /></main>;
   if (!account) return (
     <main className="px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
       <div className="rounded-box bg-white px-6 py-10 text-center">
@@ -200,7 +201,7 @@ function OrgHome() {
           {recent.length > 0 && <Card title="최근 본 기관">{chips(recent)}</Card>}
           {mine.length > 0 && <Card title="자주 들어간 기관" aside={<span className="text-[13px] text-mute">우리 투찰 기록</span>}>{rows(mine.map((m) => [m.org, `투찰 ${m.total}`]))}</Card>}
           {busy.length > 0 && <Card title="공고 많은 기관" aside={<span className="text-[13px] text-mute">지금 열린 공고</span>}>{rows(busy.map(([o, n]) => [o, `공고 ${n}`]))}</Card>}
-          {!busy.length && !recent.length && <div className="h-48 animate-pulse rounded-box bg-white" />}
+          {!busy.length && !recent.length && <LoadingBox className="h-48" />}
         </>
       )}
     </main>
@@ -219,7 +220,7 @@ function OrgView({ org }: { org: string }) {
   }, [org]);
   const open = useMemo(() => (notices ?? []).filter((n) => n.d >= 0 && ((n.demandOrg ?? n.org) === org || n.org === org)).length, [notices, org]);
 
-  if (p === undefined) return <main className="space-y-3 px-5 pt-4 lg:px-0">{[0, 1, 2].map((i) => <div key={i} className="h-36 animate-pulse rounded-box bg-white" />)}</main>;
+  if (p === undefined) return <main className="space-y-3 px-5 pt-4 lg:px-0">{[0, 1, 2].map((i) => <LoadingBox key={i} className="h-36" spin={i === 0} />)}</main>;
   if (!p || (!p.openings && !p.notices)) return <main className="px-5 pt-16 text-center text-[15px] text-mute">이 기관의 수집된 공고·개찰 없음</main>;
 
   const types = Object.entries(p.by_type).sort((a, b) => b[1].n - a[1].n);

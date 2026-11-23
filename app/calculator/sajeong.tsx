@@ -9,6 +9,7 @@ import { fmtWon } from '@/lib/format';
 import { bidAmount } from './rules';
 import { BacktestCurveChart } from './backtest-curve';
 import { cdf, fetchBacktest, fetchSajeongDist, quantile, type Backtest, type SajeongDist } from '@/lib/reserve';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 사정률 분포로 투찰금액 정하기
@@ -83,7 +84,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
       </h2>
       <p className="mt-1 text-[14px] text-mute">지난 {type} 개찰 {sorted.length.toLocaleString()}건 · <Term k="사정률" /> 분포</p>
 
-      {!dist ? <div className="mt-4 h-40 animate-pulse rounded-2xl bg-fill" /> : sorted.length < 30 ? (
+      {!dist ? <LoadingBox className="mt-4 h-40" tone="fill" /> : sorted.length < 30 ? (
         <p className="mt-4 text-[15px] text-mute">비교할 과거 개찰 부족</p>
       ) : (
         <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">

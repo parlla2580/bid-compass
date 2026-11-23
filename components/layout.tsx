@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ArrowLeft, BarChart3, Bell, Calculator, ChevronRight, CircleUserRound, Compass, FileText, House, LogIn, ShieldAlert, UserRound, Building2 } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
@@ -117,7 +117,7 @@ function SideMenu() {
           const on = match(path);
           return (
             <Link key={href} href={href} aria-current={on ? 'page' : undefined} className={item(on)}>
-              <Icon className="h-5 w-5" strokeWidth={on ? 2.3 : 2} />{desk ?? label}
+              <NavIcon Icon={Icon} on={on} size="h-5 w-5" />{desk ?? label}
             </Link>
           );
         })}
@@ -225,18 +225,26 @@ export function BackHeader({ title, fallback = '/bids' }: { title: string; fallb
 }
 
 /** 모바일 하단 탭 */
+/** 메뉴 아이콘 — 누른 뒤 화면을 불러오는 동안 나침반이 돎 (2026-11-23) */
+function NavIcon({ Icon, on, size = 'h-[22px] w-[22px]' }: { Icon: typeof House; on: boolean; size?: string }) {
+  const { pending } = useLinkStatus();
+  return pending
+    ? <Compass className={`compass-seek ${size} text-brand`} strokeWidth={2.2} aria-label="불러오는 중" />
+    : <Icon className={size} strokeWidth={on ? 2.3 : 1.8} />;
+}
+
 export function BottomNav() {
   const pathname = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-      <ul className="mx-auto grid max-w-[760px] grid-cols-4">
+      <ul className="mx-auto grid max-w-[760px] grid-cols-5">
         {NAV.map(({ href, label, Icon, match }) => {
           const on = match(pathname);
           return (
             <li key={href}>
               <Link href={href} aria-current={on ? 'page' : undefined}
                 className={`flex h-[60px] flex-col items-center justify-center gap-1 text-[11px] font-medium ${on ? 'text-ink' : 'text-mute'}`}>
-                <Icon className="h-[22px] w-[22px]" strokeWidth={on ? 2.3 : 1.8} />
+                <NavIcon Icon={Icon} on={on} />
                 {label}
               </Link>
             </li>

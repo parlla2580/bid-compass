@@ -24,6 +24,7 @@ import { QualifyCard } from '@/components/qualify-card';
 import { noticeAward, awardTone } from '@/lib/award';
 import { useStore } from '@/lib/store';
 import type { TermKey } from '@/lib/terms';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * S4. 공고 상세 (v3 — 모바일·데스크탑 투트랙)
@@ -305,7 +306,7 @@ function OrgSummary({ n }: { n: Notice }) {
       <Tip title="발주기관">이 기관의 최근 1년 공고·개찰 기준이에요. 사정률은 지난 추첨 결과라 다음 개찰을 예측하진 않아요.</Tip>
     </span>
   );
-  if (p === undefined) return <Card title={title}><div className="h-16 animate-pulse rounded-2xl bg-fill" /></Card>;
+  if (p === undefined) return <Card title={title}><LoadingBox className="h-16" tone="fill" /></Card>;
   const has = !!p && (p.openings > 0 || p.notices > 0);
   const peaks = has ? orgPeaks(p!.months) : [];
   const sj = has && p!.sajeong && p!.sajeong.n >= ORG_MIN ? p!.sajeong : null;
@@ -387,7 +388,7 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
 
   return (
     <Card title="한눈에 보기">
-      {past === undefined && !extra ? <div className="h-20 animate-pulse rounded-2xl bg-fill" /> : (
+      {past === undefined && !extra ? <LoadingBox className="h-20" tone="fill" /> : (
         <>
           <ul className="space-y-3">
             {lines.map((l, i) => (
@@ -517,7 +518,7 @@ function Similar({ n }: { n: Notice }) {
 
   return (
     <Card title={<span className="flex items-center gap-1">최근 계약<Tip title="최근 계약">같은 기관이 맺은 계약 중 공고명이 비슷한 것들이에요. 이 공고의 이전 계약과 꼭 같지는 않아요.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
-      {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
+      {!items && <LoadingBox className="h-16" tone="fill" />}
       {items && items.length > 0 && (
         <>
           {/* 모바일·좁은 데스크탑 — 표는 칸이 충분한 xl부터 (lg에선 계약명 칸이 0이 되어 넘쳤음) */}
@@ -572,7 +573,7 @@ function Skeleton() {
   return (
     <main className="space-y-3 px-5 pt-4 lg:px-0">
       <div className="h-8 w-2/3 animate-pulse rounded-xl bg-white" />
-      {[0, 1, 2].map((i) => <div key={i} className="h-32 animate-pulse rounded-box bg-white" />)}
+      {[0, 1, 2].map((i) => <LoadingBox key={i} className="h-32" spin={i === 0} />)}
     </main>
   );
 }

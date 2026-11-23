@@ -9,6 +9,7 @@ import { fmtDateTime, fmtShort, fmtWon, fmtRate } from '@/lib/format';
 import { fetchOpeningDetail, type OpeningBidder, type OpeningDetail } from '@/lib/analysis';
 import { useStore } from '@/lib/store';
 import { Tip } from '@/components/tip';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 개찰 결과 요약 — 기초금액·예정가격·사정률·낙찰자, 참가업체 투찰률 분포(밀도 곡선 + 점)
@@ -19,7 +20,7 @@ export default function OpeningView({ id }: { id: number }) {
   const [d, setD] = useState<OpeningDetail | null | undefined>(undefined);
   useEffect(() => { if (account) fetchOpeningDetail(id).then(setD).catch(() => setD(null)); }, [id, account]);
 
-  if (!loaded || (account && d === undefined)) return <main className="space-y-3 px-5 pt-4 lg:px-0">{[0, 1].map((i) => <div key={i} className="h-40 animate-pulse rounded-box bg-white" />)}</main>;
+  if (!loaded || (account && d === undefined)) return <main className="space-y-3 px-5 pt-4 lg:px-0">{[0, 1].map((i) => <LoadingBox key={i} className="h-40" spin={i === 0} />)}</main>;
   if (!account || !d || !d.verified || !d.found || !d.opening) {
     return (
       <main className="px-5 pt-16 text-center lg:px-0">

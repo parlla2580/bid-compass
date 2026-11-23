@@ -85,3 +85,17 @@ html, body {
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .fade-in { animation: fade-in .2s ease; }
 @media (min-width: 1024px) { .sheet-up { animation: fade-in .2s ease; } }
+
+/* 로딩 나침반 (2026-11-23) — 바늘이 방향을 찾듯 크게 돌았다가 살짝 되돌아오며 멈추기를 반복 */
+@keyframes compass-seek {
+  0%   { transform: rotate(0deg); }
+  35%  { transform: rotate(220deg); }
+  55%  { transform: rotate(160deg); }
+  72%  { transform: rotate(190deg); }
+  100% { transform: rotate(360deg); }
+}
+.compass-seek { animation: compass-seek 1.6s cubic-bezier(.45, .05, .25, 1) infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .compass-seek { animation: compass-blink 1.6s ease-in-out infinite; }
+  @keyframes compass-blink { 50% { opacity: .45; } }
+}

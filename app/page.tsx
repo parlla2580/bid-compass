@@ -11,6 +11,7 @@ import { NEED_LABEL, topNeed } from '@/lib/needs';
 import { useJudged, useStore } from '@/lib/store';
 import { useSeen } from '@/lib/seen';
 import { isCatalog } from '@/lib/data';
+import { LoadingBox } from '@/components/loading';
 
 /** S2. 홈 — 오늘의 요약만. 공고 목록은 '공고' 탭 한 곳에서 */
 export default function HomePage() {
@@ -118,7 +119,7 @@ export default function HomePage() {
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
         </section>
-        {!notices && <div className="mt-6 h-20 animate-pulse rounded-box bg-white" />}
+        {!notices && <LoadingBox className="mt-6 h-20" />}
       </main>
     </Shell>
   );

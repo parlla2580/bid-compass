@@ -16,6 +16,7 @@ import { PeersCard } from './peers';
 import { fmtDate, fmtRate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
+import { LoadingBox } from '@/components/loading';
 
 
 /** F7 입찰 분석 — 성적표(F7-1), 아깝게 놓친 공고(F7-2), 하한선 미달(F7-3), 기관·유형별 */
@@ -62,7 +63,7 @@ export default function AnalysisPage() {
   }, [judged]);
 
   let body: React.ReactNode;
-  if (!loaded) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
+  if (!loaded) body = <LoadingBox className="h-40" />;
   else if (!account) {
     body = (
       <Empty title="가입하면 우리 회사 입찰 성적표를 볼 수 있어요"
@@ -72,7 +73,7 @@ export default function AnalysisPage() {
       </Empty>
     );
   } else if (error) body = <p className="rounded-box bg-white p-5 text-[15px] text-bad">분석을 불러오지 못했어요: {error}</p>;
-  else if (!report) body = <div className="h-40 animate-pulse rounded-box bg-white" />;
+  else if (!report) body = <LoadingBox className="h-40" />;
   else if (!report.verified) {
     body = (
       <Empty title="회사 확인 후 열림" text="우리 회사 입찰 기록 · 확인된 회원 본인만" note="타사 기록 조회 불가">
@@ -445,7 +446,7 @@ function HistoryCard() {
   const [f, setF] = useState<'all' | 'won' | 'pending' | 'lost' | 'below'>('all');
   const [n, setN] = useState(10);
   useEffect(() => { fetchMyBidList().then(setItems).catch(() => setItems(null)); }, []);
-  if (items === undefined) return <div className="h-40 animate-pulse rounded-box bg-white" />;
+  if (items === undefined) return <LoadingBox className="h-40" />;
   if (!items) return null; // 011 실행 전
   const by = (o: BidOutcome) => items.filter((i) => bidOutcome(i) === o);
   const pick = { all: items, won: by('won'), pending: by('pending'), lost: by('lost'), below: by('below') };

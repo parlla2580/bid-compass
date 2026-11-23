@@ -4,6 +4,7 @@ import type { BidType, Notice, Profile } from '@/lib/data';
 import { fmtShort } from '@/lib/format';
 import { STATUS_LABEL, summarize, type Judgment, type RuleResult, type Status } from '@/lib/judge';
 import type { Fit } from '@/lib/fit';
+import { LoadingBox } from '@/components/loading';
 
 // 폼·버튼 공통 클래스 (v3)
 export const INPUT_CLS =
@@ -97,7 +98,7 @@ export function NoticesState({ notices, error, children }: { notices: Notice[] |
   if (!notices) {
     return (
       <div className="space-y-2.5" aria-busy="true" aria-label="공고를 불러오는 중">
-        {[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-box bg-white" />)}
+        {[0, 1, 2].map((i) => <LoadingBox key={i} className="h-24" spin={i === 0} />)}
       </div>
     );
   }

@@ -17,6 +17,7 @@ import { judge } from '@/lib/judge';
 import { suggestProducts } from '@/lib/match';
 import { fetchNoticesByIds } from '@/lib/notices';
 import { useStore } from '@/lib/store';
+import { LoadingBox } from '@/components/loading';
 
 const TYPES: BidType[] = ['물품', '용역', '공사'];
 type SheetKey = 'company' | 'prefs' | null;
@@ -136,7 +137,7 @@ export default function MyPage() {
       {/* 저장한 공고 */}
       <section id="saved" className="scroll-mt-20 rounded-box bg-white p-5 lg:p-6">
         <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold"><Bookmark className="h-4 w-4 text-primary" />저장한 공고 <span className="text-primary">{saved.length}</span></h2>
-        {!savedNotices && <div className="h-14 animate-pulse rounded-lg bg-fill" />}
+        {!savedNotices && <LoadingBox className="h-14" tone="fill" />}
         {savedNotices && savedNotices.length > 0 && (
           <ul className="divide-y divide-line">
             {[...savedNotices].sort((a, b) => a.closesAt.getTime() - b.closesAt.getTime()).map((n) => (

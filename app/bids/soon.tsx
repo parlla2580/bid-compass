@@ -7,6 +7,7 @@ import { Tip } from '@/components/tip';
 import { fmtShort } from '@/lib/format';
 import { fetchPrespecs, matchPrespecs, type Prespec, type PrespecMatch, type PrespecStatus } from '@/lib/prespecs';
 import { useStore } from '@/lib/store';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 공고 › 곧 나올 공고 (사전규격, 022)
@@ -42,7 +43,7 @@ export function SoonList({ list, matches, error }: ReturnType<typeof useSoon>) {
   useEffect(() => setShown(PAGE), [st, everything]);
 
   if (error) return <p className="rounded-box bg-white p-5 text-[15px] text-bad">곧 나올 공고를 불러오지 못했어요: {error}</p>;
-  if (!list || !matches) return <div className="h-40 animate-pulse rounded-box bg-white" />;
+  if (!list || !matches) return <LoadingBox className="h-40" />;
 
   const base: PrespecMatch[] = everything ? list.filter((p) => p.status !== 'closed').map((p) => ({ p, why: '', sim: 0 })) : matches;
   const count = (s: PrespecStatus) => base.filter((m) => m.p.status === s).length;

@@ -11,6 +11,7 @@ import { splitLocation } from '@/lib/data';
 import { KIND_GROUPS, daysTo, fetchSalesContracts, groupByOrg, productCodes, type SalesContract, type SalesOrg } from '@/lib/sales';
 import { useStore } from '@/lib/store';
 import { useInbox, ORG_END_DAYS, type SavedOrg } from '@/lib/inbox';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 입찰 분석 — 「영업」 (기획 17.1 A, 2026-11-15 개편)
@@ -170,7 +171,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
       </section>
     );
   }
-  if (list === undefined) return <section className="space-y-3">{head('우리 품목을 산 기관을 찾는 중이에요')}<div className="h-48 animate-pulse rounded-box bg-white" /></section>;
+  if (list === undefined) return <section className="space-y-3">{head('우리 품목을 산 기관을 찾는 중이에요')}<LoadingBox className="h-48" /></section>;
   if (err || !list) return <section className="space-y-3">{head('')}<p className="rounded-box bg-white p-5 text-[15px] text-bad">불러오지 못했어요{err ? `: ${err}` : ''}</p></section>;
 
   const chip = (on: boolean) => `h-9 shrink-0 rounded-full px-3.5 text-[14px] font-semibold transition ${on ? 'bg-ink text-white' : 'bg-white text-sub ring-1 ring-line'}`;

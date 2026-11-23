@@ -9,6 +9,7 @@ import { fmtDate, fmtShort } from '@/lib/format';
 import { fetchH2H, fetchMissed, fetchMyBidList, fetchMyMarket, fetchRivalWins, type H2H, type MarketCompetitor, type Missed, type MyMarket, type RivalWin } from '@/lib/analysis';
 import { bucketPhrase, winPattern, type WinPattern } from '@/lib/win-pattern';
 import { useStore } from '@/lib/store';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 입찰 분석 — 「시장 분석」 (010 my_market · 030 my_h2h · my_missed)
@@ -69,7 +70,7 @@ export function MarketSection() {
   );
 
   // 시장을 바꾸는 동안에도 시장 고르기는 그대로 보이게
-  if (m === undefined) return segs ? <section className="space-y-3"><div className="px-1 pt-4"><h2 className="text-[20px] font-bold">시장 분석</h2>{chips}</div><div className="h-48 animate-pulse rounded-box bg-white" /></section> : <div className="h-48 animate-pulse rounded-box bg-white" />;
+  if (m === undefined) return segs ? <section className="space-y-3"><div className="px-1 pt-4"><h2 className="text-[20px] font-bold">시장 분석</h2>{chips}</div><LoadingBox className="h-48" /></section> : <LoadingBox className="h-48" />;
   if (!m || !m.verified) return null; // 010 실행 전이거나 회사 확인 전
 
   const n = m.my_openings ?? 0;
@@ -132,7 +133,7 @@ const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 /** Q1 강점 구간 (구 우리가 이기는 판, 2026-11-22 이름 변경) — 조건별 낙찰률 막대 + 평균선, 뚜렷한 차이 하나를 맨 위 한 줄로 */
 function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
-  if (wp === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
+  if (wp === undefined) return <LoadingBox className="h-48" />;
   if (!wp || !wp.dims.length) return null;
   const h = wp.headline;
   return (
@@ -185,7 +186,7 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
 
 /** Q3 놓친 공고 — 우리 시장에서 들어간 비율, 놓친 공고가 많은 기관, 지금 열린 공고 */
 function MissedCard({ d }: { d: Missed | null | undefined }) {
-  if (d === undefined) return <div className="h-48 animate-pulse rounded-box bg-white" />;
+  if (d === undefined) return <LoadingBox className="h-48" />;
   if (!d || !d.total) return null;
   const share = d.joined / d.total;
   return (

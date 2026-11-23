@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Tip } from '@/components/tip';
 import type { BidType } from '@/lib/data';
 import { fetchBacktestCurve, type BacktestCurve } from '@/lib/reserve';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 사정률별 '지난 개찰에 썼다면 1순위였던 비율' 곡선 (027 bid_backtest_curve)
@@ -36,7 +37,7 @@ export function BacktestCurveChart({ type, floor, R, lo, hi, cur }: {
     return () => { on = false; };
   }, [type, floor, R]);
 
-  if (c === undefined) return <div className="mt-6 h-36 animate-pulse rounded-2xl bg-fill" />;
+  if (c === undefined) return <LoadingBox className="mt-6 h-36" tone="fill" />;
   if (!c || c.n < 100 || !c.points.length) return null;
 
   const pts = c.points.map((p) => ({ s: Number(p.s), first: (p.first / c.n) * 100, below: (p.below / c.n) * 100 }));

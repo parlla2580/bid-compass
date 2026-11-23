@@ -18,6 +18,7 @@ import { AWARD_GROUPS, noticeAward } from '@/lib/award';
 import { HIST_STRONG } from '@/lib/fit';
 import { SoonList, useSoon } from './soon';
 import { Tip } from '@/components/tip';
+import { LoadingBox } from '@/components/loading';
 
 /*
  * 공고 (v3.1) — 공고는 이 화면 한 곳에서만
@@ -275,7 +276,7 @@ export default function BidList() {
                 <Paged rows={all} lead="status" selected={selected} onSelect={setSelected} empty="조건에 맞는 공고가 없어요" />
               )}
             </NoticesState>
-          ) : !savedNotices ? <div className="h-40 animate-pulse rounded-box bg-white" /> : savedNotices.length ? (
+          ) : !savedNotices ? <LoadingBox className="h-40" /> : savedNotices.length ? (
             <RowList>{savedNotices.map((n) => <NoticeRow key={n.id} item={byId.get(n.id) ?? { notice: n }} lead="none" active={selected?.id === n.id} onSelect={desktopSelect(setSelected)} />)}</RowList>
           ) : (
             <p className="rounded-box bg-white px-5 py-14 text-center text-[15px] text-mute">저장한 공고가 없어요. 공고 상세에서 저장할 수 있어요.</p>
