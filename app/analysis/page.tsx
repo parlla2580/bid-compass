@@ -16,7 +16,7 @@ import { PeersCard } from './peers';
 import { fmtDate, fmtRate } from '@/lib/format';
 import { useJudged, useStore } from '@/lib/store';
 import { HIST_STRONG } from '@/lib/fit';
-import { LoadingBox } from '@/components/loading';
+import { InlineCompass, LoadingBox } from '@/components/loading';
 
 
 /** F7 입찰 분석 — 성적표(F7-1), 아깝게 놓친 공고(F7-2), 하한선 미달(F7-3), 기관·유형별 */
@@ -310,7 +310,7 @@ function ExportButton({ corpName }: { corpName: string | null }) {
     <div className="relative shrink-0">
       <button type="button" onClick={run} disabled={busy} aria-label="엑셀로 받기"
         className="flex h-[44px] shrink-0 items-center gap-1.5 rounded-btn bg-white px-3 text-[14px] font-semibold text-sub disabled:opacity-60 sm:px-3.5">
-        <Download className="h-[18px] w-[18px]" /><span className="hidden whitespace-nowrap min-[400px]:inline">{busy ? '만드는 중' : '엑셀'}</span>
+        {busy ? <InlineCompass className="h-[18px] w-[18px]" /> : <Download className="h-[18px] w-[18px]" />}<span className="hidden whitespace-nowrap min-[400px]:inline">{busy ? '만드는 중' : '엑셀'}</span>
       </button>
       {err && <p className="absolute right-0 top-full z-10 mt-1 w-56 rounded-xl bg-ink px-3 py-2 text-[13px] text-white">{err}</p>}
     </div>

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { BTN_PRIMARY, INPUT_CLS } from '@/components/ui';
 import { useStore } from '@/lib/store';
+import { InlineCompass } from '@/components/loading';
 
 /** S1. 로그인 (이메일) */
 export default function LoginPage() {
@@ -58,7 +59,7 @@ export default function LoginPage() {
           </div>
         </div>
         {error && <p role="alert" className="text-[14px] text-bad">{error}</p>}
-        <button type="submit" disabled={busy} className={BTN_PRIMARY + ' mt-2'}>{busy ? '로그인하는 중…' : '로그인'}</button>
+        <button type="submit" disabled={busy} className={BTN_PRIMARY + ' mt-2'}>{busy && <InlineCompass className="h-5 w-5" />}{busy ? '로그인하는 중…' : '로그인'}</button>
       </form>
 
       <p className="mt-8 pb-10 text-center text-sm text-mute">

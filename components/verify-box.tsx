@@ -5,6 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { useToast } from './feedback';
 import { INPUT_CLS } from './ui';
 import { clearMyVerification, fetchMyVerification, verifyCompany, type MyVerification } from '@/lib/verify-client';
+import { InlineCompass } from '@/components/loading';
 
 /**
  * 회사 확인 상태 — 서버 기록(입찰 분석이 열리는 기준)을 그대로 보여 줌 (2026-11-18)
@@ -76,7 +77,7 @@ export function VerifyBox({ bizno, onVerified, title = '회사 확인', classNam
       <div className="mt-2.5 flex gap-2">
         <input value={ceo} onChange={(e) => setCeo(e.target.value)} placeholder="대표자명" aria-label="대표자명" className={`${INPUT_CLS} flex-1`} />
         <button type="button" onClick={run} disabled={busy || ceo.trim().length < 2}
-          className="shrink-0 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white disabled:bg-line disabled:text-mute">{busy ? '확인 중' : '확인'}</button>
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-btn bg-ink px-4 text-[14px] font-semibold text-white disabled:bg-line disabled:text-mute">{busy && <InlineCompass />}{busy ? '확인 중' : '확인'}</button>
       </div>
       {hint && (
         <div role="alert" className="mt-2.5 rounded-xl bg-white px-3.5 py-3 text-[13px] leading-relaxed text-sub">

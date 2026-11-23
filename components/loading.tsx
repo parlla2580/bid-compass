@@ -33,3 +33,8 @@ export function LoadingBox({ className = 'h-40', tone = 'white', label, spin = t
     </div>
   );
 }
+
+/** 버튼 안 작은 나침반 — 글자색을 그대로 씀 (회사 확인·가입·로그인·엑셀 등 기다리는 버튼) */
+export function InlineCompass({ className = 'h-4 w-4' }: { className?: string }) {
+  return <Compass className={`compass-seek shrink-0 ${className}`} aria-hidden />;
+}

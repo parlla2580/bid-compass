@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { Sheet } from './feedback';
 import { BTN_PRIMARY, INPUT_CLS } from './ui';
 import { maskBizNo } from '@/lib/format';
 import { verifyCompany } from '@/lib/verify-client';
 import { useStore } from '@/lib/store';
+import { InlineCompass } from '@/components/loading';
 
 /**
  * 회원가입 — 이메일(아이디)·비밀번호·사업자등록번호·대표자명·약관 동의를 한 화면에서 (2026-11-18 사용자 결정으로 v2.2 방식 복원)
@@ -99,7 +99,7 @@ export function SignupSheet({ open, onClose, onDone, reason }: {
     <Sheet title="회원가입" open={open} onClose={onClose}
       footer={
         <button type="button" onClick={submit} disabled={busy} className={BTN_PRIMARY}>
-          {busy && <Loader2 className="h-5 w-5 animate-spin" />}{busy ? '회사 확인하는 중…' : '가입하고 계속 보기'}
+          {busy && <InlineCompass className="h-5 w-5" />}{busy ? '회사 확인하는 중…' : '가입하고 계속 보기'}
         </button>
       }>
       <form className="space-y-4" noValidate onSubmit={(e) => { e.preventDefault(); submit(); }}>
