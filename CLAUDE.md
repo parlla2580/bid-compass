@@ -30,6 +30,7 @@
 - 기획서: 노션 「입찰나침반 서비스 기획서 v2.3」 (v2.2는 보관본)
 - 배포: https://bid-compass-gamma.vercel.app (main 브랜치 자동 배포)
 - Supabase 프로젝트: ipchal_1 (`tpuhqzxhrwuugojsnfpj`)
+  - 요금 (2026-11-23 사용자 확인): Pro · 조직 프로젝트는 ipchal_1 하나(예전 기본 프로젝트 삭제) · 컴퓨팅 Small(11/17경 Micro→Small, 과거분 받는 동안 유지) · **지출 한도(Spend cap) 꺼짐** — 디스크 초과분은 청구됨(8GB 포함). 11/23 예상 청구 $31.63/월
 - 수집: GitHub Actions `.github/workflows/collect.yml`, 결과는 `collect_runs` 테이블
   - (2026-11-22, 039) 주 예약 = Supabase pg_cron `collect-hourly`(매시 07분) → GitHub API workflow_dispatch. 보조 = GitHub schedule 3시간마다(최근 50분 안 실행 있으면 건너뜀)
   - 토큰: GitHub fine-grained 토큰(bid-compass · Actions 쓰기만)을 Supabase Vault `github_collect_token`에 보관. **만료 전 갱신 필요** — 만료일: **2027-11-22** (2026-11-22 발급, 1년)
