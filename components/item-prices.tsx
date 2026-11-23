@@ -49,8 +49,11 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
       : !want.unit || !COUNT_UNIT.test(want.unit) ? { v: null, why: `단위 '${want.unit || '없음'}' · 1개당 계산 불가` }
         : { v: Math.round((n.estPrice * 1.1) / want.qty), why: null };
   // 실제 계약 기간 (수집된 기간이 12개월보다 짧을 수 있어 '최근 12개월' 대신 실제 날짜로)
-  const froms = items.map((i) => i.from).filter(Boolean).sort() as string[];
-  const tos = items.map((i) => i.to).filter(Boolean).sort() as string[];
+  // 원본 날짜 오타(3026년 등)가 섞여 미래 날짜가 끝으로 잡히던 문제(2026-11-23) — 오늘 이후·2000년 이전 날짜는 기간에서 뺌
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const valid = (d: string | null): d is string => !!d && d >= '2000-01-01' && d <= today;
+  const froms = items.map((i) => i.from).filter(valid).sort();
+  const tos = items.map((i) => i.to).filter(valid).sort();
   const ym = (d: string) => d.slice(2, 7).replace('-', '.');
   const period = froms.length && tos.length ? `${ym(froms[0])}~${ym(tos[tos.length - 1])}` : '최근 12개월';
 
