@@ -31,6 +31,13 @@ export default function AnalysisPage() {
     if (!account) return;
     fetchMyReport(3).then(setReport).catch((e: Error) => setError(e.message));
   }, [account, profile.corpName]);
+  // 2026-11-23 위플랫 화면: 개찰 60일이 지났는데 낙찰자 정보가 없는 공고(유찰·자료 없음)가 '탈락'으로 분모에 들어가 0%로 보임
+  //  → 투찰 목록(같은 조회, 30초 캐시)에서 경쟁 입찰 중 '결과 없음'을 세어 낙찰률 분모에서 뺌
+  const [unknownComp, setUnknownComp] = useState(0);
+  useEffect(() => {
+    if (!report?.verified) return;
+    fetchMyBidList().then((l) => setUnknownComp((l ?? []).filter((i) => (i.participants ?? 2) >= 2 && bidOutcome(i) === 'unknown').length)).catch(() => {});
+  }, [report?.verified]);
 
   // 서버는 회사 확인됨(분석 열림)인데 업체명이 비어 있으면 채움 — 마이페이지·상단 업체명이 '확인 전'처럼 보이지 않게 (2026-11-18)
   useEffect(() => {
@@ -93,6 +100,8 @@ export default function AnalysisPage() {
   } else {
     const r = report;
     const total = r.total ?? 0, won = r.won ?? 0;
+    const decided = Math.max(0, total - (r.pending ?? 0) - unknownComp);
+    const excluded = [r.pending ? `결정 전 ${r.pending}` : null, unknownComp ? `결과 없음 ${unknownComp}` : null].filter(Boolean).join(' · ');
     body = (
       <div className="space-y-3 lg:space-y-4">
         {tab === 'market' ? <MarketSection /> : (
@@ -102,8 +111,13 @@ export default function AnalysisPage() {
               {/* 낙찰률 = 낙찰 ÷ 결과가 난 투찰(투찰 − 결정 전) — 화면의 투찰·낙찰 숫자로 바로 검산되게 (2026-11-18 사용자 피드백)
                   예전(012)엔 '투찰 순위를 받은 개찰'만 분모로 써서, 순위 없이 끝난 탈락 18건이 빠져 71%로 부풀려졌음 */}
               <div>
-                <Donut value={total - (r.pending ?? 0) > 0 ? won / (total - (r.pending ?? 0)) : 0} label={r.single != null ? '경쟁 입찰 낙찰률' : '낙찰률'} />
-                <p className="mt-1 text-center text-[12px] text-mute">결과가 나온 {(total - (r.pending ?? 0)).toLocaleString()}건 중 낙찰 {won.toLocaleString()}건{r.pending ? ` · 결정 전 ${r.pending}건 제외` : ''}</p>
+                <Donut value={decided > 0 ? won / decided : 0} label={r.single != null ? '경쟁 입찰 낙찰률' : '낙찰률'} />
+                <p className="mt-1 text-center text-[12px] text-mute">결과가 나온 {decided.toLocaleString()}건 중 낙찰 {won.toLocaleString()}건</p>
+                {excluded && (
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-[12px] text-mute">{excluded} 제외
+                    <Tip title="제외한 투찰">결정 전은 아직 낙찰자가 정해지지 않은 공고예요. 결과 없음은 개찰 뒤 60일이 지나도 낙찰자 정보가 없는 공고(유찰 등)예요.</Tip>
+                  </p>
+                )}
                 {/* 038 U12: 1곳 참가(수의·견적)는 경쟁 입찰 실력과 달라 낙찰률에서 뺌 — 건수만 따로 */}
                 {!!r.single && (
                   <p className="mt-0.5 flex items-center justify-center gap-1 text-center text-[12px] text-mute">1곳 참가 {r.single.toLocaleString()}건 · 낙찰 {(r.single_won ?? 0).toLocaleString()} 별도
@@ -114,7 +128,8 @@ export default function AnalysisPage() {
               <div>
                 <div className="grid grid-cols-3 gap-2">
                   <Mini label={r.single != null ? '경쟁 입찰' : '투찰'} value={total.toLocaleString()} unit="건" />
-                  <Mini label="낙찰" value={won.toLocaleString()} unit="건" tone="text-brand" />
+                  <Mini label="낙찰" value={won.toLocaleString()} unit="건" tone="text-brand"
+                    sub={r.single_won ? `1곳 참가 +${r.single_won.toLocaleString()}` : undefined} />
                   <Mini label="하한 미달" value={(r.below_floor ?? 0).toLocaleString()} unit="건" tone={r.below_floor ? 'text-bad' : 'text-ink'} />
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-2 text-[14px]">
@@ -343,11 +358,13 @@ function Donut({ value, label }: { value: number; label: string }) {
   );
 }
 
-function Mini({ label, value, unit, tone = 'text-ink' }: { label: string; value: string; unit: string; tone?: string }) {
+function Mini({ label, value, unit, tone = 'text-ink', sub }: { label: string; value: string; unit: string; tone?: string; sub?: string }) {
   return (
     <div className="text-center lg:text-left">
       <p className="text-[13px] text-mute">{label}</p>
       <p className={`mt-0.5 text-[24px] font-bold tabular-nums lg:text-[28px] ${tone}`}>{value}<span className="ml-0.5 text-[14px] font-medium text-mute">{unit}</span></p>
+      {/* 덧붙이는 숫자는 따로 작은 배지 (예: 경쟁 입찰 낙찰 0 + 1곳 참가 낙찰 1) */}
+      {sub && <p className="mt-0.5"><span className="whitespace-nowrap rounded bg-fill px-1.5 py-0.5 text-[11px] font-medium text-sub">{sub}</span></p>}
     </div>
   );
 }
@@ -443,13 +460,13 @@ function More<T>({ items, render }: { items: T[]; render: (x: T) => React.ReactN
 /** 투찰·낙찰한 공고 목록 — 누르면 개찰 결과 요약 */
 function HistoryCard() {
   const [items, setItems] = useState<MyBidItem[] | null | undefined>(undefined);
-  const [f, setF] = useState<'all' | 'won' | 'pending' | 'lost' | 'below'>('all');
+  const [f, setF] = useState<'all' | 'won' | 'pending' | 'lost' | 'below' | 'unknown'>('all');
   const [n, setN] = useState(10);
   useEffect(() => { fetchMyBidList().then(setItems).catch(() => setItems(null)); }, []);
   if (items === undefined) return <LoadingBox className="h-40" />;
   if (!items) return null; // 011 실행 전
   const by = (o: BidOutcome) => items.filter((i) => bidOutcome(i) === o);
-  const pick = { all: items, won: by('won'), pending: by('pending'), lost: by('lost'), below: by('below') };
+  const pick = { all: items, won: by('won'), pending: by('pending'), lost: by('lost'), below: by('below'), unknown: by('unknown') };
   const rows = pick[f];
   const tag = (i: MyBidItem) => {
     const o = bidOutcome(i);
@@ -460,7 +477,7 @@ function HistoryCard() {
   return (
     <Card title="투찰한 공고" aside={<span className="flex items-center gap-1.5 text-[13px] text-mute"><span className="rounded bg-fill px-1.5 py-0.5 text-[11px]">1곳 참가 포함</span>{items.length}건</span>}>
       <div className="no-scrollbar -mt-1 mb-2 flex gap-1.5 overflow-x-auto">
-        {([['all', '전체'], ['won', '낙찰'], ['pending', '결정 전'], ['lost', '탈락'], ['below', '하한 미달']] as const).filter(([k]) => k !== 'pending' || pick.pending.length > 0).map(([k, label]) => (
+        {([['all', '전체'], ['won', '낙찰'], ['pending', '결정 전'], ['lost', '탈락'], ['below', '하한 미달'], ['unknown', '결과 없음']] as const).filter(([k]) => (k !== 'pending' && k !== 'unknown') || pick[k].length > 0).map(([k, label]) => (
           <button key={k} type="button" onClick={() => { setF(k); setN(10); }} aria-pressed={f === k}
             className={`shrink-0 rounded-full border px-3 py-1 text-[13px] font-medium ${f === k ? 'border-ink bg-ink text-white' : 'border-line bg-white text-sub'}`}>
             {label} {pick[k].length}
