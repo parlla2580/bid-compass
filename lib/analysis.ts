@@ -37,6 +37,8 @@ export interface BidReport {
   won_detailed?: number;
   /** 낙찰자 결정 전 건수 (017) */
   pending?: number;
+  /** 050: 개찰 60일 지났는데 낙찰자·우리 순위 정보 없음 (결과 없음) */
+  unknown?: number;
   /** 038: 1곳 참가(수의·견적·단가계약) 투찰 건수와 그중 낙찰 — 위 값들에서는 빠져 있음 */
   single?: number;
   single_won?: number;
@@ -171,7 +173,10 @@ export function bidOutcome(i: MyBidItem, now = Date.now()): BidOutcome {
   if (i.note === 1) return 'below';
   const decided = i.decided ?? !!i.winner; // 017 실행 전: 낙찰자 이름이 있으면 결정된 것으로
   if (decided) return 'lost';
-  return now - new Date(i.opened_at).getTime() > 60 * 86400e3 ? 'unknown' : 'pending';
+  const old = now - new Date(i.opened_at).getTime() > 60 * 86400e3;
+  // 050: 개찰 60일 지났고 우리 순위가 2위 이하면 탈락이 확실 — 순위도 낙찰자도 없을 때만 '결과 없음'
+  if (old && (i.rank ?? 0) >= 2) return 'lost';
+  return old ? 'unknown' : 'pending';
 }
 
 export const outcomeLabel = (i: MyBidItem, o = bidOutcome(i)) =>

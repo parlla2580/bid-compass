@@ -100,8 +100,10 @@ export default function AnalysisPage() {
   } else {
     const r = report;
     const total = r.total ?? 0, won = r.won ?? 0;
-    const decided = Math.max(0, total - (r.pending ?? 0) - unknownComp);
-    const excluded = [r.pending ? `결정 전 ${r.pending}` : null, unknownComp ? `결과 없음 ${unknownComp}` : null].filter(Boolean).join(' · ');
+    // 050 실행 뒤엔 서버가 unknown 을 따로 줌(pending 은 60일 이내만). 실행 전엔 목록에서 센 값으로
+    const unk = r.unknown ?? unknownComp;
+    const decided = Math.max(0, total - (r.pending ?? 0) - unk);
+    const excluded = [r.pending ? `결정 전 ${r.pending}` : null, unk ? `결과 없음 ${unk}` : null].filter(Boolean).join(' · ');
     body = (
       <div className="space-y-3 lg:space-y-4">
         {tab === 'market' ? <MarketSection /> : (
