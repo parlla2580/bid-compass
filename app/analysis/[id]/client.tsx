@@ -134,7 +134,7 @@ function Review({ o, bidders, floor: noticeFloor }: { o: NonNullable<OpeningDeta
     <section className="rounded-box bg-white px-5 pb-5 pt-4">
       <p className="flex items-center gap-1 text-[13px] text-mute">
         {label}
-        <Tip title="개찰 뒤에야 아는 차이">투찰률 차이 × 예정가격. 예정가격은 추첨이라 투찰 전엔 알 수 없음 — 다음 입찰의 정답이 아님.</Tip>
+        <Tip title="금액 차이">투찰률 차이를 금액으로 바꾼 값이에요. 예정가격은 추첨이라 다음 입찰에 그대로 쓸 수는 없어요.</Tip>
       </p>
       <p className={`mt-0.5 text-[28px] font-bold tabular-nums tracking-tight ${me.note === 1 ? 'text-bad' : 'text-ink'}`}>{amount}</p>
       <div className="relative mt-7 h-10">

@@ -92,7 +92,7 @@ export function MarketSection() {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-        <Card title="자주 만나는 회사와의 전적" aside={<Tip title="순위 비교예요">둘 다 순위가 나온 공고에서 누가 앞섰는지예요. 낙찰은 추첨 영향이 커서 참고만 하세요. 회사를 누르면 이 시장에서 낙찰한 공고가 보여요.</Tip>}>
+        <Card title="자주 만나는 회사와의 전적" aside={<Tip title="경쟁사 비교">같이 들어간 공고에서 누가 더 앞 순위였는지예요. 회사를 누르면 그 회사가 낙찰한 공고를 볼 수 있어요.</Tip>}>
           {comps.length ? <Rivals comps={comps} market={seg} h2h={h2h} /> : <Empty text={`함께 ${n >= 10 ? 3 : 2}건 이상 들어간 회사 없음`} />}
         </Card>
         <MissedCard d={missed} />
@@ -104,7 +104,7 @@ export function MarketSection() {
           <Share market={m.market} />
         </Card>
 
-        <Card title="경쟁사가 가는 다른 시장" aside={<Tip title="최근 1년">자주 만나는 회사 중 몇 곳이 갔는지예요. 우리가 안 가 본 기관만 보여 드려요.</Tip>}>
+        <Card title="경쟁사가 가는 다른 시장" aside={<Tip title="경쟁사가 가는 다른 시장">숫자는 자주 만나는 경쟁사 중 그 기관에 들어간 회사 수예요(최근 1년). 우리가 아직 안 가 본 기관만 보여요.</Tip>}>
           {m.other_markets?.length
             ? <Bars rows={m.other_markets.map((o) => { const open = openByOrg.get(o.org) ?? 0; return { label: `${o.org}`, tag: o.type, value: o.firms, sub: `공고 ${o.openings}건`, unit: '곳',
                 link: open ? { href: `/bids?tab=all&org=${encodeURIComponent(o.org)}`, label: `지금 낸 공고 ${open}건 보기` } : undefined }; })} />
@@ -138,7 +138,7 @@ function WinPatternCard({ wp }: { wp: WinPattern | null | undefined }) {
   return (
     <div className="rounded-box bg-white p-5 lg:p-6">
       <p className="flex items-center gap-1 text-[13px] font-semibold text-brand">강점 구간
-        <Tip title="어떻게 계산했나요">결과가 나온 투찰 {wp.n}건을 조건별로 나눈 낙찰률이에요. 세로 선은 우리 평균({pct(wp.rate)})이고, 5건 미만인 구간은 뺐어요. 맨 위 문장은 차이가 뚜렷할 때만 보여 드려요.</Tip>
+        <Tip title="강점 구간">우리 투찰 {wp.n}건을 참가 업체 수·금액대 등으로 나눠 본 낙찰률이에요. 세로 선은 우리 평균({pct(wp.rate)})이에요.</Tip>
       </p>
       {h ? (
         <div className="mt-1.5 flex gap-2.5">

@@ -181,7 +181,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
       {head(`수의계약 기관 ${base.length.toLocaleString()}곳`)}
 
       {/* ① 이번 주 연락해 볼 기관 */}
-      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="어떻게 골랐나요">수의계약으로 우리 {term}을 산 기관 중 ① 유지보수·임차처럼 다시 맺는 계약이 곧 끝나는 곳 ② 여러 번 산 곳만 골랐어요. 우리 지역과 2천만 원 이하 소액 계약이 많은 곳을 위로 올렸어요. 한 번 하고 끝나는 계약은 추천하지 않아요.</Tip>}>
+      <Card title="이번 주 연락해 볼 기관" aside={<Tip title="추천 기준">우리 {term}을 수의계약으로 산 기관 중 계약이 곧 끝나거나(유지보수·임차 등) 여러 번 산 곳이에요. 우리 지역·소액 계약이 많은 곳이 위에 있어요.</Tip>}>
         {picks.length ? (
           <ol className="-my-1 divide-y divide-line">
             {picks.map((o, i) => <Pick key={o.name} n={i + 1} o={o} saved={isSavedOrg(o.name)} onSave={() => toggleSave(o)} />)}
@@ -276,7 +276,7 @@ export function SalesSection({ focus }: { focus?: string | null }) {
 
       <p className="flex items-start gap-1 px-1 text-[12px] leading-relaxed text-mute">
         <span>나라장터 계약의 품목·공종 코드를 우리 품목·업종 {codes.size}개와 맞췄어요. 2026년 11월 15일부터 모으기 시작해 아직 기간이 짧아요.</span>
-        <Tip title="기준">조달청이 대신 계약한 건은 실제로 산 기관(수요기관)으로 묶었고, 조달청 단가계약(3자단가·다수공급자)은 뺐어요. &apos;우리 지역&apos;은 기관 이름으로 추정해요. 계약이 끝나는 날은 다시 발주하는 날이 아니라 확인해 볼 시점이에요.</Tip>
+        <Tip title="수의계약 기관">조달청이 대신 맺은 계약은 실제로 쓰는 기관으로 묶었어요. 계약 끝나는 날은 다시 발주하는 날이 아니라 연락해 볼 때예요.</Tip>
       </p>
     </section>
   );

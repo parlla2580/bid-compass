@@ -219,7 +219,7 @@ function BidPanel({ type, initialBase, estPrice, initialRange, initialRate, from
         {type === '공사' && (
           <div>
             <NumField id="aval" label={<span className="inline-flex items-center gap-1">A값 <span className="font-normal text-mute">(공사)</span>
-              <Tip title="A값">국민연금·건강보험·퇴직공제부금·노인장기요양보험료·산업안전보건관리비·안전관리비·품질관리비를 더한 금액이에요. A값 대상 공고는 투찰 하한이 (예정가격 − A) × 낙찰하한율 + A라서, A값을 빼먹으면 하한보다 낮게 써 탈락할 수 있어요. 공고문에 적힌 A값을 그대로 넣으세요.</Tip></span>}
+              <Tip title="A값">국민연금·건강보험 등 깎을 수 없는 비용의 합계예요. 공고에 A값이 있으면 하한선이 올라가서, 빠뜨리면 하한보다 낮게 써 탈락할 수 있어요. 공고문 값을 그대로 넣으세요.</Tip></span>}
               value={a} onChange={setA} unit="원" hint={a ? fmtKorean(a) : '대상 아니면 비움'} />
             {cost?.aValue ? (
               <div className="mt-2 rounded-xl bg-fill px-3.5 py-3 text-[13px] leading-relaxed text-sub">

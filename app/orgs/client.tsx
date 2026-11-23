@@ -95,7 +95,7 @@ function SavedTab() {
   );
   return (
     <main className="space-y-3 px-5 pb-28 pt-1 lg:px-0 lg:pb-0">
-      <Card title={`저장한 기관 ${savedOrgs.length}곳`} aside={<Tip title="저장한 기관">계약이 끝나기 60일 전과 새 공고가 나올 때 알림함으로 알림. 계약 끝은 영업에서 저장한 기관만(수의계약 기록 기준).</Tip>}>
+      <Card title={`저장한 기관 ${savedOrgs.length}곳`} aside={<Tip title="저장한 기관">새 공고가 나오거나 계약 끝이 60일 안으로 다가오면 알림함으로 알려 드려요. 계약 끝 알림은 영업에서 저장한 기관만 가능해요.</Tip>}>
         <ul className="-my-1 divide-y divide-line">
           {savedOrgs.map((s) => {
             const next = s.watch.map((w) => w.end).filter((e) => daysTo(e) >= 0).sort()[0];
@@ -184,7 +184,7 @@ function OrgHome() {
         <Search className="h-5 w-5 shrink-0 text-mute" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="기관 이름 검색 (예: 조달청, 서울특별시)" enterKeyHint="search"
           className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-mute" />
-        <Tip title="기관 검색">공고에 적힌 기관 이름(수요기관 우선)으로 찾음. 목록에 없으면 정확한 이름을 넣고 검색. 발주 시기·참가 업체 수·사정률·낙찰률을 보여 줌.</Tip>
+        <Tip title="기관 검색">공고에 나온 기관 이름으로 찾아요. 목록에 없으면 정확한 기관명을 입력해 보세요.</Tip>
       </form>
 
       {term ? (
@@ -244,7 +244,7 @@ function OrgView({ org }: { org: string }) {
         <p className="mt-1 text-[14px] tabular-nums text-mute">{ym(p.d_from)}~{ym(p.d_to)} · 공고 {p.notices.toLocaleString()}건 · 개찰 {p.openings.toLocaleString()}건</p>
         {!!p.single && (
           <p className="mt-0.5 flex items-center gap-1 text-[13px] tabular-nums text-mute">단가계약 등 1곳 참가 {p.single.toLocaleString()}건 통계 제외
-            <Tip title="통계에서 뺀 개찰">제3자단가·우수조달·혁신제품 시범구매처럼 참가 업체가 1곳인 개찰은 낙찰률이 100% 가까이 나와 경쟁 입찰 통계를 왜곡해 제외. 월별 공고 수와 전체 개찰 수에는 포함.</Tip>
+            <Tip title="통계에서 뺀 개찰">참가 업체가 1곳뿐인 개찰(단가계약 등)은 거의 다 낙찰돼 낙찰률을 부풀려서 통계에서 뺐어요.</Tip>
           </p>
         )}
         {open > 0 && (
@@ -256,7 +256,7 @@ function OrgView({ org }: { org: string }) {
 
       {/* 발주 시기 */}
       {p.months.length > 0 && (
-        <Card title={<span className="flex items-center gap-1">발주 시기<Tip title="월별 공고 수">이 기관(수요기관 기준) 공고를 공고번호로 센 월별 건수. 수집 기간 안에서만 — 해마다 같은지는 기간이 쌓여야 판단 가능.</Tip></span>}
+        <Card title={<span className="flex items-center gap-1">발주 시기<Tip title="발주 시기">이 기관이 달마다 낸 공고 수예요. 해마다 같은 달에 몰리는지는 1년 넘게 쌓여야 알 수 있어요.</Tip></span>}
           aside={peaks.length ? <span className="text-[13px] font-semibold text-brand">많은 달 {peaks.join('·')}</span> : null}>
           <div className="flex h-28 items-end gap-1.5">
             {p.months.map((m) => (
@@ -289,7 +289,7 @@ function OrgView({ org }: { org: string }) {
 
         {/* 사정률 · 낙찰률 */}
         {(p.sajeong || p.win_rate) && (
-          <Card title={<span className="flex items-center gap-1">사정률 · 낙찰률<Tip title="이 기관 개찰 기준">사정률 = 예정가격 ÷ 기초금액 (90~110% 안). 낙찰률 = 낙찰금액 ÷ 예정가격. 큰 숫자는 중앙값, 작은 글씨는 가운데 50%. 추첨 결과라 다음 개찰을 예측하지는 않음.</Tip></span>}>
+          <Card title={<span className="flex items-center gap-1">사정률 · 낙찰률<Tip title="사정률 · 낙찰률">사정률 = 예정가격 ÷ 기초금액, 낙찰률 = 낙찰금액 ÷ 예정가격. 큰 숫자는 가운데 값, 작은 글씨는 보통 범위예요. 지난 추첨 결과라 다음 개찰을 예측하진 않아요.</Tip></span>}>
             <div className="grid grid-cols-2 gap-2">
               {p.sajeong && (
                 <div className="rounded-2xl bg-fill px-4 py-3">

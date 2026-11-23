@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { COPY } from '@/lib/copy';
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Bookmark, Check, ChevronDown, ChevronRight, CircleAlert, CircleHelp, Lock, X } from 'lucide-react';
 import { useToast } from '@/components/feedback';
@@ -269,7 +268,7 @@ function FitBlock({ fit }: { fit: Fit }) {
   return (
     <div className="mt-5 rounded-2xl bg-fill p-4">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1 text-[14px] text-sub">적합도<Tip title="적합도">참여 자격(위 판정)과는 별개. {COPY.notWinChance} 드문 품목·업종이 맞을수록, 참여했던 공고와 비슷할수록 높아요. 목록 원 색: 진한 파랑 80% 이상 · 연한 파랑 60~79% · 회색 60% 미만.</Tip></p>
+        <p className="flex items-center gap-1 text-[14px] text-sub">적합도<Tip title="적합도">우리 업종·품목·지역·지난 입찰과 얼마나 맞는지예요. 참여 자격이나 낙찰 가능성과는 달라요.</Tip></p>
         <p className="text-[24px] font-bold text-brand">{fit.score}<span className="text-[15px]">%</span></p>
       </div>
       <div className="mt-2 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-brand" style={{ width: `${fit.score}%` }} /></div>
@@ -303,7 +302,7 @@ function OrgSummary({ n }: { n: Notice }) {
   const href = `/orgs?name=${encodeURIComponent(org)}`;
   const title = (
     <span className="flex items-center gap-1">발주기관
-      <Tip title="발주기관">이 기관(수요기관 우선)의 최근 12개월 공고·개찰 기준. 사정률은 추첨 결과라 다음 개찰 예측 아님. 참가 1곳 개찰(단가계약 등)은 제외.</Tip>
+      <Tip title="발주기관">이 기관의 최근 1년 공고·개찰 기준이에요. 사정률은 지난 추첨 결과라 다음 개찰을 예측하진 않아요.</Tip>
     </span>
   );
   if (p === undefined) return <Card title={title}><div className="h-16 animate-pulse rounded-2xl bg-fill" /></Card>;
@@ -368,9 +367,9 @@ function Briefing({ n, locked = false, onSignup }: { n: Notice; locked?: boolean
     const basis = past.basis === 'org' ? `이 기관의 지난 ${n.type} 공고` : '이름이 비슷한 지난 공고';
     if (past.medianParticipants) {
       const range = past.minParticipants !== past.maxParticipants ? ` 적게는 ${past.minParticipants!.toLocaleString()}곳, 많게는 ${past.maxParticipants!.toLocaleString()}곳이었어요.` : '';
-      lines.push({ k: '경쟁', v: <><b className="font-semibold text-ink">보통 {past.medianParticipants.toLocaleString()}곳</b> <span className="text-mute">· {past.count}건 기준</span> <Tip title="경쟁">{basis}에 들어온 업체 수의 중간값이에요.{range}</Tip></> });
+      lines.push({ k: '경쟁', v: <><b className="font-semibold text-ink">보통 {past.medianParticipants.toLocaleString()}곳</b> <span className="text-mute">· {past.count}건 기준</span> <Tip title="경쟁">{basis}에 보통 몇 곳이 들어왔는지예요.{range}</Tip></> });
     }
-    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <><b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b> <span className="text-mute">· {past.rateCount}건</span> <Tip title="낙찰률">{basis}에서 낙찰자가 쓴 낙찰률의 가운데 절반 범위예요. 참고만 하세요.</Tip></> });
+    if (past.rateLow && past.rateHigh) lines.push({ k: '낙찰률', v: <><b className="font-semibold text-ink">{past.rateLow}~{past.rateHigh}%</b> <span className="text-mute">· {past.rateCount}건</span> <Tip title="낙찰률">{basis}에서 낙찰된 금액이 예정가격의 몇 %였는지, 보통 범위예요.</Tip></> });
   }
   if (extra?.qualifyBy) {
     const d = daysUntil(extra.qualifyBy);
@@ -517,7 +516,7 @@ function Similar({ n }: { n: Notice }) {
   if (items && !items.length) return null; // 관련 있는 지난 계약이 없으면 카드 자체를 숨김
 
   return (
-    <Card title={<span className="flex items-center gap-1">최근 계약<Tip title="최근 계약">이 공고의 지난 계약이 아니라, 같은 기관이 맺은 계약 중 공고명 핵심 낱말이 겹치는 것. 많이 겹치는 순.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
+    <Card title={<span className="flex items-center gap-1">최근 계약<Tip title="최근 계약">같은 기관이 맺은 계약 중 공고명이 비슷한 것들이에요. 이 공고의 이전 계약과 꼭 같지는 않아요.</Tip></span>} aside={items?.length ? <span className="text-[14px] text-mute">{items.length}건</span> : null}>
       {!items && <div className="h-16 animate-pulse rounded-2xl bg-fill" />}
       {items && items.length > 0 && (
         <>

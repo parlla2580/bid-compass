@@ -79,7 +79,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
   return (
     <div className="rounded-box bg-white p-5 lg:col-span-2 lg:p-6">
       <h2 className="flex items-center gap-1 text-[17px] font-bold">사정률로 투찰금액 정하기
-        <Tip title="사정률 분포"><Term k="예정가격" />은 예비가격 여러 개 중 추첨된 몇 개의 평균이라 100% 근처에 몰림. 아래는 지난 개찰의 실제 사정률 분포.</Tip>
+        <Tip title="사정률 분포"><Term k="예정가격" />은 예비가격 여러 개 중 추첨한 몇 개의 평균이라 사정률이 100% 근처에 몰려요.</Tip>
       </h2>
       <p className="mt-1 text-[14px] text-mute">지난 {type} 개찰 {sorted.length.toLocaleString()}건 · <Term k="사정률" /> 분포</p>
 
@@ -138,7 +138,7 @@ export function SajeongPanel({ type, base, floor, range, org, demandOrg, onUse, 
             {/* 지난 개찰 대입 — 한 가지 기준(fetchBacktest)만 보여 줌. 분포 누적(cdf)·곡선 값과 숫자가 3가지로 갈리던 문제 정리 (2026-11-22) */}
             <div className="mt-4 border-t border-line pt-4">
               <p className="flex items-center gap-1 text-[13px] text-mute">지난 개찰에 대입{bt && bt.n >= 30 ? ` · ${bt.n.toLocaleString()}건` : ''}
-                <Tip title="낙찰 확률이 아님">지난 개찰의 실제 예정가격에 이 사정률·금액 방식을 그대로 넣어 본 결과. 다음 개찰을 예측하지 않음.</Tip>
+                <Tip title="지난 개찰에 대입">이 금액 방식으로 지난 개찰에 썼다면 어땠을지 본 결과예요. 다음 개찰의 낙찰 확률은 아니에요.</Tip>
               </p>
               {bt && bt.n >= 30 ? (
                 <dl className="mt-2 grid grid-cols-3 gap-2 text-center">

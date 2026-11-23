@@ -58,7 +58,7 @@ export function SoonList({ list, matches, error }: ReturnType<typeof useSoon>) {
           {everything ? '최근 30일 사전규격 전체예요.' : <>정식 공고 전에 규격서와 예산을 먼저 공개한 사업 중 <b className="font-semibold text-ink">우리 일과 맞는 {matches.length.toLocaleString()}건</b>이에요.</>}
           {' '}미리 준비하고, 의견 마감 전이면 규격에 의견을 낼 수 있어요.
         </p>
-        <Tip title="사전규격">발주기관이 입찰공고 전에 규격서·배정예산을 나라장터에 미리 공개하고 업체 의견을 받는 절차예요. 사전규격이 있어도 공고가 나지 않거나 내용이 바뀔 수 있어요. 최근 30일 사전규격을 매시간 받아요.</Tip>
+        <Tip title="사전규격">공고 전에 기관이 규격과 예산을 미리 공개하는 단계예요. 실제 공고가 안 나거나 내용이 바뀔 수 있어요.</Tip>
       </div>
 
       {!profile.products?.length && !everything && (

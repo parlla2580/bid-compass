@@ -251,7 +251,7 @@ export default function BidList() {
             <NoticesState notices={notices} error={noticesError}>
               <div className="mb-2 flex items-center justify-between lg:hidden">
                 <p className="flex items-center gap-1 text-[13px] text-mute">{tab === 'match' ? '적합도 높은 순' : `총 ${all.length.toLocaleString()}건`}
-                  <Tip title="목록 보는 법">왼쪽 원은 적합도 — 우리 업종·품목·지역·지난 입찰과 맞는 정도예요. 진한 파랑 80% 이상 · 연한 파랑 60~79% · 회색 60% 미만. 근거는 공고 상세에서. 제목 앞 파란 점은 지난번 확인한 뒤 새로 들어온 공고, 회색 제목은 이미 열어 본 공고예요.</Tip>
+                  <Tip title="목록 보는 법">왼쪽 원은 적합도예요. 진한 파랑일수록 우리 회사와 잘 맞아요. 제목 앞 파란 점은 새 공고, 회색 제목은 이미 본 공고예요.</Tip>
                 </p>
                 <label className="relative flex items-center">
                   <span className="sr-only">정렬</span>

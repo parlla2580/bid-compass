@@ -234,7 +234,7 @@ export default function StartPage() {
                 {showAll ? '접기' : `나머지 ${manyList.length - 10}개 더 보기`}
               </button>
             )}
-            {many && <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">고른 품목 {products.length}개<Tip title="품목 옆 숫자">지금 열린 공고 중 그 품목이 나온 공고 수. 고른 품목과 같은 공고만 맞춤으로 보여 줌.</Tip></p>}
+            {many && <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">고른 품목 {products.length}개<Tip title="품목 옆 숫자">지금 열린 공고 중 그 품목이 들어간 공고 수예요.</Tip></p>}
             <div className="mt-4">
               <ProductPicker value={products} onChange={setProducts}
                 suggest={suggestProducts(notices, (pending?.industries as Industry[] | undefined) ?? profile.industries, many ? [...products, ...found!.products!] : products)} />

@@ -106,7 +106,7 @@ export default function AnalysisPage() {
                 {/* 038 U12: 1곳 참가(수의·견적)는 경쟁 입찰 실력과 달라 낙찰률에서 뺌 — 건수만 따로 */}
                 {!!r.single && (
                   <p className="mt-0.5 flex items-center justify-center gap-1 text-center text-[12px] text-mute">1곳 참가 {r.single.toLocaleString()}건 · 낙찰 {(r.single_won ?? 0).toLocaleString()} 별도
-                    <Tip title="경쟁 입찰만 계산">참가 업체가 1곳인 개찰(수의계약·1인 견적·단가계약)은 단독으로 낙찰되는 경우가 많아, 낙찰률·투찰·업계 비교에서 빼고 건수만 따로 표시. 투찰한 공고 목록에는 모두 포함.</Tip>
+                    <Tip title="경쟁 입찰만 계산">참가 업체가 1곳인 개찰(수의계약·단가계약 등)은 거의 다 낙찰돼서 낙찰률 계산에서 뺐어요. 투찰한 공고 목록에는 모두 있어요.</Tip>
                   </p>
                 )}
               </div>
@@ -364,7 +364,7 @@ function Coverage({ total, detailed }: { total: number; detailed?: number }) {
       {p < 1 && (
         <p className="mt-1.5 flex items-center gap-1">
           <span className="rounded-md bg-fill px-1.5 py-0.5 text-[12px] font-semibold tabular-nums text-sub">순위 미수집 {(total - detailed).toLocaleString()}건</span>
-          <Tip title="순위 미수집">낙찰 결과만 있고 투찰 순위는 아직 받지 않은 개찰. 이 건들은 아깝게 놓친 공고·하한 미달이 일부만 보임. 순위는 매시 수집에서 이어 받음.</Tip>
+          <Tip title="순위 미수집">투찰 순위가 아직 들어오지 않은 개찰이에요. 이 건들은 아깝게 놓친 공고·하한 미달에 아직 안 잡혀요. 순위는 계속 채워져요.</Tip>
         </p>
       )}
     </div>

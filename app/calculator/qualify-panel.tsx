@@ -65,7 +65,7 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
       <div className="space-y-5 rounded-box bg-white p-5 lg:p-6">
         <div>
           <h2 className="flex items-center gap-1 text-[17px] font-bold">우리 회사 통과선
-            <Tip title="왜 필요한가요"><Term k="낙찰하한율" />은 가격 외 점수 만점 회사 기준. 점수가 모자라면 하한율로 써도 95점 미달로 탈락할 수 있음.</Tip>
+            <Tip title="가격 외 점수"><Term k="낙찰하한율" />은 가격 외 점수가 만점인 회사 기준이에요. 점수가 모자라면 하한율로 써도 통과 점수에 못 미칠 수 있어요.</Tip>
           </h2>
         </div>
 
@@ -79,7 +79,7 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
 
         <div>
           <label htmlFor="q-credit" className="mb-2 flex items-center gap-1 text-[14px] text-sub">경영상태 — 신용평가등급
-            <Tip title="신용평가등급으로 평가할 때">입찰공고일 이전에 평가받아 유효기간 안에 있는 회사채·기업어음·기업신용평가등급 중 가장 최근 등급으로 평가해요. 재무비율로 평가받는 회사는 점수를 아래 &lsquo;그 밖의 점수&rsquo;에 함께 넣어 계산하세요.</Tip>
+            <Tip title="신용평가등급">입찰공고일 전에 받은 유효한 등급 중 가장 최근 것으로 평가해요. 재무비율로 평가받는 회사는 아래 &lsquo;그 밖의 점수&rsquo;에 넣으세요.</Tip>
           </label>
           <select id="q-credit" value={credit} onChange={(e) => setCredit(Number(e.target.value))} className={SEL}>
             {CREDIT.map((c, i) => <option key={c.key} value={i}>{c.label} — {tier.credit[i]}점</option>)}
@@ -112,7 +112,7 @@ export function QualifyPanel({ notice, onUseRate }: { notice: Notice | null; onU
           </>
         ) : (
           <>
-            <p className="mt-1 text-[14px] text-sub">통과 <Tip label="투찰 비율" title="(입찰가격 − A) ÷ (예정가격 − A)">A값이 없는 공고는 입찰가격 ÷ 예정가격. 소수점 다섯째 자리에서 반올림해 평가.</Tip></p>
+            <p className="mt-1 text-[14px] text-sub">통과 <Tip label="투찰 비율" title="투찰 비율">(입찰가격 − A) ÷ (예정가격 − A)예요. A값이 없으면 입찰가격 ÷ 예정가격이에요.</Tip></p>
             <p className="mt-0.5 text-[28px] font-bold tabular-nums tracking-tight text-brand">{range.wide ? `${pctS(range.low)} 이상` : `${pctS(range.low)} 이상 ${pctS(range.high!)} 미만`}</p>
             <p className={`mt-2 inline-flex rounded-full px-3 py-1.5 text-[14px] font-semibold ${gap && gap > 0 ? 'bg-bad/10 text-bad' : 'bg-fill text-ok'}`}>
               {gap && gap > 0 ? `하한율 ${pctS(floor)} + ${gap.toFixed(3)}%p 이상` : `하한율 ${pctS(floor)}로 통과`}

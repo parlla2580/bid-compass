@@ -39,7 +39,7 @@ export function BaseNotice({ notice, range, rate, budget = null, onEstimate }: {
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
           <div>
             <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="비예가">비예가</Term> · 투찰금액 계산 대상 아님</b>
-              <Tip title="비예가">예정가격을 추첨하지 않아 기초금액·사정률로 금액을 정하지 않음. 가격 평가 방법은 공고문 확인.</Tip></p>
+              <Tip title="비예가">예정가격을 추첨하지 않는 공고예요. 가격 평가 방법은 공고문을 확인하세요.</Tip></p>
             <p className="mt-1">{howWins(notice.award ?? '')}</p>
             <RefPrices notice={notice} budget={budget} />
             <DocLink url={notice.url} />
@@ -53,8 +53,8 @@ export function BaseNotice({ notice, range, rate, budget = null, onEstimate }: {
           <div>
             <p className="flex items-center gap-1"><b className="font-semibold text-ink">쇼핑몰·단가계약 · 투찰금액 계산 대상 아님</b>
               <Tip title="쇼핑몰·단가계약">{/다수공급자|카탈로그/.test(notice.award)
-                ? `${/다수공급자/.test(notice.award) ? '다수공급자계약(MAS)' : '카탈로그계약'}: 한 번의 입찰이 아니라, 조건을 갖춘 업체와 계약해 종합쇼핑몰에 올리면 수요기관이 골라 사는 방식.`
-                : '‘각 수요기관’ 공고: 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약.'} 계약 기간 동안 받는 공고라 마감이 먼 경우가 많음.</Tip></p>
+                ? `${/다수공급자/.test(notice.award) ? '다수공급자계약(MAS)' : '카탈로그계약'}: 한 번의 입찰이 아니라, 계약한 업체 상품을 종합쇼핑몰에서 기관들이 골라 사는 방식이에요.`
+                : '‘각 수요기관’ 공고: 조달청이 여러 기관이 쓸 물품을 한꺼번에 계약해요.'} 마감이 먼 경우가 많아요.</Tip></p>
             <p className="mt-1 text-[13px] text-mute">추정가격 = 계약 전체 규모 (업체별 금액 아님) · 참여 조건은 공고문</p>
             <DocLink url={notice.url} />
           </div>
@@ -77,7 +77,7 @@ function Pending({ notice, range, rate }: { notice: Notice; range: number; rate:
         <Bell className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="기초금액" /> 공개 전</b>
-            <Tip title="기초금액 공개 전">이 공고는 기초금액이 공고보다 늦게, 보통 마감 며칠 전에 공개됨.</Tip></p>
+            <Tip title="기초금액 공개 전">기초금액은 보통 마감 며칠 전에 공개돼요. 공고를 저장해 두면 공개될 때 알려 드려요.</Tip></p>
           <p className="mt-1">공개 시 알림함으로 알림</p>
           {on ? (
             <p className="mt-2 inline-flex items-center gap-1 font-semibold text-ok"><BellRing className="h-4 w-4" />저장됨 · 공개 시 알림</p>
@@ -99,7 +99,7 @@ function Pending({ notice, range, rate }: { notice: Notice; range: number; rate:
           <p className="mt-1 text-ink"><Term k="추정가격" /> {fmtWon(notice.estPrice)} × 1.1(부가세) ≒ 기초금액 <b className="tabular-nums">{fmtWon(pre)}</b></p>
           <p className="mt-0.5 text-ink">투찰 하한 약 <b className="tabular-nums">{fmtWon(r.floor[0])} ~ {fmtWon(r.floor[1])}</b></p>
           <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">±2% 안 적중: 공사 96% · 용역 85% · 물품 78%
-            <Tip title="미리보기 정확도">2026-11-18 실측: 실제 기초금액이 이 추정의 ±2% 안에 든 비율. 단가 입찰은 맞지 않음. 예산 가늠용 — 투찰은 실제 기초금액 공개 후 다시 계산.</Tip></p>
+            <Tip title="미리보기 정확도">지난 공고에서 실제 기초금액이 이 추정의 ±2% 안에 든 비율이에요. 예산을 가늠하는 용도이니, 투찰은 기초금액이 나온 뒤 다시 계산하세요.</Tip></p>
         </div>
       )}
     </div>
@@ -140,7 +140,7 @@ function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number
       <Info className="mt-0.5 h-5 w-5 shrink-0 text-mute" />
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1"><b className="font-semibold text-ink"><Term k="단일예가">단일예가</Term> · 기초금액·사정률 없음</b>
-          <Tip title="단일예가">예정가격을 하나로 정함(추첨 안 함). 예정가격은 보통 개찰 전까지 비공개.</Tip></p>
+          <Tip title="단일예가">예정가격을 추첨하지 않고 하나로 정하는 공고예요. 예정가격은 보통 개찰 때 공개돼요.</Tip></p>
         {rate ? (
           <>
             <p className="mt-1"><Term k="낙찰하한율" /> {rate}% · 예산 기준 하한선 약 <b className="tabular-nums text-ink">{ref ? fmtWon(Math.ceil(ref * rate / 100)) : '—'}</b> <span className="text-mute">(추정)</span></p>
@@ -152,7 +152,7 @@ function Single({ notice, budget, onEstimate }: { notice: Notice; budget: number
               </button>
             )}
             <p className="mt-2 flex items-center gap-1 text-[12px] text-mute">예산 = 예정가격 가정
-              <Tip title="예산 기준 추정">실제 예정가격은 예산보다 낮을 수 있고, 그러면 하한선도 내려감. 공고문에 금액이 있으면 그 값 입력.</Tip></p>
+              <Tip title="예산 기준 추정">실제 예정가격은 예산보다 낮을 수 있고, 그러면 하한선도 내려가요. 공고문에 금액이 있으면 그 값을 넣으세요.</Tip></p>
           </>
         ) : (
           <>

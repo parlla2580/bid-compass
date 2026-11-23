@@ -53,7 +53,7 @@ export function QualifyCard({ n }: { n: Notice }) {
   return (
     <Card title={
       <span className="flex items-center gap-1">우리 회사 통과선
-        <Tip title="계산 기준">행정안전부 시설공사 적격심사 세부기준 [별표 {tier.table}] · 적격통과 {tier.pass}점 · 저장한 점수로 가격 외 {nonPrice}점 → 가격점수 {range.need}점 필요. 투찰 비율 = (입찰가격 − A) ÷ (예정가격 − A).{p.local ? '' : ' 국가기관 공고: 조달청 기준표 원문 미확인(하한율 같으면 산식 같을 가능성 큼).'}</Tip>
+        <Tip title="통과 투찰 비율">통과 {tier.pass}점 − 저장한 가격 외 점수 {nonPrice}점 = 가격점수 {range.need}점이 필요해요. 그 점수가 나오는 투찰 비율 범위예요.{p.local ? '' : ' 국가기관 공고는 조달청 기준이라 공고문으로 한 번 더 확인하세요.'}</Tip>
       </span>}
       aside={<span className={`rounded-md px-2 py-0.5 text-[13px] font-semibold ${badge.c}`}>{badge.t}</span>}>
       {range.low === null ? (
