@@ -3,7 +3,8 @@
 --  · ops_daily_brief(): 수집기(관리자 키)만 부를 수 있는 집계 함수. 하루 한 번 스냅샷을 ops_brief_log 에 남겨 전날과 비교
 --  · trigger_workflow(): 039 의 수집 예약과 같은 토큰(Vault github_collect_token)으로 다른 워크플로도 실행 요청
 --  · pg_cron 'brief-daily' 매일 00:00 UTC(= 09:00 한국시간) → .github/workflows/brief.yml
---  · 행 수: 큰 표(투찰 순위·계약 세부)는 통계 추정치, 나머지는 정확한 수
+--  · 행 수: 큰 표(계약·계약 세부·투찰 순위)는 통계 추정치, 나머지는 정확한 수
+--  · (11/23 수정) SQL 편집기는 전체를 한 묶음으로 실행해 마지막 미리 보기가 실패하면 함수까지 모두 취소됨 → 미리 보기 제거
 -- 실행: Supabase 대시보드 > SQL Editor 에 전체를 붙여 넣고 Run. 여러 번 실행해도 됩니다.
 -- =========================================================
 
@@ -37,9 +38,11 @@ begin
          'bytes', pg_total_relation_size('public.openings'),
          'pending', count(*) filter (where not details_fetched and (status = '개찰완료' or status is null))) into r from public.openings;
   t := t || jsonb_build_object('openings', r);
-  select jsonb_build_object('rows', count(*), 'from', min(contract_date), 'to', max(contract_date),
-         'bytes', pg_total_relation_size('public.contracts')) into r from public.contracts;
-  t := t || jsonb_build_object('contracts', r);
+  select greatest(reltuples, 0)::bigint into est from pg_class where oid = 'public.contracts'::regclass;
+  t := t || jsonb_build_object('contracts', jsonb_build_object('rows', est, 'estimate', true,
+         'from', (select min(contract_date) from public.contracts), 'to', (select max(contract_date) from public.contracts),
+         'bytes', pg_total_relation_size('public.contracts')));
+  r := null;
   select jsonb_build_object('rows', count(*), 'from', min(received_at)::date, 'to', max(received_at)::date,
          'bytes', pg_total_relation_size('public.prespecs')) into r from public.prespecs;
   t := t || jsonb_build_object('prespecs', r);
@@ -118,7 +121,5 @@ revoke all on function public.trigger_workflow(text, jsonb) from anon, authentic
 -- 4. 매일 00:00 UTC = 09:00 한국시간
 select cron.schedule('brief-daily', '0 0 * * *', $job$select public.trigger_workflow('brief.yml')$job$);
 
--- 확인: 예약 한 줄(brief-daily · 0 0 * * *) + 지금 집계 미리 보기(db_mb · 공고 건수)
+-- 확인: brief-daily · 0 0 * * * 한 줄이면 정상 (집계는 실행 뒤 GitHub 브리핑으로 확인)
 select jobname, schedule, active from cron.job where jobname = 'brief-daily';
-select round((b->>'db_bytes')::numeric / 1048576) as db_mb, b->'tables'->'notices'->>'rows' as notices
-from (select public.ops_daily_brief() as b) x;
