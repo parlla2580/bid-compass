@@ -306,3 +306,33 @@ export function recentOrgs(): string[] {
 export function rememberOrg(org: string) {
   try { localStorage.setItem(RECENT_ORGS, JSON.stringify([org, ...recentOrgs().filter((o) => o !== org)].slice(0, 8))); } catch { /* 저장 못 해도 무시 */ }
 }
+
+/** 개찰 결과 해설 (051) — 최근 개찰마다 1순위 투찰률 · 사정률 · 하한율. 051 실행 전이면 빈 목록 */
+export interface ResultNote { id: number; rank: number | null; rate: number | null; note: number | null; first_rate: number | null; sajeong: number | null; floor_rate: number | null }
+export async function fetchResultNotes(days = 14): Promise<Map<number, ResultNote>> {
+  const r = await getSupabase().rpc('my_result_notes', { p_days: days });
+  const m = new Map<number, ResultNote>();
+  if (r.error || !r.data?.verified) return m;
+  for (const x of (r.data.items ?? []) as ResultNote[]) m.set(x.id, x);
+  return m;
+}
+
+/**
+ * 개찰 결과 한 줄 해설 — 이름표 + 숫자 (2026-11-24 아하 포인트 ③)
+ *  낙찰: 투찰률 · 사정률 / 탈락: 1순위와 N%p · 사정률 / 하한 미달: 하한선까지 부족 N%p · 사정률
+ */
+export function resultLine(o: BidOutcome, b: { rank: number | null; rate: number | null }, n?: ResultNote): string | null {
+  const rate = n?.rate ?? b.rate;
+  const sj = n?.sajeong != null ? `사정률 ${Number(n.sajeong).toFixed(2)}%` : null;
+  const parts: (string | null)[] = [];
+  if (o === 'won') parts.push(rate != null ? `투찰률 ${Number(rate).toFixed(3)}%` : null, sj);
+  else if (o === 'below') {
+    const gap = rate != null && n?.floor_rate != null ? Number(n.floor_rate) - Number(rate) : null;
+    parts.push(gap != null && gap > 0 ? `하한선까지 부족 ${gap.toFixed(3)}%p` : null, sj);
+  } else if (o === 'lost') {
+    const gap = rate != null && n?.first_rate != null ? Math.abs(Number(rate) - Number(n.first_rate)) : null;
+    parts.push(gap != null && (b.rank ?? 0) > 1 ? `1순위와 ${gap.toFixed(3)}%p` : null, sj);
+  }
+  const s = parts.filter(Boolean).join(' · ');
+  return s || null;
+}

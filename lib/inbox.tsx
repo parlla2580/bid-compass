@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { bidOutcome, fetchMyBidList, type MyBidItem } from './analysis';
+import { bidOutcome, fetchMyBidList, fetchResultNotes, resultLine, type MyBidItem, type ResultNote } from './analysis';
 import { fetchFirstRanks, type FirstRank } from './first-rank';
 import { useJudged, useStore } from './store';
 import { fire, getSupabase, supabaseEnabled } from './supabase';
@@ -77,6 +77,8 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const verified = !!account && !!profile.corpName;
   const [firstRanks, setFirstRanks] = useState<FirstRank[]>([]);
   const [bids, setBids] = useState<MyBidItem[]>([]);
+  // 051: 최근 개찰 해설(1순위 차이·사정률·하한율)
+  const [notes, setNotes] = useState<Map<number, ResultNote>>(new Map());
   const [st, setSt] = useState<Record<string, ItemState>>({});
   const [server, setServer] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -127,7 +129,8 @@ export function InboxProvider({ children }: { children: ReactNode }) {
 
   // 회원 입찰 이력 → 1순위·결과
   useEffect(() => {
-    if (!verified) { setFirstRanks([]); setBids([]); setLoading(false); return; }
+    if (!verified) { setFirstRanks([]); setBids([]); setNotes(new Map()); setLoading(false); return; }
+    fetchResultNotes(14).then(setNotes).catch(() => setNotes(new Map()));
     setLoading(true);
     Promise.all([fetchFirstRanks().catch(() => []), fetchMyBidList().catch(() => null)])
       .then(([f, b]) => { setFirstRanks(f); setBids(b ?? []); })
@@ -207,10 +210,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     for (const b of bids) {
       if (new Date(b.opened_at).getTime() < since) continue;
       const o = bidOutcome(b);
-      if (o === 'won') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'win', title: '개찰 결과 · 낙찰 🎉', sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
+      // 2026-11-24 ③: 결과마다 한 줄 해설(1순위와 차이·사정률·하한선까지)을 앞에, 공고명은 뒤에
+      const line = resultLine(o, b, notes.get(b.id));
+      const sub = line ? `${line} · ${b.title}` : b.title;
+      if (o === 'won') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'win', title: '개찰 결과 · 낙찰 🎉', sub, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
       else if (o === 'lost' || o === 'below') out.push({ key: `result:${b.id}`, kind: 'news', icon: 'result',
         title: o === 'below' ? '개찰 결과 · 하한 미달' : `개찰 결과${b.rank ? ` · ${b.rank}위` : ''}`,
-        sub: b.title, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
+        sub, href: `/analysis/${b.id}`, due: null, at: new Date(b.opened_at) });
     }
     // 4) 저장한 기관 — 진행 중 계약이 곧 끝남 (해야 할 일, [확인했어요]로 끝냄)
     const now = Date.now();
@@ -247,7 +253,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew && !isCatalog(j.notice)).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '적합도 높은 순', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, savedChanges, qual, bids, judged, orgs, pre, profile, stats]);
+  }, [account, firstRanks, notices, saved, savedChanges, qual, bids, notes, judged, orgs, pre, profile, stats]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)
