@@ -20,6 +20,8 @@ export async function verifyCompany(bizno: string, ceo: string): Promise<VerifyR
   });
   const v = (await res.json()) as VerifyResult & { error?: string };
   if (!res.ok) throw new Error(v.error ?? '회사 확인에 실패했습니다');
+  // 로그인 상태에서 확인이 끝나면 다음 화면에서 '가입 30초 리포트'(components/welcome-report)를 띄움
+  if (token && v.status === 'verified') { try { localStorage.setItem('bc.welcome', '1'); } catch { /* 무시 */ } }
   return v;
 }
 
