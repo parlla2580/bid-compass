@@ -92,7 +92,8 @@ export default function BidList() {
   }));
   const [draft, setDraft] = useState<Filters>(filters);
   const [sheet, setSheet] = useState(false);
-  const [q, setQ] = useState('');
+  // 시장 리포트 등에서 ?q=검색어 로 들어오면 바로 검색 (2026-11-24)
+  const [q, setQ] = useState(params.get('q') ?? '');
   const [sort, setSort] = useState<SortKey>(() => {
     const s = params.get('sort');
     return s && s in SORTERS ? (s as SortKey) : 'relevance';

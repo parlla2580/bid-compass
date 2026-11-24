@@ -112,6 +112,13 @@ export default function HomePage() {
             </span>
             <ChevronRight className="h-5 w-5 text-mute" />
           </Link>
+          <Link href="/market" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
+            <span className="flex-1">
+              <span className="block text-[16px] font-semibold">업종별 시장</span>
+              <span className="mt-0.5 block text-[14px] text-mute">공고 수 · 보통 경쟁 · 낙찰률 범위</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-mute" />
+          </Link>
           <Link href="/calculator" className="flex items-center gap-4 rounded-box bg-white px-5 py-5 hover:bg-white/70">
             <span className="flex-1">
               <span className="block text-[16px] font-semibold">투찰 금액 계산</span>
