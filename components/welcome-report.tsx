@@ -63,7 +63,7 @@ export function WelcomeReport() {
         <div className="grid grid-cols-2 gap-2">
           <Stat label="경쟁 입찰" value={`${total.toLocaleString()}건`} />
           <Stat label="낙찰률" value={decided ? `${((won / decided) * 100).toFixed(1)}%` : '–'} sub={`낙찰 ${won.toLocaleString()}건`} tone="text-brand" />
-          <Stat label="아깝게 놓친 공고" value={`${near.length}건`} sub={best != null ? `1순위와 ${best.toFixed(3)}%p` : undefined} tone={near.length ? 'text-warn' : undefined} />
+          <Stat label="아깝게 놓친 공고" value={`${near.length}건${(r.near_misses?.length ?? 0) >= 10 && near.length >= 10 ? '+' : ''}`} sub={best != null ? `1순위와 ${best.toFixed(3)}%p` : undefined} tone={near.length ? 'text-warn' : undefined} />
           <Stat label="하한 미달" value={`${(r.below_floor ?? 0).toLocaleString()}건`} tone={r.below_floor ? 'text-bad' : undefined} />
           <Link href="/bids" onClick={close} className="col-span-2 flex items-center justify-between rounded-2xl bg-brand-soft px-4 py-3.5">
             <span className="text-[13px] font-medium text-brand">지금 맞춤 공고</span>
