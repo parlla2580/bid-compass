@@ -13,17 +13,18 @@ export interface MarketData {
 }
 export interface MarketPage { slug: string; type: string; name: string; rank: number; data: MarketData; at: string }
 
-async function rest<T>(path: string): Promise<T | null> {
+async function rest<T>(path: string, revalidate = 3600): Promise<T | null> {
   if (!URL_ || !KEY) return null;
   try {
-    const res = await fetch(`${URL_}/rest/v1/${path}`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, next: { revalidate: 3600 } });
+    const res = await fetch(`${URL_}/rest/v1/${path}`, { headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }, next: { revalidate } });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch { return null; }
 }
 
 export async function fetchMarketList(): Promise<MarketPage[]> {
-  return (await rest<MarketPage[]>('market_pages?select=slug,type,name,rank,data,at&order=type.asc,rank.asc')) ?? [];
+  // 목록은 10분 (빈 목록이 1시간 남지 않게 — 2026-11-25 첫 계산 전 '준비 중'이 캐시에 남았던 문제)
+  return (await rest<MarketPage[]>('market_pages?select=slug,type,name,rank,data,at&order=type.asc,rank.asc', 600)) ?? [];
 }
 export async function fetchMarketPage(slug: string): Promise<MarketPage | null> {
   if (!/^[a-z][\w-]{1,40}$/.test(slug)) return null;
