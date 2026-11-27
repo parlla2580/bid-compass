@@ -274,7 +274,7 @@ function OrgView({ org }: { org: string }) {
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         {/* 경쟁 */}
         {types.length > 0 && (
-          <Card title="보통 참가 업체">
+          <Card title="평균 참가 업체">
             <div className="grid grid-cols-3 gap-2">
               {types.map(([t, v]) => (
                 <div key={t} className="rounded-2xl bg-fill px-3 py-3">
@@ -290,7 +290,7 @@ function OrgView({ org }: { org: string }) {
 
         {/* 사정률 · 낙찰률 */}
         {(p.sajeong || p.win_rate) && (
-          <Card title={<span className="flex items-center gap-1">사정률 · 낙찰률<Tip title="사정률 · 낙찰률">사정률 = 예정가격 ÷ 기초금액, 낙찰률 = 낙찰금액 ÷ 예정가격. 큰 숫자는 가운데 값, 작은 글씨는 보통 범위예요. 지난 추첨 결과라 다음 개찰을 예측하진 않아요.</Tip></span>}>
+          <Card title={<span className="flex items-center gap-1">사정률 · 낙찰률<Tip title="사정률 · 낙찰률">사정률 = 예정가격 ÷ 기초금액, 낙찰률 = 낙찰금액 ÷ 예정가격. 큰 숫자는 평균(가운데 값), 작은 글씨는 주요 구간(가운데 50%)이에요. 지난 추첨 결과라 다음 개찰을 예측하진 않아요.</Tip></span>}>
             <div className="grid grid-cols-2 gap-2">
               {p.sajeong && (
                 <div className="rounded-2xl bg-fill px-4 py-3">
@@ -298,7 +298,7 @@ function OrgView({ org }: { org: string }) {
                   {p.sajeong.n >= MIN ? (
                     <>
                       <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.sajeong.p50.toFixed(2)}%</p>
-                      <p className="text-[12px] tabular-nums text-mute">보통 {p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">주요 구간 {p.sajeong.p25.toFixed(2)}~{p.sajeong.p75.toFixed(2)}%</p>
                     </>
                   ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>
@@ -309,7 +309,7 @@ function OrgView({ org }: { org: string }) {
                   {p.win_rate.n >= MIN ? (
                     <>
                       <p className="mt-0.5 text-[20px] font-bold tabular-nums">{p.win_rate.p50.toFixed(2)}%</p>
-                      <p className="text-[12px] tabular-nums text-mute">보통 {p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
+                      <p className="text-[12px] tabular-nums text-mute">주요 구간 {p.win_rate.p25.toFixed(2)}~{p.win_rate.p75.toFixed(2)}%</p>
                     </>
                   ) : <p className="mt-1.5 text-[13px] font-semibold text-mute">표본 부족</p>}
                 </div>

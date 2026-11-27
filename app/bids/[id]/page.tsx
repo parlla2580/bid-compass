@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const n = await fetchOgNotice(Number(id));
   if (!n) return { title: '공고 상세' };
   const dl = ogDeadline(n.closesAt);
-  const desc = [n.type, n.org, `추정 ${ogMoney(n.estPrice)}`, dl.d != null && dl.d >= 0 ? `마감 ${dl.text} (D-${dl.d})` : null, n.participants ? `보통 ${n.participants}곳 경쟁` : null]
+  const desc = [n.type, n.org, `추정 ${ogMoney(n.estPrice)}`, dl.d != null && dl.d >= 0 ? `마감 ${dl.text} (D-${dl.d})` : null, n.participants ? `평균 경쟁 ${n.participants}곳` : null]
     .filter(Boolean).join(' · ');
   return {
     title: n.title,

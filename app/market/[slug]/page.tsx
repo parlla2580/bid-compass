@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const m = await fetchMarketPage(slug);
   if (!m) return { title: '업종별 시장' };
   const d = m.data;
-  const desc = [`${m.type} · 최근 12개월 공고 ${d.notices.toLocaleString()}건`, d.participants ? `보통 경쟁 ${Math.round(d.participants)}곳` : null,
-    d.win_rate?.p25 ? `낙찰률 보통 ${d.win_rate.p25.toFixed(1)}~${d.win_rate.p75!.toFixed(1)}%` : null].filter(Boolean).join(' · ');
+  const desc = [`${m.type} · 최근 12개월 공고 ${d.notices.toLocaleString()}건`, d.participants ? `평균 경쟁 ${Math.round(d.participants)}곳` : null,
+    d.win_rate?.p25 ? `낙찰률 주요 구간 ${d.win_rate.p25.toFixed(1)}~${d.win_rate.p75!.toFixed(1)}%` : null].filter(Boolean).join(' · ');
   return { title: `${m.name} 공공조달 시장`, description: desc, openGraph: { title: `${m.name} 공공조달 시장`, description: desc, siteName: '입찰나침반' } };
 }
 
@@ -41,7 +41,7 @@ export default async function MarketPage({ params }: Props) {
           <h1 className="mt-1.5 text-[24px] font-bold leading-snug tracking-tight lg:text-[28px]">{m.name} 시장</h1>
           <p className="mt-1 flex items-center gap-1 text-[13px] tabular-nums text-mute">
             {d.from && d.to ? `${d.from.slice(2).replace(/-/g, '.')}~${d.to.slice(2).replace(/-/g, '.')}` : '최근 12개월'} · 나라장터 공고 기준
-            <Tip title="업종별 시장">나라장터 공고를 {m.type === '물품' ? '세부품명' : m.type === '용역' ? '용역 분류' : '대표 면허'}별로 모은 숫자예요. 쇼핑몰·단가계약은 빼고, 하루 한 번 새로 계산해요. 지난 결과라 다음 입찰을 예측하진 않아요.</Tip>
+            <Tip title="업종별 시장">나라장터 공고를 {m.type === '물품' ? '세부품명' : m.type === '용역' ? '용역 분류' : '대표 면허'}별로 모은 숫자예요. 쇼핑몰·단가계약은 빼고 하루 한 번 새로 계산해요. 평균은 가운데 값(중앙값), 주요 구간은 가운데 50%예요. 지난 결과라 다음 입찰을 예측하진 않아요.</Tip>
           </p>
         </section>
 
@@ -50,17 +50,17 @@ export default async function MarketPage({ params }: Props) {
           <Link href={`/bids?tab=all&q=${encodeURIComponent(m.name)}`} className={`${box} hover:bg-line/60`}>
             <p className="text-[12px] text-mute">지금 열린 공고</p><p className="mt-0.5 text-[22px] font-bold tabular-nums text-brand">{d.open_now.toLocaleString()}건</p>
           </Link>
-          <div className={box}><p className="text-[12px] text-mute">보통 경쟁</p><p className="mt-0.5 text-[22px] font-bold tabular-nums">{d.participants ? `${Math.round(d.participants)}곳` : '–'}</p></div>
+          <div className={box}><p className="text-[12px] text-mute">평균 경쟁</p><p className="mt-0.5 text-[22px] font-bold tabular-nums">{d.participants ? `${Math.round(d.participants)}곳` : '–'}</p></div>
           <div className={box}>
             <p className="text-[12px] text-mute">낙찰률</p>
-            {d.win_rate?.p50 ? (<><p className="mt-0.5 text-[22px] font-bold tabular-nums">{d.win_rate.p50.toFixed(2)}%</p><p className="text-[12px] tabular-nums text-mute">보통 {d.win_rate.p25!.toFixed(2)}~{d.win_rate.p75!.toFixed(2)}%</p></>) : <p className="mt-1 text-[14px] font-semibold text-mute">표본 부족</p>}
+            {d.win_rate?.p50 ? (<><p className="mt-0.5 text-[22px] font-bold tabular-nums">{d.win_rate.p50.toFixed(2)}%</p><p className="text-[12px] tabular-nums text-mute">주요 구간 {d.win_rate.p25!.toFixed(2)}~{d.win_rate.p75!.toFixed(2)}%</p></>) : <p className="mt-1 text-[14px] font-semibold text-mute">표본 부족</p>}
           </div>
         </div>
 
         {d.price?.p50 && (
           <Card title="추정가격" aside={<span className="text-[13px] text-mute">공고 {d.price.n.toLocaleString()}건</span>}>
             <p className="text-[22px] font-bold tabular-nums">{mMoney(d.price.p50)}</p>
-            <p className="text-[13px] tabular-nums text-mute">보통 {mMoney(d.price.p25)}~{mMoney(d.price.p75)}</p>
+            <p className="text-[13px] tabular-nums text-mute">주요 구간 {mMoney(d.price.p25)}~{mMoney(d.price.p75)}</p>
           </Card>
         )}
 

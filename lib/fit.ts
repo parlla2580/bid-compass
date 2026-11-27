@@ -195,9 +195,9 @@ export function fitScore(n: Notice, p: Profile, j: Judgment, similar: Similarity
   const typical = comp?.byType.get(n.type);
   if (c && typical) {
     const ratio = c.median / typical;
-    if (ratio <= 0.5) { cond += 6; push('competition', '경쟁', 1, `경쟁 적은 편 · 보통 ${c.median}곳`); }
-    else if (ratio <= 0.8) { cond += 3; push('competition', '경쟁', 0.8, `경쟁 조금 적은 편 · 보통 ${c.median}곳`); }
-    else if (ratio >= 2) { cond -= 4; push('competition', '경쟁', 0.3, `경쟁 많은 편 · 보통 ${c.median}곳`); }
+    if (ratio <= 0.5) { cond += 6; push('competition', '경쟁', 1, `경쟁 적은 편 · 평균 ${c.median}곳`); }
+    else if (ratio <= 0.8) { cond += 3; push('competition', '경쟁', 0.8, `경쟁 조금 적은 편 · 평균 ${c.median}곳`); }
+    else if (ratio >= 2) { cond -= 4; push('competition', '경쟁', 0.3, `경쟁 많은 편 · 평균 ${c.median}곳`); }
   }
 
   // 기관 — 선호하거나 참여해 본 기관

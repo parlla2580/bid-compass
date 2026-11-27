@@ -65,7 +65,7 @@ export function ItemPrices({ n, locked, onSignup }: { n: Notice; locked: boolean
   return (
     <Card title={
       <span className="flex items-center gap-1">다른 기관 구매 단가
-        <Tip title="다른 기관 구매 단가">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격이에요({period}). 이 공고의 가격이 아니고, 같은 분류라도 규격이 다를 수 있어요.{items.length === 1 ? ' 이 공고 예산은 추정가격에 부가세를 더해 수량으로 나눈 값이고, 평균은 가운데 값 기준이에요.' : ' 품목이 여러 개인 공고는 품목별 예산이 공고에 없어 비교하지 않아요.'}</Tip>
+        <Tip title="다른 기관 구매 단가">다른 공공기관이 같은 물품분류를 실제로 산 1개당 가격이에요({period}). 이 공고의 가격이 아니고, 같은 분류라도 규격이 다를 수 있어요.{items.length === 1 ? ' 이 공고 예산은 추정가격에 부가세를 더해 수량으로 나눈 값이고, 평균은 가운데 값(중앙값), 주요 구간은 가운데 50%예요.' : ' 품목이 여러 개인 공고는 품목별 예산이 공고에 없어 비교하지 않아요.'}</Tip>
       </span>}
       aside={<span className="text-[13px] tabular-nums text-mute">계약 {total.toLocaleString()}건 기준</span>}>
       {/* 2026-11-23: 큰 숫자가 '이 공고 단가'로 읽힌다는 피드백 — 제목에 '다른 기관', 여러 품목이면 비교 불가를 배지로 */}
@@ -111,7 +111,7 @@ function Row({ it, single, budget, want, total, locked, onSignup }: {
 
       {ok && !single ? (
         // 여러 품목 — 품목마다 한 줄: 이름 · 가격(오른쪽), 아래에 1개당 · 보통 범위
-        <p className="mt-0.5 text-[12px] tabular-nums text-mute">{perUnit} · 보통 {won(it.p25)}~{won(it.p75)}</p>
+        <p className="mt-0.5 text-[12px] tabular-nums text-mute">{perUnit} · 주요 구간 {won(it.p25)}~{won(it.p75)}</p>
       ) : ok ? (
         <>
           {/* 두 숫자를 나란히 — 다른 기관이 산 가격 vs 이 공고 예산 */}
@@ -119,7 +119,7 @@ function Row({ it, single, budget, want, total, locked, onSignup }: {
             <div>
               <p className="flex items-center gap-1.5 text-[12px] text-mute">{sane != null && <i className="inline-block h-2 w-2 rounded-full bg-ink" />}다른 기관 {perUnit}</p>
               <p className="mt-0.5 text-[24px] font-bold tabular-nums tracking-tight">{won(it.p50)}</p>
-              <p className="text-[12px] tabular-nums text-mute">보통 {won(it.p25)}~{won(it.p75)}</p>
+              <p className="text-[12px] tabular-nums text-mute">주요 구간 {won(it.p25)}~{won(it.p75)}</p>
             </div>
             {budget && (
               <div>

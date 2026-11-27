@@ -5,7 +5,7 @@ import { fetchOgNotice, ogDeadline, ogMoney } from '@/lib/og-notice';
 
 /*
  * 공고 공유 미리보기 이미지 (카톡·문자 링크 카드) — 2026-11-23 오픈 전 아하 포인트 ②
- *  공개 정보만: 유형 · 낙찰방식 · 제목 · 기관 · 추정가격 · 마감 · 보통 경쟁
+ *  공개 정보만: 유형 · 낙찰방식 · 제목 · 기관 · 추정가격 · 마감 · 평균 경쟁
  */
 export const runtime = 'nodejs';
 export const alt = '입찰나침반 공고';
@@ -59,7 +59,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ marginTop: 'auto', display: 'flex', gap: 16 }}>
             <Box label="추정가격" value={ogMoney(n?.estPrice ?? null)} />
             <Box label="마감" value={dl.text} />
-            <Box label="보통 경쟁" value={n?.participants ? `${n.participants}곳` : '–'} />
+            <Box label="평균 경쟁" value={n?.participants ? `${n.participants}곳` : '–'} />
           </div>
         </div>
       </div>

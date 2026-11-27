@@ -10,7 +10,7 @@ import { TYPE_ORDER, fetchMarketList } from '@/lib/market';
 export const revalidate = 600;
 export const metadata: Metadata = {
   title: '업종별 공공조달 시장',
-  description: '물품·용역·공사 업종별 나라장터 공고 수, 보통 경쟁, 낙찰률 범위, 많이 낸 기관 — 최근 12개월',
+  description: '물품·용역·공사 업종별 나라장터 공고 수, 평균 경쟁, 낙찰률 주요 구간, 많이 낸 기관 — 최근 12개월',
 };
 
 export default async function MarketIndex() {
