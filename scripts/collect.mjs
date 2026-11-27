@@ -611,8 +611,10 @@ async function writeSnapshot(sb) {
 }
 
 // 한 구간(최대 하루) 받기 — 공고·개찰·계약(세부)·사전규격. 오류는 onErr 로 넘김 (평소 수집·과거분 받기 공용)
-async function collectChunk(sb, a, b, result, onErr) {
-  try {
+async function collectChunk(sb, a, b, result, onErr, parts = null) {
+  // parts: null = 전부 / ['notices','prespecs'] = 공고·사전규격만 (054 공고 과거분)
+  const want = (k) => !parts || parts.includes(k);
+  if (want('notices')) try {
     const { rows: notices, updates } = await collectNotices(a, b);
     result.notices += notices.length;
     if (sb) {
@@ -623,14 +625,14 @@ async function collectChunk(sb, a, b, result, onErr) {
   } catch (e) {
     onErr(`공고(${ymdhm(a)}): ${e.message}`);
   }
-  try {
+  if (want('openings')) try {
     const openings = await collectOpenings(a, b);
     result.openings = (result.openings ?? 0) + openings.length;
     if (sb) await upsert(sb, 'openings', openings, 'bid_no,bid_ord,clsfc_no,rbid_no');
   } catch (e) {
     onErr(`개찰(${ymdhm(a)}): ${e.message}`);
   }
-  try {
+  if (want('contracts')) try {
     const contracts = await collectContracts(a, b);
     result.contracts += contracts.length;
     // 계약 세부 — 020 실행 전이면 경고만 (수집 실패로 치지 않음)
@@ -668,7 +670,7 @@ async function collectChunk(sb, a, b, result, onErr) {
     onErr(`계약(${ymdhm(a)}): ${e.message}`);
   }
   // 사전규격 — 022 실행 전이면 경고만
-  try {
+  if (want('prespecs')) try {
     const pre = await collectPrespecs(a, b);
     result.prespecs = (result.prespecs ?? 0) + pre.length;
     if (sb && pre.length) await upsert(sb, 'prespecs', pre, 'id');
@@ -714,6 +716,41 @@ async function collectPastDays(sb, t0) {
     if (!advance) break;
   }
   const msg = `과거분 ${done.length ? done.join(',') : '없음'}${errs.length ? ` · 오류 ${errs.length}건: ${errs.map((x) => x.replace('(', ' ')).join(' / ').slice(0, 300)}` : ''} · 다음 ${day}`;
+  console.log(msg);
+  return msg;
+}
+
+// 공고·사전규격 과거분 (054, 2026-11-27) — 계약·개찰은 빼고 공고·사전규격만 빠르게 거꾸로 (2025-03-31 → 2024-01-01)
+//  · 진행 위치는 backfill_lite 한 줄 · 과거분(043)을 받은 뒤 남는 시간에 · 실행 시작 LITE_BUDGET_MIN(45분) 안에서만 새 날 시작
+//  · 하루치가 가벼워(공고·사전규격만) 한 실행에 최대 LITE_MAX_DAYS(20)일
+const LITE_MAX_DAYS = Number(process.env.LITE_MAX_DAYS ?? 20);
+const LITE_BUDGET = Number(process.env.LITE_BUDGET_MIN ?? 45) * 60e3;
+async function collectLiteDays(sb, t0) {
+  const { data: st, error } = await sb.from('backfill_lite').select('next_day,stop_day,fails,skipped').eq('id', 1).maybeSingle();
+  if (error) {
+    if (/backfill_lite/.test(error.message)) { console.log('공고 과거분 건너뜀 — SQL 054 실행 필요'); return null; }
+    throw new Error(error.message);
+  }
+  if (!st || st.next_day < st.stop_day) return null;
+  let day = st.next_day, fails = st.fails ?? 0, skipped = st.skipped ?? [];
+  const done = [], errs = [];
+  for (let n = 0; n < LITE_MAX_DAYS && day >= st.stop_day && Date.now() - t0 < LITE_BUDGET; n++) {
+    if (n) await sleep(3e3);
+    const a = new Date(`${day}T00:00:00+09:00`), b = new Date(a.getTime() + 86400e3);
+    const e = [];
+    await collectChunk(sb, a, b, { notices: 0, contracts: 0 }, (m) => e.push(m), ['notices', 'prespecs']);
+    let advance = true;
+    if (e.length) {
+      fails += 1; errs.push(...e);
+      if (fails < 3) advance = false;
+      else { skipped = [...skipped, day]; console.log(`  공고 과거분 ${day} 3번 실패 — 건너뜀`); }
+    }
+    if (advance) { if (!e.length) done.push(day); fails = 0; day = prevDay(day); }
+    const { error: ue } = await sb.from('backfill_lite').update({ next_day: day, fails, skipped, updated_at: new Date().toISOString() }).eq('id', 1);
+    if (ue) throw new Error(`공고 과거분 진행 위치 저장 실패: ${ue.message}`);
+    if (!advance) break;
+  }
+  const msg = `공고 과거분 ${done.length}일${done.length ? ` ${done[0]}~${done[done.length - 1]}` : ''}${errs.length ? ` · 오류 ${errs.length}건` : ''} · 다음 ${day}`;
   console.log(msg);
   return msg;
 }
@@ -804,6 +841,8 @@ async function main() {
   // 과거분 이어 받기 (043) — 평소 수집(예약·수동)일 때만. 거슬러 받기·스냅샷 실행에서는 안 함
   if (sb && !RANGE_FROM && MODE === 'full') {
     try { result.past = await collectPastDays(sb, T0); } catch (e) { result.past = `과거분 실패: ${e.message.replace('(', ' ')}`; console.log(result.past); }
+    try { const lite = await collectLiteDays(sb, T0); if (lite) result.past = [result.past, lite].filter(Boolean).join(' / '); }
+    catch (e) { console.log(`공고 과거분 실패: ${e.message}`); }
   }
 
   // 수집 예약 토큰 만료일 (044) — 30일 전부터 alert.mjs 가 GitHub 이슈로 알림. 실패해도 수집 결과에는 영향 없음
