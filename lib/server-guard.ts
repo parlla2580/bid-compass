@@ -22,8 +22,9 @@ export function adminClient(): SupabaseClient | null {
 export const hashKey = (...parts: string[]) =>
   createHash('sha256').update(`${process.env.NARA_API_KEY ?? ''}|${parts.join('|')}`).digest('hex').slice(0, 40);
 
+/** 요청자 IP — Vercel 이 직접 넣는 x-real-ip 우선 (x-forwarded-for 는 요청자가 앞부분을 꾸밀 수 있어 호출 제한을 피해 갈 수 있음 · 2026-11-27 보안 검토) */
 export function clientIp(headers: Headers): string {
-  return headers.get('x-forwarded-for')?.split(',')[0]?.trim() || headers.get('x-real-ip') || 'unknown';
+  return headers.get('x-real-ip')?.trim() || headers.get('x-forwarded-for')?.split(',').pop()?.trim() || 'unknown';
 }
 
 /* ---------- 호출 제한 ---------- */
