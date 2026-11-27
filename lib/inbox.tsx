@@ -18,7 +18,7 @@ import { fmtKorean } from './format';
  */
 
 export type InboxKind = 'action' | 'news';
-export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org' | 'soon' | 'change';
+export type InboxIcon = 'trophy' | 'clock' | 'win' | 'result' | 'new' | 'org' | 'soon' | 'change' | 'report';
 
 export interface InboxItem {
   key: string;
@@ -49,6 +49,8 @@ const writeLocal = (v: Record<string, ItemState>) => { try { localStorage.setIte
 const EMPTY: ItemState = { read_at: null, done_at: null, checks: [] };
 
 const kstDay = (d = new Date()) => new Date(d.getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+/** 이번 주 월요일 (한국시간) */
+const kstMonday = (d = new Date()) => { const k = new Date(d.getTime() + 9 * 3600e3); k.setUTCDate(k.getUTCDate() - ((k.getUTCDay() + 6) % 7)); return k.toISOString().slice(0, 10); };
 
 interface InboxValue {
   items: InboxItem[];
@@ -67,6 +69,21 @@ interface InboxValue {
   setDone: (key: string, done: boolean) => void;
   toggleCheck: (key: string, check: string) => void;
   loading: boolean;
+  /** 주간 리포트 (2026-11-27 아하 포인트 ④, 이메일은 도메인 생기면) — 최근 7일 */
+  weekly: Weekly | null;
+}
+
+export interface Weekly {
+  /** 이번 주 월요일 (한국시간 YYYY-MM-DD) */
+  week: string;
+  newMatched: number;
+  topNew: { id: number; title: string; score: number | null; d: number }[];
+  closingSaved: { id: number; title: string; d: number }[];
+  results: { won: number; lost: number; below: number; pending: number };
+  bestMiss: { id: number; title: string; line: string } | null;
+  orgNew: number;
+  orgEnd: { org: string; title: string; d: number }[];
+  soon: number;
 }
 
 const InboxContext = createContext<InboxValue | null>(null);
@@ -160,6 +177,35 @@ export function InboxProvider({ children }: { children: ReactNode }) {
 
   const state = useCallback((key: string) => st[key] ?? EMPTY, [st]);
 
+  // 주간 리포트 — 최근 7일 (알림함 '이번 주 리포트' + /inbox/weekly)
+  const weekly = useMemo<Weekly | null>(() => {
+    if (!account) return null;
+    const now = Date.now(), wk = 7 * 86400e3;
+    const matched = (judged ?? []).filter((j) => j.matched && !isCatalog(j.notice) && j.notice.d >= 0 && now - j.notice.postedAt.getTime() <= wk);
+    const topNew = [...matched].sort((a, b) => (b.fit?.score ?? 0) - (a.fit?.score ?? 0)).slice(0, 3)
+      .map((j) => ({ id: j.notice.id, title: j.notice.title, score: j.fit?.score ?? null, d: j.notice.d }));
+    const closingSaved = (notices ?? []).filter((n) => saved.includes(n.id) && n.d >= 0 && n.d <= 7).sort((a, b) => a.d - b.d)
+      .map((n) => ({ id: n.id, title: n.title, d: n.d }));
+    const recent = bids.filter((b) => now - new Date(b.opened_at).getTime() <= wk);
+    const res = { won: 0, lost: 0, below: 0, pending: 0 };
+    let bestMiss: Weekly['bestMiss'] = null; let bestGap = Infinity;
+    for (const b of recent) {
+      const o = bidOutcome(b);
+      if (o === 'won') res.won++; else if (o === 'below') res.below++; else if (o === 'lost') res.lost++; else res.pending++;
+      const n = notes.get(b.id);
+      if (o === 'lost' && n?.first_rate != null && n.rate != null && (b.rank ?? 0) > 1) {
+        const g = Math.abs(Number(n.rate) - Number(n.first_rate));
+        if (g < bestGap) { bestGap = g; bestMiss = { id: b.id, title: b.title, line: resultLine(o, b, n) ?? '' }; }
+      }
+    }
+    const names = new Set(orgs.map((o) => o.org));
+    const orgNew = names.size ? (notices ?? []).filter((n) => n.d >= 0 && now - n.postedAt.getTime() <= wk && [n.demandOrg, n.org].some((x) => x && names.has(x))).length : 0;
+    const orgEnd = orgs.flatMap((o) => o.watch.map((w) => ({ org: o.org, title: w.title, d: Math.ceil((new Date(`${w.end}T23:59:59+09:00`).getTime() - now) / 86400e3) })))
+      .filter((x) => x.d >= 0 && x.d <= ORG_END_DAYS).sort((a, b) => a.d - b.d);
+    const soon = pre ? matchPrespecs(pre, profile, stats).filter((m) => m.p.receivedAt && now - m.p.receivedAt.getTime() <= wk && m.p.status !== 'noticed').length : 0;
+    return { week: kstMonday(), newMatched: matched.length, topNew, closingSaved, results: res, bestMiss, orgNew, orgEnd, soon };
+  }, [account, judged, notices, saved, bids, notes, orgs, pre, profile, stats]);
+
   const items = useMemo<InboxItem[]>(() => {
     const out: InboxItem[] = [];
     if (!account) return out; // 알림함은 회원 전용
@@ -249,11 +295,19 @@ export function InboxProvider({ children }: { children: ReactNode }) {
           sub: `${top.title}${fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : ''} · 공고 전에 규격서를 볼 수 있어요`, href: '/bids?tab=soon', due: null, at: top.receivedAt! });
       }
     }
+    // 8) 이번 주 리포트 — 주마다 하나 (월요일 09:00 기준 정렬)
+    if (weekly) {
+      const r = weekly.results;
+      const bits = [`새 맞춤 공고 ${weekly.newMatched}`, r.won + r.lost + r.below ? `개찰 ${r.won + r.lost + r.below} · 낙찰 ${r.won}` : null,
+        weekly.orgEnd.length ? `계약 끝 기관 ${weekly.orgEnd.length}` : null, weekly.soon ? `곧 나올 공고 ${weekly.soon}` : null].filter(Boolean);
+      out.push({ key: `weekly:${weekly.week}`, kind: 'news', icon: 'report', title: '이번 주 리포트', sub: bits.join(' · '),
+        href: '/inbox/weekly', due: null, at: new Date(`${weekly.week}T09:00:00+09:00`) });
+    }
     // 7) 오늘 새 맞춤 공고
     const fresh = (judged ?? []).filter((j) => j.matched && j.notice.isNew && !isCatalog(j.notice)).length;
     if (fresh > 0) out.push({ key: `new:${kstDay()}`, kind: 'news', icon: 'new', title: `오늘 새 맞춤 공고 ${fresh}건`, sub: '적합도 높은 순', href: '/bids?sort=latest', due: null, at: new Date() });
     return out.sort((a, b) => b.at.getTime() - a.at.getTime());
-  }, [account, firstRanks, notices, saved, savedChanges, qual, bids, notes, judged, orgs, pre, profile, stats]);
+  }, [account, firstRanks, notices, saved, savedChanges, qual, bids, notes, judged, orgs, pre, profile, stats, weekly]);
 
   const value = useMemo<InboxValue>(() => {
     const actions = items.filter((i) => i.kind === 'action' && !state(i.key).done_at)
@@ -261,13 +315,13 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     const news = items.filter((i) => i.kind === 'news');
     const unread = [...actions, ...news].filter((i) => !state(i.key).read_at).length;
     return {
-      items, actions, news, unread, firstRanks, state, loading,
+      items, actions, news, unread, firstRanks, state, loading, weekly,
       savedOrgs: orgs, isSavedOrg: (org) => orgs.some((o) => o.org === org), saveOrg, unsaveOrg,
       markRead: (keys) => keys.forEach((k) => { const s = state(k); if (!s.read_at) persist(k, { ...s, read_at: new Date().toISOString() }); }),
       setDone: (k, done) => { const s = state(k); persist(k, { ...s, read_at: s.read_at ?? new Date().toISOString(), done_at: done ? new Date().toISOString() : null }); },
       toggleCheck: (k, c) => { const s = state(k); const set = new Set(s.checks); if (set.has(c)) set.delete(c); else set.add(c); persist(k, { ...s, checks: [...set] }); },
     };
-  }, [items, state, persist, firstRanks, loading, orgs, saveOrg, unsaveOrg]);
+  }, [items, state, persist, firstRanks, loading, orgs, saveOrg, unsaveOrg, weekly]);
 
   return <InboxContext.Provider value={value}>{children}</InboxContext.Provider>;
 }
